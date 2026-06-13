@@ -1,16 +1,184 @@
-from rest_framework import generics, status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.response import Response
+from datetime import datetime, timezone as dt_timezone
 
-from .models import Rol, Usuario, HistorialRolUsuario
+from django.conf import settings
+from django.utils import timezone
+from google.auth.exceptions import TransportError
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+from .models import (
+    AuditoriaUsuario,
+    DepartamentoAcademico,
+    EscuelaProfesional,
+    Facultad,
+    HistorialRolUsuario,
+    Rol,
+    Sesion,
+    Usuario,
+)
 from .serializers import (
     AsignarRolSerializer,
+    AuditoriaUsuarioSerializer,
+    DepartamentoAcademicoSerializer,
+    EscuelaProfesionalSerializer,
+    FacultadSerializer,
+    HistorialRolSerializer,
     RolSerializer,
     UsuarioCreateSerializer,
     UsuarioEditSerializer,
     UsuarioListSerializer,
 )
+
+def _get_client_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def _create_session(usuario, refresh, request):
+    expira_en = datetime.fromtimestamp(refresh.payload['exp'], tz=dt_timezone.utc)
+    Sesion.objects.create(
+        usuario=usuario,
+        token=str(refresh),
+        expira_en=expira_en,
+        ip_address=_get_client_ip(request),
+    )
+
+class SessionLoginView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            refresh = RefreshToken(response.data['refresh'])
+            usuario = Usuario.objects.get(pk=refresh['user_id'])
+            _create_session(usuario, refresh, request)
+        return response
+
+
+class SessionTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        token_str = request.data.get('refresh', '')
+        session_exists = Sesion.objects.filter(
+            token=token_str,
+            expira_en__gt=timezone.now(),
+        ).exists()
+        if not session_exists:
+            return Response(
+                {'detail': 'Sesión inválida o expirada.'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return super().post(request, *args, **kwargs)
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token_str = request.data.get('refresh')
+        if not token_str:
+            return Response(
+                {'detail': 'refresh token es requerido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        deleted, _ = Sesion.objects.filter(
+            token=token_str,
+            usuario=request.user,
+        ).delete()
+        if not deleted:
+            return Response(
+                {'detail': 'Sesión no encontrada.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GoogleAuthView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token_str = request.data.get('id_token')
+        if not token_str:
+            return Response(
+                {'detail': 'id_token es requerido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            idinfo = google_id_token.verify_oauth2_token(
+                token_str,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10,
+            )
+        except ValueError:
+            return Response(
+                {'detail': 'Token de Google inválido o expirado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except TransportError:
+            return Response(
+                {'detail': 'No se pudo verificar el token. Intente nuevamente.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        if not idinfo.get('email_verified'):
+            return Response(
+                {'detail': 'El correo Google no está verificado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        email = idinfo.get('email', '')
+        if not email.endswith('@unsa.edu.pe'):
+            return Response(
+                {'detail': 'Solo se permite acceso con correo institucional @unsa.edu.pe.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        nombre = idinfo.get('name', email)
+
+        try:
+            usuario = Usuario.objects.select_related('rol').get(correo_institucional=email)
+            es_nuevo = False
+            update_fields = ['ultimo_acceso']
+            if usuario.nombre_completo != nombre:
+                usuario.nombre_completo = nombre
+                update_fields.append('nombre_completo')
+            usuario.ultimo_acceso = timezone.now()
+            usuario.save(update_fields=update_fields)
+        except Usuario.DoesNotExist:
+            usuario = Usuario.objects.create_user(
+                correo_institucional=email,
+                password=None,
+                nombre_completo=nombre,
+            )
+            es_nuevo = True
+
+        if usuario.estado == 'inactivo':
+            return Response(
+                {'detail': 'Usuario inactivo. Contacte al administrador.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        refresh = RefreshToken.for_user(usuario)
+        _create_session(usuario, refresh, request)
+
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'usuario': {
+                'id': usuario.id,
+                'nombre_completo': usuario.nombre_completo,
+                'correo_institucional': usuario.correo_institucional,
+                'rol': usuario.rol.nombre if usuario.rol else None,
+                'es_nuevo': es_nuevo,
+            },
+        }, status=status.HTTP_200_OK)
 
 
 class UsuarioListCreateView(generics.ListCreateAPIView):
@@ -41,37 +209,90 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         return [IsAuthenticated()]
 
 
-@api_view(['POST'])
-@permission_classes([IsAdminUser])
-def asignar_rol(request, pk):
-    try:
-        usuario = Usuario.objects.get(pk=pk)
-    except Usuario.DoesNotExist:
-        return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+class AsignarRolView(APIView):
+    permission_classes = [IsAdminUser]
 
-    serializer = AsignarRolSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request, pk):
+        try:
+            usuario = Usuario.objects.get(pk=pk)
+        except Usuario.DoesNotExist:
+            return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-    rol_anterior = usuario.rol
-    rol_nuevo = serializer.validated_data['rol_id']
-    motivo = serializer.validated_data.get('motivo', '')
+        serializer = AsignarRolSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    HistorialRolUsuario.objects.create(
-        usuario=usuario,
-        cambiado_por=request.user,
-        rol_anterior=rol_anterior,
-        rol_nuevo=rol_nuevo,
-        motivo=motivo,
-    )
+        rol_anterior = usuario.rol
+        rol_nuevo = serializer.validated_data['rol_id']
+        motivo = serializer.validated_data.get('motivo', '')
 
-    usuario.rol = rol_nuevo
-    usuario.save(update_fields=['rol'])
+        HistorialRolUsuario.objects.create(
+            usuario=usuario,
+            cambiado_por=request.user,
+            rol_anterior=rol_anterior,
+            rol_nuevo=rol_nuevo,
+            motivo=motivo,
+        )
+        usuario.rol = rol_nuevo
+        usuario.save(update_fields=['rol'])
 
-    return Response({'detail': f'Rol asignado: {rol_nuevo.nombre}'}, status=status.HTTP_200_OK)
+        return Response({'detail': f'Rol asignado: {rol_nuevo.nombre}'}, status=status.HTTP_200_OK)
 
 
 class RolListView(generics.ListAPIView):
     queryset = Rol.objects.filter(activo=True)
     serializer_class = RolSerializer
     permission_classes = [IsAuthenticated]
+
+
+class FacultadListView(generics.ListAPIView):
+    queryset = Facultad.objects.all().order_by('nombre')
+    serializer_class = FacultadSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class EscuelaProfesionalListView(generics.ListAPIView):
+    serializer_class = EscuelaProfesionalSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = EscuelaProfesional.objects.all().order_by('nombre')
+        facultad_id = self.request.query_params.get('facultad')
+        if facultad_id:
+            qs = qs.filter(facultad_id=facultad_id)
+        return qs
+
+
+class DepartamentoAcademicoListView(generics.ListAPIView):
+    serializer_class = DepartamentoAcademicoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = DepartamentoAcademico.objects.all().order_by('nombre')
+        facultad_id = self.request.query_params.get('facultad')
+        if facultad_id:
+            qs = qs.filter(facultad_id=facultad_id)
+        return qs
+
+
+class HistorialRolUsuarioListView(generics.ListAPIView):
+    serializer_class = HistorialRolSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            HistorialRolUsuario.objects
+            .filter(usuario_id=self.kwargs['pk'])
+            .select_related('cambiado_por', 'rol_anterior', 'rol_nuevo')
+            .order_by('-created_at')
+        )
+
+
+class AuditoriaListView(generics.ListAPIView):
+    queryset = (
+        AuditoriaUsuario.objects
+        .select_related('ejecutado_por', 'usuario_afectado')
+        .order_by('-created_at')
+    )
+    serializer_class = AuditoriaUsuarioSerializer
+    permission_classes = [IsAdminUser]

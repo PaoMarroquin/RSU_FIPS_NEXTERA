@@ -38,6 +38,7 @@ Open `.env` and set the following variables:
 | `POSTGRES_PASSWORD` | Database password |
 | `POSTGRES_HOST` | Database host|
 | `POSTGRES_PORT` | Database port |
+| `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID |
 
 ---
 

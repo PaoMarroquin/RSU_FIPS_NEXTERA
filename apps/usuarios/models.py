@@ -126,6 +126,22 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return f'{self.nombre_completo} ({self.correo_institucional})'
 
 
+class Sesion(models.Model):
+    usuario    = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='sesiones')
+    token      = models.CharField(max_length=500, unique=True)
+    expira_en  = models.DateTimeField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'sesiones'
+        verbose_name = 'Sesión'
+        verbose_name_plural = 'Sesiones'
+
+    def __str__(self):
+        return f'Sesión de {self.usuario} — {self.created_at:%Y-%m-%d %H:%M}'
+
+
 class HistorialRolUsuario(models.Model):
     usuario       = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='historial_roles')
     cambiado_por  = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='cambios_roles')
