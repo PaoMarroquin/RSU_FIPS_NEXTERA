@@ -70,9 +70,19 @@ REST_FRAMEWORK = {
     ),
 }
 
+# FIX: Decirle a SimpleJWT que el campo de login es correo_institucional
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  __import__('datetime').timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': __import__('datetime').timedelta(days=1),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
+
 CORS_ALLOW_ALL_ORIGINS = True
 
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
+# FIX: default=None para que el servidor arranque aunque no esté en .env
+# Google OAuth es opcional hasta que configuren las credenciales grupales
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=None)
 
 LANGUAGE_CODE = 'es-pe'
 TIME_ZONE = 'America/Lima'
