@@ -17,6 +17,8 @@ INSTALLED_APPS = [
     'corsheaders',
     # Propias
     'apps.usuarios',
+    'apps.planificacion',
+    'apps.proyectos',
 ]
 
 ROOT_URLCONF = 'config.urls'
