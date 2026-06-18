@@ -205,17 +205,29 @@ class ProyectosAPITests(APITestCase):
         # Try sending to review - should fail
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('descripcion_general', response.data['errors'])
         self.assertIn('ods', response.data['errors'])
         self.assertIn('asignaturas', response.data['errors'])
 
         # 2. Complete all required fields and relationships
-        proyecto.descripcion_general = 'Completado'
-        proyecto.fundamentacion = 'Completado'
-        proyecto.diagnostico_situacional = 'Completado'
+        proyecto.fund_por_que_grupo = 'Completado'
+        proyecto.fund_para_que_proyecto = 'Completado'
+        proyecto.fund_mecanismo_ensenanza = 'Completado'
+        proyecto.diag_estado_grupo = 'Completado'
+        proyecto.diag_problemas_detectados = 'Completado'
+        proyecto.diag_aportes_formacion = 'Completado'
+        proyecto.objetivo_general = 'Completado'
+        proyecto.resultado_en_beneficiarios = 'Completado'
+        proyecto.resultado_en_curriculo = 'Completado'
         proyecto.linea_estrategica = self.linea
         proyecto.objetivo_institucional = self.objetivo
         proyecto.anio_carrera = 1
+        proyecto.meta_cuantitativa = '50 beneficiarios'
+        proyecto.indicador = 'Nro de beneficiarios'
+        proyecto.lugar_ejecucion = 'Arequipa'
+        proyecto.fecha_inicio = '2026-01-01'
+        proyecto.fecha_termino = '2026-12-31'
+        proyecto.tipo_actividad = ['asesoria']
+        proyecto.benef_otro = True
         proyecto.save()
         
         proyecto.ods.add(self.ods_1)

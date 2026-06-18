@@ -1,0 +1,92 @@
+{% extends "admin/change_form.html" %}
+
+{% block field_sets %}
+    {% for fieldset in adminform %}
+        <fieldset class="module aligned {{ fieldset.classes }}">
+            {% if fieldset.name %}<h2>{{ fieldset.name }}</h2>{% endif %}
+            {% if fieldset.description %}
+                <div class="description">{{ fieldset.description|safe }}</div>
+            {% endif %}
+            
+            {# Render standard fields of this fieldset #}
+            {% for line in fieldset %}
+                <div class="form-row{% if line.errors %} errors{% endif %} {% for field in line %}{{ field.field.name }} {% endfor %}">
+                    {{ line.errors }}
+                    {% for field in line %}
+                        <div{% if not line.fields|length_is:"1" %} class="field-box"{% endif %}>
+                            {% if field.is_checkbox %}
+                                {{ field.field }}{{ field.label_tag }}
+                            {% else %}
+                                {{ field.label_tag }}{{ field.field }}
+                            {% endif %}
+                            {% if field.field.field.help_text %}
+                                <p class="help">{{ field.field.field.help_text|safe }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            {# --- INSERT INLINES HERE INSIDE THE COLLAPSIBLE FIELDSET --- #}
+            {# Section I. Datos Generales -> render Asignatura and Docente adicional inlines #}
+            {% if fieldset.name == "I. Datos Generales" %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.verbose_name == "Asignatura" or inline_admin_formset.opts.verbose_name == "Docente adicional" %}
+                        <div class="form-row" style="padding: 10px; background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 4px; margin-top: 10px; overflow-x: auto; max-width: 100%; display: block;">
+                            {% include inline_admin_formset.opts.template %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            {# Section IV. Objetivos -> render Objetivo específico inline #}
+            {% if fieldset.name == "IV. Objetivos" %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.verbose_name == "Objetivo específico" %}
+                        <div class="form-row" style="padding: 10px; background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 4px; margin-top: 10px; overflow-x: auto; max-width: 100%; display: block;">
+                            {% include inline_admin_formset.opts.template %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            {# Section VI. Actividades -> render Actividad inline #}
+            {% if fieldset.name == "VI. Actividades" %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.verbose_name == "Actividad" %}
+                        <div class="form-row" style="padding: 10px; background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 4px; margin-top: 10px; overflow-x: auto; max-width: 100%; display: block;">
+                            {% include inline_admin_formset.opts.template %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            {# Section VII. Cronograma -> render Acción inline #}
+            {% if fieldset.name == "VII. Cronograma" %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.verbose_name == "Acción" %}
+                        <div class="form-row" style="padding: 10px; background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 4px; margin-top: 10px; overflow-x: auto; max-width: 100%; display: block;">
+                            {% include inline_admin_formset.opts.template %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+            {# Section IX. Financiamiento -> render Documento inline #}
+            {% if fieldset.name == "IX. Financiamiento" %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {% if inline_admin_formset.opts.verbose_name == "Documento" %}
+                        <div class="form-row" style="padding: 10px; background: #fdfdfd; border: 1px solid #eaeaea; border-radius: 4px; margin-top: 10px; overflow-x: auto; max-width: 100%; display: block;">
+                            {% include inline_admin_formset.opts.template %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+
+        </fieldset>
+    {% endfor %}
+{% endblock %}
+
+{% block inline_field_sets %}
+    {# Render nothing here to avoid duplicate inlines at the bottom #}
+{% endblock %}
