@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from apps.utils.permissions import IsOwnerOrReadOnly
+from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
 from .models import ProyectoRSU, ObjetivoEspecifico, ActividadProyecto, CronogramaAccion
 from .serializers import (
     ProyectoRSUSerializer,
@@ -79,22 +79,41 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         return qs
 
     def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), IsDocente()]
         return [IsAuthenticated()]
 
 
 class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = ProyectoRSU.objects.all().select_related(
-        'facultad', 'escuela', 'departamento', 'periodo',
-        'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
-        'docente_responsable',
-    ).prefetch_related(
-        'ods', 'asignaturas', 'docentes_adicionales',
-        'objetivos_especificos', 'actividades', 'cronograma',
-    )
     serializer_class = ProyectoRSUSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = ProyectoRSU.objects.all().select_related(
+            'facultad', 'escuela', 'departamento', 'periodo',
+            'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+            'docente_responsable',
+        ).prefetch_related(
+            'ods', 'asignaturas', 'docentes_adicionales',
+            'objetivos_especificos', 'actividades', 'cronograma',
+        )
+        if user.rol and user.rol.nombre == Rol.DOCENTE:
+            return qs.filter(
+                Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
+            ).distinct()
+        elif user.rol and user.rol.nombre == Rol.ESTUDIANTE:
+            return qs.filter(estado='aprobado')
+        return qs
 
     def get_permissions(self):
         return [IsAuthenticated(), IsOwnerOrReadOnly()]
+
+    def perform_destroy(self, instance):
+        if instance.estado != 'borrador':
+            raise serializers.ValidationError(
+                'Solo se pueden eliminar proyectos en estado Borrador.'
+            )
+        instance.delete()
 
 
 # ──────────────────────────────────────────────────────────────────────────────

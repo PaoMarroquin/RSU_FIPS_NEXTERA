@@ -245,3 +245,92 @@ class ProyectosAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['proyecto']['estado'], 'en_revision')
         self.assertIsNotNone(response.data['proyecto']['fecha_envio_revision'])
+
+    def test_docente_can_delete_draft_project(self):
+        """
+        Verify that a teacher (owner) can delete a project in draft state.
+        """
+        proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto a Eliminar',
+            eje_rsu=self.eje_gestion,
+            periodo=self.periodo,
+            facultad=self.facultad,
+            escuela=self.escuela,
+            departamento=self.departamento,
+            docente_responsable=self.docente_user,
+            semestre_academico='2026-I',
+            estado='borrador'
+        )
+
+        self.client.force_authenticate(user=self.docente_user)
+        url = reverse('proyecto-detail', args=[proyecto.id])
+
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(ProyectoRSU.objects.filter(id=proyecto.id).exists())
+
+    def test_cannot_delete_project_in_review(self):
+        """
+        Verify that a project in review state cannot be deleted.
+        """
+        proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto en Revisión',
+            eje_rsu=self.eje_gestion,
+            periodo=self.periodo,
+            facultad=self.facultad,
+            escuela=self.escuela,
+            departamento=self.departamento,
+            docente_responsable=self.docente_user,
+            semestre_academico='2026-I',
+            estado='en_revision'
+        )
+
+        self.client.force_authenticate(user=self.docente_user)
+        url = reverse('proyecto-detail', args=[proyecto.id])
+
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(ProyectoRSU.objects.filter(id=proyecto.id).exists())
+
+    def test_non_owner_cannot_delete_project(self):
+        """
+        Verify that a non-owner docente cannot see or delete another teacher's draft project.
+        """
+        proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto de Otro Docente',
+            eje_rsu=self.eje_gestion,
+            periodo=self.periodo,
+            facultad=self.facultad,
+            escuela=self.escuela,
+            departamento=self.departamento,
+            docente_responsable=self.docente_user,
+            semestre_academico='2026-I',
+            estado='borrador'
+        )
+
+        self.client.force_authenticate(user=self.docente_user_2)
+        url = reverse('proyecto-detail', args=[proyecto.id])
+
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(ProyectoRSU.objects.filter(id=proyecto.id).exists())
+
+    def test_non_docente_cannot_create_project(self):
+        """
+        Verify that a Coordinador cannot create an RSU project (only Docentes can).
+        """
+        self.client.force_authenticate(user=self.coord_user)
+        url = reverse('proyecto-list')
+
+        data = {
+            'titulo': 'Proyecto No Permitido',
+            'eje_rsu': self.eje_gestion.id,
+            'periodo': self.periodo.id,
+            'facultad': self.facultad.id,
+            'escuela': self.escuela.id,
+            'departamento': self.departamento.id,
+            'semestre_academico': '2026-I',
+        }
+
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
