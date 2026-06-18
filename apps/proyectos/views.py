@@ -2,6 +2,7 @@ from rest_framework import generics, status, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -22,21 +23,16 @@ from apps.usuarios.models import Rol
 
 def get_proyecto_editable(pk, user):
     """
-    Retorna el proyecto si existe y el usuario tiene permiso de edición.
-    Lanza Response con error si no.
+    Retorna el proyecto si el usuario es el responsable y el estado permite edición.
+    Raises PermissionDenied (403) o ValidationError (400) si no.
     """
     proyecto = get_object_or_404(ProyectoRSU, pk=pk)
     if proyecto.docente_responsable != user:
-        return None, Response(
-            {'detail': 'No tienes permisos para modificar este proyecto.'},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
     if proyecto.estado not in ['borrador', 'observado']:
-        return None, Response(
-            {'detail': 'Solo se pueden modificar proyectos en estado Borrador u Observado.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    return proyecto, None
+        raise serializers.ValidationError(
+            'Solo se pueden modificar proyectos en estado Borrador u Observado.')
+    return proyecto
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -249,9 +245,7 @@ class ObjetivoEspecificoListCreateView(generics.ListCreateAPIView):
         ).order_by('orden')
 
     def perform_create(self, serializer):
-        proyecto, error = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        if error:
-            raise serializer.ValidationError(error.data)
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -267,22 +261,12 @@ class ObjetivoEspecificoDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return ObjetivoEspecifico.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
-    def check_editable(self):
-        proyecto, error = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        if error:
-            return error
-        return None
-
     def update(self, request, *args, **kwargs):
-        err = self.check_editable()
-        if err:
-            return err
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        err = self.check_editable()
-        if err:
-            return err
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -304,9 +288,7 @@ class ActividadProyectoListCreateView(generics.ListCreateAPIView):
         ).order_by('orden', 'fecha')
 
     def perform_create(self, serializer):
-        proyecto, error = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        if error:
-            raise serializers.ValidationError(error.data)
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -322,22 +304,12 @@ class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
-    def check_editable(self):
-        proyecto, error = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        if error:
-            return error
-        return None
-
     def update(self, request, *args, **kwargs):
-        err = self.check_editable()
-        if err:
-            return err
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        err = self.check_editable()
-        if err:
-            return err
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -359,9 +331,7 @@ class CronogramaAccionListCreateView(generics.ListCreateAPIView):
         ).order_by('orden')
 
     def perform_create(self, serializer):
-        proyecto, error = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        if error:
-            raise serializers.ValidationError(error.data)
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -377,20 +347,10 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return CronogramaAccion.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
-    def check_editable(self):
-        proyecto, error = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        if error:
-            return error
-        return None
-
     def update(self, request, *args, **kwargs):
-        err = self.check_editable()
-        if err:
-            return err
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        err = self.check_editable()
-        if err:
-            return err
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)

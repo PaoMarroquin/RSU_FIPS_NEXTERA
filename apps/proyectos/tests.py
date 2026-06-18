@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from apps.usuarios.models import Usuario, Rol, Facultad, EscuelaProfesional, DepartamentoAcademico
 from apps.planificacion.models import PeriodoAcademico, MatrizOperativa, EjeRSU, ODS, LineaEstrategica, ObjetivoInstitucional
-from apps.proyectos.models import ProyectoRSU
+from apps.proyectos.models import ProyectoRSU, ActividadProyecto, CronogramaAccion
 
 class ProyectosAPITests(APITestCase):
 
@@ -334,3 +334,214 @@ class ProyectosAPITests(APITestCase):
 
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Shared fixture mixin
+# ──────────────────────────────────────────────────────────────────────────────
+
+class BaseProyectoTestCase(APITestCase):
+    """Common setUp shared by actividades and cronograma test classes."""
+
+    # Placeholder only – all tests use force_authenticate, not real login
+    _cred = None
+
+    def setUp(self):
+        self.rol_docente = Rol.objects.get(nombre='Docente')
+        self.eje_gestion = EjeRSU.objects.get(nombre='Gestión')
+        self.facultad = Facultad.objects.get(codigo='FIPS')
+        self.escuela = EscuelaProfesional.objects.get(codigo='EPIS')
+        self.departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
+
+        self.docente = Usuario.objects.create_user(
+            correo_institucional='docente.act@unsa.edu.pe',
+            password=self._cred,
+            nombre_completo='Docente Actividades',
+            rol=self.rol_docente,
+            facultad=self.facultad,
+        )
+        self.otro_docente = Usuario.objects.create_user(
+            correo_institucional='otro.act@unsa.edu.pe',
+            password=self._cred,
+            nombre_completo='Otro Docente',
+            rol=self.rol_docente,
+            facultad=self.facultad,
+        )
+
+        self.periodo = PeriodoAcademico.objects.create(
+            nombre='2026-II', anio=2026, semestre='II',
+            fecha_inicio='2026-09-01', fecha_fin='2027-01-31', activo=True,
+        )
+
+        self.proyecto_borrador = ProyectoRSU.objects.create(
+            titulo='Proyecto Base Borrador',
+            eje_rsu=self.eje_gestion,
+            periodo=self.periodo,
+            facultad=self.facultad,
+            escuela=self.escuela,
+            departamento=self.departamento,
+            docente_responsable=self.docente,
+            semestre_academico='2026-II',
+            estado='borrador',
+        )
+        self.proyecto_en_revision = ProyectoRSU.objects.create(
+            titulo='Proyecto Base En Revisión',
+            eje_rsu=self.eje_gestion,
+            periodo=self.periodo,
+            facultad=self.facultad,
+            escuela=self.escuela,
+            departamento=self.departamento,
+            docente_responsable=self.docente,
+            semestre_academico='2026-II',
+            estado='en_revision',
+        )
+
+
+class ActividadesAPITests(BaseProyectoTestCase):
+
+    def test_listar_actividades_del_proyecto(self):
+        ActividadProyecto.objects.create(proyecto=self.proyecto_borrador, nombre='Act 1', orden=1)
+        ActividadProyecto.objects.create(proyecto=self.proyecto_borrador, nombre='Act 2', orden=2)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('actividad-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_docente_puede_agregar_actividad_a_proyecto_borrador(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('actividad-list', args=[self.proyecto_borrador.id])
+        data = {'nombre': 'Taller de reciclaje', 'orden': 1, 'fecha': '2026-10-15'}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['nombre'], 'Taller de reciclaje')
+        self.assertTrue(ActividadProyecto.objects.filter(proyecto=self.proyecto_borrador).exists())
+
+    def test_no_propietario_no_puede_agregar_actividad(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('actividad-list', args=[self.proyecto_borrador.id])
+        data = {'nombre': 'Actividad no autorizada', 'orden': 1}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_no_puede_agregar_actividad_a_proyecto_en_revision(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('actividad-list', args=[self.proyecto_en_revision.id])
+        data = {'nombre': 'Actividad bloqueada', 'orden': 1}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_docente_puede_editar_actividad(self):
+        actividad = ActividadProyecto.objects.create(
+            proyecto=self.proyecto_borrador, nombre='Act original', orden=1)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('actividad-detail', args=[self.proyecto_borrador.id, actividad.id])
+        response = self.client.patch(url, {'nombre': 'Act editada'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['nombre'], 'Act editada')
+
+    def test_no_propietario_no_puede_editar_actividad(self):
+        actividad = ActividadProyecto.objects.create(
+            proyecto=self.proyecto_borrador, nombre='Act original', orden=1)
+
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('actividad-detail', args=[self.proyecto_borrador.id, actividad.id])
+        response = self.client.patch(url, {'nombre': 'Intento ilegal'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_docente_puede_eliminar_actividad(self):
+        actividad = ActividadProyecto.objects.create(
+            proyecto=self.proyecto_borrador, nombre='Act a eliminar', orden=1)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('actividad-detail', args=[self.proyecto_borrador.id, actividad.id])
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(ActividadProyecto.objects.filter(id=actividad.id).exists())
+
+
+class CronogramaAPITests(BaseProyectoTestCase):
+
+    def test_listar_cronograma_del_proyecto(self):
+        CronogramaAccion.objects.create(proyecto=self.proyecto_borrador, descripcion='Acción 1', orden=1)
+        CronogramaAccion.objects.create(proyecto=self.proyecto_borrador, descripcion='Acción 2', orden=2)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_docente_puede_agregar_accion_cronograma(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-list', args=[self.proyecto_borrador.id])
+        data = {'descripcion': 'Reunión inicial', 'mes_semana': 'Mes 1', 'orden': 1}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['descripcion'], 'Reunión inicial')
+        self.assertTrue(CronogramaAccion.objects.filter(proyecto=self.proyecto_borrador).exists())
+
+    def test_no_propietario_no_puede_agregar_accion_cronograma(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('cronograma-list', args=[self.proyecto_borrador.id])
+        data = {'descripcion': 'Acción no autorizada', 'orden': 1}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_no_puede_agregar_cronograma_a_proyecto_en_revision(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-list', args=[self.proyecto_en_revision.id])
+        data = {'descripcion': 'Acción bloqueada', 'orden': 1}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_docente_puede_editar_accion_cronograma(self):
+        accion = CronogramaAccion.objects.create(
+            proyecto=self.proyecto_borrador, descripcion='Acción original', orden=1)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-detail', args=[self.proyecto_borrador.id, accion.id])
+        response = self.client.patch(url, {'descripcion': 'Acción editada'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['descripcion'], 'Acción editada')
+
+    def test_no_propietario_no_puede_editar_accion_cronograma(self):
+        accion = CronogramaAccion.objects.create(
+            proyecto=self.proyecto_borrador, descripcion='Acción original', orden=1)
+
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('cronograma-detail', args=[self.proyecto_borrador.id, accion.id])
+        response = self.client.patch(url, {'descripcion': 'Intento ilegal'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_docente_puede_eliminar_accion_cronograma(self):
+        accion = CronogramaAccion.objects.create(
+            proyecto=self.proyecto_borrador, descripcion='Acción a eliminar', orden=1)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-detail', args=[self.proyecto_borrador.id, accion.id])
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CronogramaAccion.objects.filter(id=accion.id).exists())
