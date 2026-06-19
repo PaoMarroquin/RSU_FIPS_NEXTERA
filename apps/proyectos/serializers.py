@@ -205,7 +205,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         return [{'id': o.id, 'numero': o.numero, 'nombre': o.nombre} for o in obj.ods.all()]
 
     def get_tipo_actividad_display(self, obj):
-        """Devuelve etiquetas legibles para cada tipo de actividad seleccionado."""
         labels = {
             'programas_formativos': 'Programas formativos',
             'acompanamiento': 'Acompañamiento a sectores identificados',
@@ -213,26 +212,40 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'acercamiento_comunidad': 'Iniciativas de acercamiento a la comunidad',
             'otro': 'Otros',
         }
-        tipos = obj.tipo_actividad or []
-        return [labels.get(t, t) for t in tipos]
+        return [labels.get(t, t) for t in (obj.tipo_actividad or [])]
 
     def validate_tipo_actividad(self, value):
-        """Valida que tipo_actividad sea lista con valores válidos."""
         if not isinstance(value, list):
             raise serializers.ValidationError('Debe ser una lista de tipos de actividad.')
         validos = ProyectoRSU.TIPOS_ACTIVIDAD_VALIDOS
         for v in value:
             if v not in validos:
                 raise serializers.ValidationError(
-                    f"'{v}' no es un tipo de actividad válido. "
-                    f"Opciones: {validos}"
+                    f"'{v}' no es un tipo de actividad válido. Opciones: {validos}"
                 )
         return value
+
+    def validate(self, attrs):
+        """Valida coherencia entre facultad, escuela y departamento."""
+        # Para PATCH, usar el valor actual del campo si no viene en attrs
+        facultad = attrs.get('facultad', getattr(self.instance, 'facultad', None))
+        escuela = attrs.get('escuela', getattr(self.instance, 'escuela', None))
+        departamento = attrs.get('departamento', getattr(self.instance, 'departamento', None))
+
+        if facultad and escuela and escuela.facultad_id != facultad.pk:
+            raise serializers.ValidationError({
+                'escuela': 'La escuela profesional no pertenece a la facultad seleccionada.'
+            })
+        if facultad and departamento and departamento.facultad_id != facultad.pk:
+            raise serializers.ValidationError({
+                'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'
+            })
+        return attrs
 
     def _save_nested(self, proyecto, data_map, replace=False):
         """
         Crea o reemplaza objetos relacionados en lote.
-        data_map: dict { Manager: (serializer_data_list, Model) }
+        data_map: dict { attr_name: list_of_dicts }
         """
         mapping = {
             'asignaturas': ProyectoAsignatura,
@@ -252,13 +265,13 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 model.objects.create(proyecto=proyecto, **item)
 
     def create(self, validated_data):
-        asignaturas_data = validated_data.pop('asignaturas', [])
-        docentes_data = validated_data.pop('docentes_adicionales', [])
-        objetivos_data = validated_data.pop('objetivos_especificos', [])
-        actividades_data = validated_data.pop('actividades', [])
-        cronograma_data = validated_data.pop('cronograma', [])
-        documentos_data = validated_data.pop('documentos_sustento', [])
-        ods_data = validated_data.pop('ods', [])
+        asignaturas_data    = validated_data.pop('asignaturas', [])
+        docentes_data       = validated_data.pop('docentes_adicionales', [])
+        objetivos_data      = validated_data.pop('objetivos_especificos', [])
+        actividades_data    = validated_data.pop('actividades', [])
+        cronograma_data     = validated_data.pop('cronograma', [])
+        documentos_data     = validated_data.pop('documentos_sustento', [])
+        ods_data            = validated_data.pop('ods', [])
 
         validated_data['docente_responsable'] = self.context['request'].user
         validated_data['estado'] = 'borrador'
@@ -270,12 +283,12 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             proyecto.ods.set(ods_data)
             self._save_nested(proyecto, {
-                'asignaturas': asignaturas_data,
-                'docentes_adicionales': docentes_data,
+                'asignaturas':           asignaturas_data,
+                'docentes_adicionales':  docentes_data,
                 'objetivos_especificos': objetivos_data,
-                'actividades': actividades_data,
-                'cronograma': cronograma_data,
-                'documentos_sustento': documentos_data,
+                'actividades':           actividades_data,
+                'cronograma':            cronograma_data,
+                'documentos_sustento':   documentos_data,
             }, replace=False)
 
         return proyecto
@@ -285,27 +298,30 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "No se puede editar un proyecto que está en revisión o ya aprobado.")
 
-        asignaturas_data = validated_data.pop('asignaturas', None)
-        docentes_data = validated_data.pop('docentes_adicionales', None)
-        objetivos_data = validated_data.pop('objetivos_especificos', None)
-        actividades_data = validated_data.pop('actividades', None)
-        cronograma_data = validated_data.pop('cronograma', None)
-        ods_data = validated_data.pop('ods', None)
+        asignaturas_data    = validated_data.pop('asignaturas', None)
+        docentes_data       = validated_data.pop('docentes_adicionales', None)
+        objetivos_data      = validated_data.pop('objetivos_especificos', None)
+        actividades_data    = validated_data.pop('actividades', None)
+        cronograma_data     = validated_data.pop('cronograma', None)
+        documentos_data     = validated_data.pop('documentos_sustento', None)
+        ods_data            = validated_data.pop('ods', None)
 
         with transaction.atomic():
+            changed_fields = list(validated_data.keys())
             for attr, value in validated_data.items():
                 setattr(instance, attr, value)
-            instance.save()
+            instance.save(update_fields=list(set(changed_fields + ['updated_at'])))
 
             if ods_data is not None:
                 instance.ods.set(ods_data)
 
             self._save_nested(instance, {
-                'asignaturas': asignaturas_data,
-                'docentes_adicionales': docentes_data,
+                'asignaturas':           asignaturas_data,
+                'docentes_adicionales':  docentes_data,
                 'objetivos_especificos': objetivos_data,
-                'actividades': actividades_data,
-                'cronograma': cronograma_data,
+                'actividades':           actividades_data,
+                'cronograma':            cronograma_data,
+                'documentos_sustento':   documentos_data,
             }, replace=True)
 
         return instance

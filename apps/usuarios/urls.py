@@ -8,6 +8,7 @@ urlpatterns = [
     path('auth/logout/',        views.LogoutView.as_view(),              name='auth-logout'),
     path('auth/google/',        views.GoogleAuthView.as_view(),          name='auth-google'),
 
+    path('usuarios/me/',                           views.MiPerfilView.as_view(),                  name='usuario-me'),
     path('usuarios/',                              views.UsuarioListCreateView.as_view(),          name='usuario-list'),
     path('usuarios/<int:pk>/',                     views.UsuarioRetrieveUpdateDestroyView.as_view(), name='usuario-detail'),
     path('usuarios/<int:pk>/asignar-rol/',         views.AsignarRolView.as_view(),                name='usuario-asignar-rol'),

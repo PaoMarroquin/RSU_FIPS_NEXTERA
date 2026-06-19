@@ -100,11 +100,11 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     rol                  = models.ForeignKey(Rol, on_delete=models.PROTECT,
                                              null=True, blank=True, related_name='usuarios')
     facultad             = models.ForeignKey(Facultad, on_delete=models.SET_NULL,
-                                             null=True, blank=True)
+                                             null=True, blank=True, related_name='usuarios')
     escuela              = models.ForeignKey(EscuelaProfesional, on_delete=models.SET_NULL,
-                                             null=True, blank=True)
+                                             null=True, blank=True, related_name='usuarios')
     departamento         = models.ForeignKey(DepartamentoAcademico, on_delete=models.SET_NULL,
-                                             null=True, blank=True)
+                                             null=True, blank=True, related_name='usuarios')
     estado               = models.CharField(max_length=20, default='activo',
                                             choices=[('activo', 'Activo'), ('inactivo', 'Inactivo')])
     is_staff             = models.BooleanField(default=False)

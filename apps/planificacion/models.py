@@ -20,6 +20,12 @@ class PeriodoAcademico(models.Model):
         db_table = 'periodos_academicos'
         verbose_name = 'Periodo Académico'
         verbose_name_plural = 'Periodos Académicos'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['anio', 'semestre'],
+                name='unique_periodo_anio_semestre',
+            )
+        ]
 
     def __str__(self):
         return self.nombre
@@ -80,7 +86,7 @@ class MatrizOperativa(models.Model):
     facultad = models.ForeignKey(Facultad, on_delete=models.PROTECT, related_name='matrices')
     coordinador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='matrices_coordinadas')
     presupuesto_global = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS)
+    estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS, db_index=True)
     observaciones = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

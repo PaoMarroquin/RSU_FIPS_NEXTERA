@@ -1,8 +1,10 @@
 from datetime import datetime, timezone as dt_timezone
 
 from django.conf import settings
+from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,6 +12,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.utils.permissions import IsOwnerOrAdmin
 from .models import (
     AuditoriaUsuario,
     DepartamentoAcademico,
@@ -27,16 +30,21 @@ from .serializers import (
     EscuelaProfesionalSerializer,
     FacultadSerializer,
     HistorialRolSerializer,
+    MiPerfilUpdateSerializer,
     RolSerializer,
     UsuarioCreateSerializer,
     UsuarioEditSerializer,
     UsuarioListSerializer,
 )
 
+try:
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.exceptions import TransportError as GoogleTransportError
+    _GOOGLE_AUTH_AVAILABLE = True
+except ImportError:
+    _GOOGLE_AUTH_AVAILABLE = False
 
-# ─────────────────────────────────────────────
-# HELPERS
-# ─────────────────────────────────────────────
 
 def _get_client_ip(request):
     forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -66,17 +74,19 @@ def _registrar_auditoria(ejecutado_por, usuario_afectado, accion, detalle='', re
     )
 
 
-# ─────────────────────────────────────────────
-# FIX: Serializer de login que usa correo_institucional
-# ─────────────────────────────────────────────
-
 class CorreoTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = Usuario.USERNAME_FIELD  # = 'correo_institucional'
+    username_field = Usuario.USERNAME_FIELD
 
     def validate(self, attrs):
-        # Renombrar la clave que llega del frontend si viene como 'correo_institucional'
+        correo = attrs.get(self.username_field, '')
+        try:
+            candidato = Usuario.objects.get(correo_institucional=correo)
+            if candidato.estado == 'inactivo':
+                raise PermissionDenied('Usuario inactivo. Contacte al administrador.')
+        except Usuario.DoesNotExist:
+            pass
+
         data = super().validate(attrs)
-        # Añadir info del usuario en la respuesta
         data['usuario'] = {
             'id': self.user.id,
             'nombre_completo': self.user.nombre_completo,
@@ -87,17 +97,7 @@ class CorreoTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
-# ─────────────────────────────────────────────
-# AUTENTICACIÓN
-# ─────────────────────────────────────────────
-
 class SessionLoginView(TokenObtainPairView):
-    """
-    POST /api/auth/login/
-    Body: { "correo_institucional": "...", "password": "..." }
-    Devuelve access + refresh + datos del usuario.
-    Guarda la sesión en BD.
-    """
     serializer_class = CorreoTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
@@ -105,29 +105,13 @@ class SessionLoginView(TokenObtainPairView):
         if response.status_code == 200:
             refresh = RefreshToken(response.data['refresh'])
             usuario = Usuario.objects.get(pk=refresh['user_id'])
-
-            # Verificar que el usuario esté activo
-            if usuario.estado == 'inactivo':
-                return Response(
-                    {'detail': 'Usuario inactivo. Contacte al administrador.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            # Guardar sesión en BD
             _create_session(usuario, refresh, request)
-
-            # Actualizar último acceso
             usuario.ultimo_acceso = timezone.now()
             usuario.save(update_fields=['ultimo_acceso'])
-
         return response
 
 
 class SessionTokenRefreshView(TokenRefreshView):
-    """
-    POST /api/auth/token/refresh/
-    Valida que la sesión exista en BD antes de renovar el token.
-    """
     def post(self, request, *args, **kwargs):
         token_str = request.data.get('refresh', '')
         session_exists = Sesion.objects.filter(
@@ -143,11 +127,6 @@ class SessionTokenRefreshView(TokenRefreshView):
 
 
 class LogoutView(APIView):
-    """
-    POST /api/auth/logout/
-    Body: { "refresh": "..." }
-    Invalida el token en BD (logout real).
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -170,17 +149,10 @@ class LogoutView(APIView):
 
 
 class GoogleAuthView(APIView):
-    """
-    POST /api/auth/google/
-    Body: { "id_token": "token_de_google" }
-    Solo acepta correos @unsa.edu.pe.
-    Requiere GOOGLE_CLIENT_ID en .env
-    """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Si no hay credenciales de Google configuradas, devolver error claro
-        if not settings.GOOGLE_CLIENT_ID:
+        if not settings.GOOGLE_CLIENT_ID or not _GOOGLE_AUTH_AVAILABLE:
             return Response(
                 {'detail': 'Google OAuth no está configurado aún. Use login con correo y contraseña.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -194,10 +166,6 @@ class GoogleAuthView(APIView):
             )
 
         try:
-            from google.auth.transport import requests as google_requests
-            from google.oauth2 import id_token as google_id_token
-            from google.auth.exceptions import TransportError
-
             idinfo = google_id_token.verify_oauth2_token(
                 token_str,
                 google_requests.Request(),
@@ -209,7 +177,7 @@ class GoogleAuthView(APIView):
                 {'detail': 'Token de Google inválido o expirado.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except TransportError:
+        except GoogleTransportError:
             return Response(
                 {'detail': 'No se pudo verificar el token. Intente nuevamente.'},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -229,10 +197,10 @@ class GoogleAuthView(APIView):
             )
 
         nombre = idinfo.get('name', email)
+        es_nuevo = False
 
         try:
             usuario = Usuario.objects.select_related('rol').get(correo_institucional=email)
-            es_nuevo = False
             update_fields = ['ultimo_acceso']
             if usuario.nombre_completo != nombre:
                 usuario.nombre_completo = nombre
@@ -240,12 +208,15 @@ class GoogleAuthView(APIView):
             usuario.ultimo_acceso = timezone.now()
             usuario.save(update_fields=update_fields)
         except Usuario.DoesNotExist:
-            usuario = Usuario.objects.create_user(
-                correo_institucional=email,
-                password=None,
-                nombre_completo=nombre,
-            )
-            es_nuevo = True
+            try:
+                usuario = Usuario.objects.create_user(
+                    correo_institucional=email,
+                    password=None,
+                    nombre_completo=nombre,
+                )
+                es_nuevo = True
+            except IntegrityError:
+                usuario = Usuario.objects.select_related('rol').get(correo_institucional=email)
 
         if usuario.estado == 'inactivo':
             return Response(
@@ -269,15 +240,7 @@ class GoogleAuthView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# ─────────────────────────────────────────────
-# USUARIOS
-# ─────────────────────────────────────────────
-
 class UsuarioListCreateView(generics.ListCreateAPIView):
-    """
-    GET  /api/usuarios/  → lista todos (requiere auth)
-    POST /api/usuarios/  → crea usuario (solo admin)
-    """
     queryset = Usuario.objects.select_related('rol', 'facultad').all()
 
     def get_serializer_class(self):
@@ -302,11 +265,6 @@ class UsuarioListCreateView(generics.ListCreateAPIView):
 
 
 class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    GET    /api/usuarios/<id>/  → ver detalle
-    PATCH  /api/usuarios/<id>/  → editar (requiere auth)
-    DELETE /api/usuarios/<id>/  → eliminar (solo admin) — usar estado=inactivo mejor
-    """
     queryset = Usuario.objects.select_related('rol', 'facultad', 'escuela', 'departamento').all()
 
     def get_serializer_class(self):
@@ -317,11 +275,18 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     def get_permissions(self):
         if self.request.method == 'DELETE':
             return [IsAdminUser()]
+        if self.request.method in ('PUT', 'PATCH'):
+            return [IsAuthenticated(), IsOwnerOrAdmin()]
         return [IsAuthenticated()]
 
     def perform_update(self, serializer):
         usuario = serializer.save()
-        accion = 'DESACTIVAR' if usuario.estado == 'inactivo' else 'ACTIVAR' if usuario.estado == 'activo' else 'EDITAR'
+        if usuario.estado == 'inactivo':
+            accion = 'DESACTIVAR'
+        elif usuario.estado == 'activo':
+            accion = 'ACTIVAR'
+        else:
+            accion = 'EDITAR'
         _registrar_auditoria(
             ejecutado_por=self.request.user,
             usuario_afectado=usuario,
@@ -331,16 +296,19 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         )
 
 
-# ─────────────────────────────────────────────
-# ROLES
-# ─────────────────────────────────────────────
+class MiPerfilView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return MiPerfilUpdateSerializer
+        return UsuarioListSerializer
+
 
 class AsignarRolView(APIView):
-    """
-    POST /api/usuarios/<id>/asignar-rol/
-    Body: { "rol_id": 2, "motivo": "..." }
-    Solo admin. Guarda historial completo.
-    """
     permission_classes = [IsAdminUser]
 
     def post(self, request, pk):
@@ -387,10 +355,6 @@ class RolListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
 
-# ─────────────────────────────────────────────
-# ESTRUCTURA INSTITUCIONAL
-# ─────────────────────────────────────────────
-
 class FacultadListView(generics.ListAPIView):
     queryset = Facultad.objects.all().order_by('nombre')
     serializer_class = FacultadSerializer
@@ -420,10 +384,6 @@ class DepartamentoAcademicoListView(generics.ListAPIView):
             qs = qs.filter(facultad_id=facultad_id)
         return qs
 
-
-# ─────────────────────────────────────────────
-# HISTORIAL Y AUDITORÍA
-# ─────────────────────────────────────────────
 
 class HistorialRolUsuarioListView(generics.ListAPIView):
     serializer_class = HistorialRolSerializer

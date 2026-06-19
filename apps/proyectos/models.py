@@ -62,7 +62,7 @@ class ProyectoRSU(models.Model):
     codigo = models.CharField(
         max_length=50, unique=True, null=True, blank=True,
         help_text="Código asignado por la comisión OURS una vez consolidados todos los proyectos.")
-    estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS)
+    estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS, db_index=True)
     presentado_con_anticipacion = models.BooleanField(default=False)
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -354,7 +354,7 @@ class ProyectoAsignatura(models.Model):
         verbose_name_plural = 'Asignaturas de Proyecto'
 
     def __str__(self):
-        return f'{self.nombre_asignatura} – {self.proyecto.codigo}'
+        return f'{self.nombre_asignatura} – proyecto#{self.proyecto_id}'
 
 
 class ProyectoDocente(models.Model):
@@ -378,7 +378,7 @@ class ProyectoDocente(models.Model):
         verbose_name_plural = 'Docentes de Proyecto'
 
     def __str__(self):
-        return f'{self.docente.nombre_completo} – {self.proyecto.codigo}'
+        return f'{self.docente.nombre_completo} – proyecto#{self.proyecto_id}'
 
 
 class ObjetivoEspecifico(models.Model):
@@ -397,7 +397,7 @@ class ObjetivoEspecifico(models.Model):
         ordering = ['orden']
 
     def __str__(self):
-        return f'OE{self.orden} – {self.proyecto.codigo}'
+        return f'OE{self.orden} – proyecto#{self.proyecto_id}'
 
 
 class ActividadProyecto(models.Model):
@@ -425,7 +425,7 @@ class ActividadProyecto(models.Model):
         ordering = ['orden', 'fecha']
 
     def __str__(self):
-        return f'{self.proyecto.codigo} – {self.nombre}'
+        return f'proyecto#{self.proyecto_id} – {self.nombre}'
 
 
 class CronogramaAccion(models.Model):
@@ -457,7 +457,7 @@ class CronogramaAccion(models.Model):
         ordering = ['orden']
 
     def __str__(self):
-        return f'{self.proyecto.codigo} – {self.descripcion[:50]}'
+        return f'proyecto#{self.proyecto_id} – {self.descripcion[:50]}'
 
 
 class DocumentoSustentoProyecto(models.Model):
@@ -477,5 +477,5 @@ class DocumentoSustentoProyecto(models.Model):
         verbose_name_plural = 'Documentos de Sustento de Proyecto'
 
     def __str__(self):
-        return self.nombre or f"Documento {self.id} – {self.proyecto.codigo}"
+        return self.nombre or f'Documento {self.id} – proyecto#{self.proyecto_id}'
 

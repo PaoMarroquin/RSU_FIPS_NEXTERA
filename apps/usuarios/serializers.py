@@ -94,6 +94,13 @@ class HistorialRolSerializer(serializers.ModelSerializer):
         ]
 
 
+class MiPerfilUpdateSerializer(serializers.ModelSerializer):
+    """Serializer para que el usuario edite su propio perfil. No expone el campo estado."""
+    class Meta:
+        model = Usuario
+        fields = ['id', 'nombre_completo', 'celular', 'facultad', 'escuela', 'departamento']
+
+
 class AuditoriaUsuarioSerializer(serializers.ModelSerializer):
     ejecutado_por_nombre     = serializers.CharField(source='ejecutado_por.nombre_completo', read_only=True)
     usuario_afectado_nombre  = serializers.CharField(source='usuario_afectado.nombre_completo', read_only=True)

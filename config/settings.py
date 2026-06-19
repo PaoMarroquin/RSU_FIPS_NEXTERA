@@ -1,8 +1,13 @@
-from decouple import config
+from pathlib import Path
+from datetime import timedelta
+
+from decouple import config, Csv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('DJANGO_SECRET_KEY')
 DEBUG = config('DJANGO_DEBUG', cast=bool)
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -70,25 +75,35 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
-# FIX: Decirle a SimpleJWT que el campo de login es correo_institucional
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME':  __import__('datetime').timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': __import__('datetime').timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:3000,http://127.0.0.1:3000',
+    cast=Csv(),
+)
 
-# FIX: default=None para que el servidor arranque aunque no esté en .env
-# Google OAuth es opcional hasta que configuren las credenciales grupales
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=None)
 
 LANGUAGE_CODE = 'es-pe'
 TIME_ZONE = 'America/Lima'
 USE_I18N = True
 USE_TZ = True
+
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
