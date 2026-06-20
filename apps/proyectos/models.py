@@ -7,10 +7,10 @@ from apps.planificacion.models import PeriodoAcademico, EjeRSU, LineaEstrategica
 class ProyectoRSU(models.Model):
     """
     Modelo principal del Proyecto de Responsabilidad Social Universitaria.
-    Implementa completamente el ANEXO 4 – Formato OURS (Oficina de RSU UNSA).
+    Implementa completamente el ANEXO 4 - Formato OURS (Oficina de RSU UNSA).
 
     Secciones:
-      I.   Datos Generales  (campos 1.1 – 1.18)
+      I.   Datos Generales  (campos 1.1 - 1.18)
       II.  Fundamentación
       III. Diagnóstico Situacional
       IV.  Objetivos
@@ -66,10 +66,10 @@ class ProyectoRSU(models.Model):
     presentado_con_anticipacion = models.BooleanField(default=False)
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN I – DATOS GENERALES
+    # SECCIÓN I - DATOS GENERALES
     # ──────────────────────────────────────────────────────────────────────────
 
-    # 1.1 – 1.4  Información institucional
+    # 1.1 - 1.4  Información institucional
     facultad = models.ForeignKey(
         Facultad, on_delete=models.PROTECT, related_name='proyectos',
         help_text="1.1 Facultad")
@@ -87,7 +87,7 @@ class ProyectoRSU(models.Model):
     # 1.6 Título
     titulo = models.CharField(max_length=400, help_text="1.6 Título del proyecto")
 
-    # 1.7 – 1.8 Participantes
+    # 1.7 - 1.8 Participantes
     nro_docentes = models.PositiveIntegerField(
         null=True, blank=True, default=1,
         help_text="1.7 Nro. de docentes que participaron")
@@ -97,7 +97,7 @@ class ProyectoRSU(models.Model):
 
     # 1.9 Beneficiarios / Destinatarios (checkboxes, only one text field for benef_otro)
     benef_comunidad_universitaria = models.BooleanField(
-        default=False, help_text="1.9a Comunidad universitaria – interna")
+        default=False, help_text="1.9a Comunidad universitaria - interna")
     benef_inst_educativas_basicas = models.BooleanField(
         default=False, help_text="1.9b Instituciones Educativas Básico Regulares")
     benef_inst_educativas_especiales = models.BooleanField(
@@ -161,7 +161,7 @@ class ProyectoRSU(models.Model):
         max_length=300, blank=True, null=True,
         help_text="1.11 Descripción si se seleccionó 'Otro' como tipo de actividad")
 
-    # 1.12 – 1.13  Meta e indicador
+    # 1.12 - 1.13  Meta e indicador
     meta_cuantitativa = models.CharField(
         max_length=400, blank=True, null=True,
         help_text="1.12 Meta cuantificable (ej: Capacitar a 50 docentes)")
@@ -169,7 +169,7 @@ class ProyectoRSU(models.Model):
         max_length=400, blank=True, null=True,
         help_text="1.13 Indicador propuesto en el plan (ej: N° de docentes capacitados)")
 
-    # 1.14 – 1.16 Fechas del ciclo del proyecto
+    # 1.14 - 1.16 Fechas del ciclo del proyecto
     fecha_inicio = models.DateField(
         null=True, blank=True, help_text="1.14 Fecha de inicio")
     fecha_evaluacion_avance = models.DateField(
@@ -191,7 +191,7 @@ class ProyectoRSU(models.Model):
         help_text="1.18 Lugar de ejecución (ej: Distrito de Cayma, Arequipa)")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN II – FUNDAMENTACIÓN
+    # SECCIÓN II - FUNDAMENTACIÓN
     # ──────────────────────────────────────────────────────────────────────────
     fund_por_que_grupo = models.TextField(
         blank=True, null=True,
@@ -204,7 +204,7 @@ class ProyectoRSU(models.Model):
         help_text="II ¿Cuál será el mecanismo de enseñanza-aprendizaje?")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN III – DIAGNÓSTICO SITUACIONAL
+    # SECCIÓN III - DIAGNÓSTICO SITUACIONAL
     # ──────────────────────────────────────────────────────────────────────────
     diag_estado_grupo = models.TextField(
         blank=True, null=True,
@@ -220,7 +220,7 @@ class ProyectoRSU(models.Model):
         help_text="III Justificación de la intervención")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN IV – OBJETIVOS
+    # SECCIÓN IV - OBJETIVOS
     # ──────────────────────────────────────────────────────────────────────────
     objetivo_general = models.TextField(
         blank=True, null=True,
@@ -228,7 +228,7 @@ class ProyectoRSU(models.Model):
     # Objetivos específicos → modelo ObjetivoEspecifico (FK inverso)
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN V – RESULTADOS ESPERADOS
+    # SECCIÓN V - RESULTADOS ESPERADOS
     # ──────────────────────────────────────────────────────────────────────────
     resultado_en_beneficiarios = models.TextField(
         blank=True, null=True,
@@ -241,12 +241,12 @@ class ProyectoRSU(models.Model):
         help_text="V Impacto esperado general")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN VI – DESARROLLO DE ACTIVIDADES → modelo ActividadProyecto
-    # SECCIÓN VII – CRONOGRAMA               → modelo CronogramaAccion
+    # SECCIÓN VI - DESARROLLO DE ACTIVIDADES → modelo ActividadProyecto
+    # SECCIÓN VII - CRONOGRAMA               → modelo CronogramaAccion
     # ──────────────────────────────────────────────────────────────────────────
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN VIII – RECURSOS
+    # SECCIÓN VIII - RECURSOS
     # ──────────────────────────────────────────────────────────────────────────
 
     # 8.1 Recursos Humanos (cantidades)
@@ -276,7 +276,7 @@ class ProyectoRSU(models.Model):
         blank=True, null=True, help_text="VIII Otros materiales")
 
     # ──────────────────────────────────────────────────────────────────────────
-    # SECCIÓN IX – FINANCIAMIENTO
+    # SECCIÓN IX - FINANCIAMIENTO
     # ──────────────────────────────────────────────────────────────────────────
     monto_financiamiento = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True, default=0,
@@ -330,7 +330,7 @@ class ProyectoRSU(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'{self.codigo or "SIN-CÓDIGO"} – {self.titulo}'
+        return f'{self.codigo or "SIN-CÓDIGO"} - {self.titulo}'
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -354,7 +354,7 @@ class ProyectoAsignatura(models.Model):
         verbose_name_plural = 'Asignaturas de Proyecto'
 
     def __str__(self):
-        return f'{self.nombre_asignatura} – proyecto#{self.proyecto_id}'
+        return f'{self.nombre_asignatura} - proyecto#{self.proyecto_id}'
 
 
 class ProyectoDocente(models.Model):
@@ -378,7 +378,7 @@ class ProyectoDocente(models.Model):
         verbose_name_plural = 'Docentes de Proyecto'
 
     def __str__(self):
-        return f'{self.docente.nombre_completo} – proyecto#{self.proyecto_id}'
+        return f'{self.docente.nombre_completo} - proyecto#{self.proyecto_id}'
 
 
 class ObjetivoEspecifico(models.Model):
@@ -397,12 +397,12 @@ class ObjetivoEspecifico(models.Model):
         ordering = ['orden']
 
     def __str__(self):
-        return f'OE{self.orden} – proyecto#{self.proyecto_id}'
+        return f'OE{self.orden} - proyecto#{self.proyecto_id}'
 
 
 class ActividadProyecto(models.Model):
     """
-    VI. Desarrollo de Actividades – cada actividad conducente al logro de objetivos.
+    VI. Desarrollo de Actividades - cada actividad conducente al logro de objetivos.
     """
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='actividades')
@@ -425,12 +425,12 @@ class ActividadProyecto(models.Model):
         ordering = ['orden', 'fecha']
 
     def __str__(self):
-        return f'proyecto#{self.proyecto_id} – {self.nombre}'
+        return f'proyecto#{self.proyecto_id} - {self.nombre}'
 
 
 class CronogramaAccion(models.Model):
     """
-    VII. Cronograma – distribución de acciones a lo largo del periodo de ejecución.
+    VII. Cronograma - distribución de acciones a lo largo del periodo de ejecución.
     """
     ESTADOS_AVANCE = [
         ('pendiente',  'Pendiente'),
@@ -457,12 +457,12 @@ class CronogramaAccion(models.Model):
         ordering = ['orden']
 
     def __str__(self):
-        return f'proyecto#{self.proyecto_id} – {self.descripcion[:50]}'
+        return f'proyecto#{self.proyecto_id} - {self.descripcion[:50]}'
 
 
 class DocumentoSustentoProyecto(models.Model):
     """
-    IX. Financiamiento – Documentos Adjuntos de Sustento.
+    IX. Financiamiento - Documentos Adjuntos de Sustento.
     Permite subir archivos en PDF, Word o Excel (máx. 10MB).
     """
     proyecto = models.ForeignKey(
@@ -477,5 +477,88 @@ class DocumentoSustentoProyecto(models.Model):
         verbose_name_plural = 'Documentos de Sustento de Proyecto'
 
     def __str__(self):
-        return self.nombre or f'Documento {self.id} – proyecto#{self.proyecto_id}'
+        return self.nombre or f'Documento {self.id} - proyecto#{self.proyecto_id}'
+
+
+class PartidaPresupuestaria(models.Model):
+    """
+    IX. Financiamiento - Desglose detallado del presupuesto estimado por rubro.
+    Cada fila representa un concepto de gasto con su cantidad y costo unitario.
+    El total del proyecto se obtiene sumando todas las partidas.
+    """
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='partidas_presupuesto')
+    concepto = models.CharField(
+        max_length=300, help_text="Descripción del rubro o concepto de gasto")
+    unidad = models.CharField(
+        max_length=50, blank=True,
+        help_text="Unidad de medida (ej: unidad, hora, taller, kit)")
+    cantidad = models.PositiveIntegerField(
+        default=1, help_text="Número de unidades")
+    costo_unitario = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        help_text="Costo por unidad en Soles (S/)")
+    fuente = models.CharField(
+        max_length=50, choices=ProyectoRSU.FUENTES_FINANCIAMIENTO,
+        blank=True, null=True,
+        help_text="Fuente de financiamiento de este rubro")
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'proyecto_partidas_presupuesto'
+        verbose_name = 'Partida Presupuestaria'
+        verbose_name_plural = 'Partidas Presupuestarias'
+        ordering = ['orden']
+
+    @property
+    def total(self):
+        return self.cantidad * self.costo_unitario
+
+    def __str__(self):
+        return f'{self.concepto} - proyecto#{self.proyecto_id}'
+
+
+class MetaIndicadorProyecto(models.Model):
+    """
+    IV/V. Metas e Indicadores - Seguimiento cuantitativo del proyecto.
+    Cada registro vincula una meta específica con su indicador de medición,
+    línea base, valor objetivo y valor alcanzado al cierre.
+    Permite actualizarse también durante la ejecución del proyecto.
+    """
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='metas_indicadores')
+    meta_descripcion = models.CharField(
+        max_length=400,
+        help_text="Descripción de la meta (ej: Capacitar a 50 docentes en reciclaje)")
+    indicador_nombre = models.CharField(
+        max_length=300,
+        help_text="Nombre del indicador de medición (ej: Nro. de docentes capacitados)")
+    unidad_medida = models.CharField(
+        max_length=100, blank=True,
+        help_text="Unidad de medida del indicador (ej: personas, %, talleres)")
+    linea_base = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Valor inicial antes de la intervención (situación de partida)")
+    valor_meta = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Valor objetivo a alcanzar al finalizar el proyecto")
+    valor_alcanzado = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Valor efectivamente alcanzado — se registra durante/al cierre del proyecto")
+    metodo_verificacion = models.TextField(
+        blank=True,
+        help_text="Cómo se verifica el cumplimiento (ej: Lista de asistencia, Encuesta)")
+    fuente_verificacion = models.CharField(
+        max_length=300, blank=True,
+        help_text="Documento o fuente del dato de verificación")
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'proyecto_metas_indicadores'
+        verbose_name = 'Meta e Indicador'
+        verbose_name_plural = 'Metas e Indicadores'
+        ordering = ['orden']
+
+    def __str__(self):
+        return f'{self.meta_descripcion[:60]} - proyecto#{self.proyecto_id}'
 

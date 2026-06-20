@@ -419,14 +419,14 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
                 'están en las tablas al final de la página, marcadas con "── I."'
             ),
             'fields': (
-                # 1.1 – 1.4
+                # 1.1 - 1.4
                 'facultad',
                 'escuela',
                 'departamento',
                 'semestre_academico',
                 # 1.6
                 'titulo',
-                # 1.7 – 1.8
+                # 1.7 - 1.8
                 'nro_docentes',
                 'nro_estudiantes',
                 # 1.18
@@ -443,10 +443,10 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
                 # 1.11  Tipo de actividad (checkboxes agrupados)
                 'tipo_actividad',
                 'tipo_actividad_otro',
-                # 1.12 – 1.13
+                # 1.12 - 1.13
                 'meta_cuantitativa',
                 'indicador',
-                # 1.14 – 1.16  Fechas del proyecto
+                # 1.14 - 1.16  Fechas del proyecto
                 'fecha_inicio',
                 'fecha_evaluacion_avance',
                 'fecha_termino',

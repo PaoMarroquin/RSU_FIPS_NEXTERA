@@ -4,15 +4,20 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
-from .models import ProyectoRSU, ObjetivoEspecifico, ActividadProyecto, CronogramaAccion
+from .models import (
+    ProyectoRSU, ObjetivoEspecifico, ActividadProyecto, CronogramaAccion,
+    PartidaPresupuestaria, MetaIndicadorProyecto,
+)
 from .serializers import (
     ProyectoRSUSerializer,
     ObjetivoEspecificoSerializer,
     ActividadProyectoSerializer,
     CronogramaAccionSerializer,
+    PartidaPresupuestariaSerializer,
+    MetaIndicadorProyectoSerializer,
 )
 from apps.usuarios.models import Rol
 
@@ -296,4 +301,124 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().destroy(request, *args, **kwargs)
+
+
+# ─── Presupuesto ─────────────────────────────────────────────────────────────
+
+def _get_proyecto_propietario(pk, user):
+    """Verifica que el usuario sea el docente responsable. Sin restricción de estado."""
+    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
+    if proyecto.docente_responsable != user:
+        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
+    return proyecto
+
+
+class PartidaPresupuestariaListCreateView(generics.ListCreateAPIView):
+    serializer_class = PartidaPresupuestariaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return PartidaPresupuestaria.objects.filter(
+            proyecto_id=self.kwargs['proyecto_pk']
+        ).order_by('orden')
+
+    def perform_create(self, serializer):
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        serializer.save(proyecto=proyecto)
+
+
+class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PartidaPresupuestariaSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return PartidaPresupuestaria.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def update(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().destroy(request, *args, **kwargs)
+
+
+class PresupuestoResumenView(APIView):
+    """
+    GET /proyectos/<pk>/presupuesto/resumen/
+    Devuelve el total estimado del proyecto y el desglose por fuente de financiamiento.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, proyecto_pk):
+        get_object_or_404(ProyectoRSU, pk=proyecto_pk)
+
+        partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
+
+        total_general = sum(p.total for p in partidas)
+
+        desglose = {}
+        for p in partidas:
+            fuente_key = p.fuente or 'sin_especificar'
+            fuente_label = p.get_fuente_display() if p.fuente else 'Sin especificar'
+            if fuente_key not in desglose:
+                desglose[fuente_key] = {'fuente': fuente_label, 'total': 0}
+            desglose[fuente_key]['total'] += float(p.total)
+
+        return Response({
+            'proyecto_id': proyecto_pk,
+            'total_general': float(total_general),
+            'nro_partidas': partidas.count(),
+            'desglose_por_fuente': list(desglose.values()),
+        })
+
+
+# ─── Metas e Indicadores ─────────────────────────────────────────────────────
+
+def _get_proyecto_seguimiento(pk, user):
+    """
+    Permite modificar metas/indicadores en estados borrador, observado y en_ejecucion.
+    Esto habilita actualizar valor_alcanzado durante la fase de ejecución.
+    """
+    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
+    if proyecto.docente_responsable != user:
+        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
+    estados_validos = ['borrador', 'observado', 'en_ejecucion']
+    if proyecto.estado not in estados_validos:
+        raise serializers.ValidationError(
+            f"No se pueden modificar metas/indicadores con el proyecto en estado '{proyecto.estado}'."
+        )
+    return proyecto
+
+
+class MetaIndicadorProyectoListCreateView(generics.ListCreateAPIView):
+    serializer_class = MetaIndicadorProyectoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return MetaIndicadorProyecto.objects.filter(
+            proyecto_id=self.kwargs['proyecto_pk']
+        ).order_by('orden')
+
+    def perform_create(self, serializer):
+        proyecto = _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
+        serializer.save(proyecto=proyecto)
+
+
+class MetaIndicadorProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = MetaIndicadorProyectoSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return MetaIndicadorProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def update(self, request, *args, **kwargs):
+        _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)

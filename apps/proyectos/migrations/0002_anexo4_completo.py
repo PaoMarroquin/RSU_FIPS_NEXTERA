@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='proyectorsu',
             name='benef_comunidad_universitaria',
-            field=models.BooleanField(default=False, help_text='1.9a Comunidad universitaria – interna'),
+            field=models.BooleanField(default=False, help_text='1.9a Comunidad universitaria - interna'),
         ),
         migrations.AddField(
             model_name='proyectorsu',

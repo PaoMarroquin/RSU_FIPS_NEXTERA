@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from django.db import transaction
+from django.db.models import Sum, F
 from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
     ObjetivoEspecifico, ActividadProyecto, CronogramaAccion,
-    DocumentoSustentoProyecto,
+    DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
 )
 from apps.planificacion.models import ODS, EjeRSU, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
@@ -55,6 +56,65 @@ class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
         fields = ['id', 'archivo', 'nombre', 'uploaded_at']
 
 
+class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
+    total = serializers.SerializerMethodField(read_only=True)
+    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
+
+    class Meta:
+        model = PartidaPresupuestaria
+        fields = [
+            'id', 'concepto', 'unidad', 'cantidad',
+            'costo_unitario', 'total',
+            'fuente', 'fuente_display', 'orden',
+        ]
+
+    def get_total(self, obj):
+        return obj.total
+
+    def validate_cantidad(self, value):
+        if value < 1:
+            raise serializers.ValidationError('La cantidad debe ser al menos 1.')
+        return value
+
+    def validate_costo_unitario(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('El costo unitario debe ser mayor a 0.')
+        return value
+
+
+class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
+    porcentaje_avance = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = MetaIndicadorProyecto
+        fields = [
+            'id', 'meta_descripcion', 'indicador_nombre', 'unidad_medida',
+            'linea_base', 'valor_meta', 'valor_alcanzado',
+            'porcentaje_avance',
+            'metodo_verificacion', 'fuente_verificacion', 'orden',
+        ]
+
+    def get_porcentaje_avance(self, obj):
+        """Calcula el avance respecto a la meta. Retorna None si no hay datos suficientes."""
+        if obj.valor_meta is None or obj.valor_meta == 0:
+            return None
+        base = obj.linea_base or 0
+        alcanzado = obj.valor_alcanzado
+        if alcanzado is None:
+            return None
+        avance = ((alcanzado - base) / (obj.valor_meta - base)) * 100 if obj.valor_meta != base else 0
+        return round(float(avance), 1)
+
+    def validate(self, attrs):
+        valor_meta = attrs.get('valor_meta', getattr(self.instance, 'valor_meta', None))
+        linea_base = attrs.get('linea_base', getattr(self.instance, 'linea_base', None))
+        if valor_meta is not None and linea_base is not None and valor_meta <= linea_base:
+            raise serializers.ValidationError({
+                'valor_meta': 'El valor meta debe ser mayor a la línea base.'
+            })
+        return attrs
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Main serializer
 # ──────────────────────────────────────────────────────────────────────────────
@@ -92,7 +152,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             # ── Identificación ────────────────────────────────────────────
             'id', 'codigo', 'estado',
 
-            # ── Sección I – Datos Generales ───────────────────────────────
+            # ── Sección I - Datos Generales ───────────────────────────────
             'facultad', 'facultad_nombre',
             'escuela', 'escuela_nombre',
             'departamento', 'departamento_nombre',
@@ -122,7 +182,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'linea_estrategica', 'linea_estrategica_nombre',
             'objetivo_institucional', 'objetivo_institucional_nombre',
 
-            # 1.11 – 1.18
+            # 1.11 - 1.18
             'tipo_actividad', 'tipo_actividad_display', 'tipo_actividad_otro',
             'meta_cuantitativa',
             'indicador',
@@ -133,40 +193,40 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'fecha_encuesta_alumnos',
             'fecha_encuesta_grupo_destinatario',
 
-            # ── Sección II – Fundamentación ───────────────────────────────
+            # ── Sección II - Fundamentación ───────────────────────────────
             'fund_por_que_grupo',
             'fund_para_que_proyecto',
             'fund_mecanismo_ensenanza',
 
-            # ── Sección III – Diagnóstico ─────────────────────────────────
+            # ── Sección III - Diagnóstico ─────────────────────────────────
             'diag_estado_grupo',
             'diag_problemas_detectados',
             'diag_aportes_formacion',
             'diag_justificacion_intervencion',
 
-            # ── Sección IV – Objetivos ────────────────────────────────────
+            # ── Sección IV - Objetivos ────────────────────────────────────
             'objetivo_general',
             'objetivos_especificos',
 
-            # ── Sección V – Resultados ────────────────────────────────────
+            # ── Sección V - Resultados ────────────────────────────────────
             'resultado_en_beneficiarios',
             'resultado_en_curriculo',
             'impacto_esperado',
 
-            # ── Sección VI – Actividades ──────────────────────────────────
+            # ── Sección VI - Actividades ──────────────────────────────────
             'actividades',
 
-            # ── Sección VII – Cronograma ──────────────────────────────────
+            # ── Sección VII - Cronograma ──────────────────────────────────
             'cronograma',
 
-            # ── Sección VIII – Recursos ───────────────────────────────────
+            # ── Sección VIII - Recursos ───────────────────────────────────
             'rec_hum_docentes', 'rec_hum_administrativos',
             'rec_hum_estudiantes', 'rec_hum_egresados',
             'rec_hum_voluntarios', 'rec_hum_otros',
             'rec_mat_material_didactico', 'rec_mat_afiches',
             'rec_mat_equipos', 'rec_mat_utiles', 'rec_mat_otros',
 
-            # ── Sección IX – Financiamiento ───────────────────────────────
+            # ── Sección IX - Financiamiento ───────────────────────────────
             'monto_financiamiento',
             'fuente_financiamiento', 'fuente_financiamiento_display',
             'descripcion_gastos',

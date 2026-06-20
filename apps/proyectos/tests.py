@@ -343,7 +343,7 @@ class ProyectosAPITests(APITestCase):
 class BaseProyectoTestCase(APITestCase):
     """Common setUp shared by actividades and cronograma test classes."""
 
-    # Placeholder only – all tests use force_authenticate, not real login
+    # Placeholder only - all tests use force_authenticate, not real login
     _cred = None
 
     def setUp(self):

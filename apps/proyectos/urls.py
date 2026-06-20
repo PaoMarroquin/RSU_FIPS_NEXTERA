@@ -18,4 +18,13 @@ urlpatterns = [
     # ── VII. Cronograma ───────────────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/cronograma/', views.CronogramaAccionListCreateView.as_view(), name='cronograma-list'),
     path('proyectos/<int:proyecto_pk>/cronograma/<int:pk>/', views.CronogramaAccionDetailView.as_view(), name='cronograma-detail'),
+
+    # ── IX. Presupuesto estimado ──────────────────────────────────────────────
+    path('proyectos/<int:proyecto_pk>/presupuesto/', views.PartidaPresupuestariaListCreateView.as_view(), name='presupuesto-list'),
+    path('proyectos/<int:proyecto_pk>/presupuesto/resumen/', views.PresupuestoResumenView.as_view(), name='presupuesto-resumen'),
+    path('proyectos/<int:proyecto_pk>/presupuesto/<int:pk>/', views.PartidaPresupuestariaDetailView.as_view(), name='presupuesto-detail'),
+
+    # ── IV/V. Metas e Indicadores ─────────────────────────────────────────────
+    path('proyectos/<int:proyecto_pk>/metas-indicadores/', views.MetaIndicadorProyectoListCreateView.as_view(), name='meta-indicador-list'),
+    path('proyectos/<int:proyecto_pk>/metas-indicadores/<int:pk>/', views.MetaIndicadorProyectoDetailView.as_view(), name='meta-indicador-detail'),
 ]
