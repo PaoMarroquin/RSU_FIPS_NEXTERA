@@ -6,7 +6,7 @@ from django.utils.safestring import mark_safe
 
 from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
-    ObjetivoEspecifico, FaseProyecto, TareaProyecto,
+    ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria,
 )
 
@@ -326,31 +326,22 @@ class ProyectoDocenteInline(admin.TabularInline):
     verbose_name_plural = "── I. Docentes adicionales al responsable"
 
 
-class ObjetivoEspecificoInline(admin.TabularInline):
-    model = ObjetivoEspecifico
+class ActividadProyectoInline(admin.TabularInline):
+    model = ActividadProyecto
     extra = 1
-    fields = ('orden', 'descripcion')
+    fields = ('orden', 'nombre', 'descripcion', 'curso_vinculado', 'responsable', 'fecha', 'evidencia_esperada')
     ordering = ['orden']
-    verbose_name = "Objetivo específico"
-    verbose_name_plural = "── IV. Objetivos específicos (orden = número del objetivo: 1, 2, 3…)"
+    verbose_name = "Actividad"
+    verbose_name_plural = "── VI. Actividades"
 
 
-class TareaProyectoInline(admin.TabularInline):
-    model = TareaProyecto
+class CronogramaAccionInline(admin.TabularInline):
+    model = CronogramaAccion
     extra = 1
-    fields = ('nombre', 'fecha_inicio', 'fecha_fin', 'estado', 'porcentaje_avance',
-              'responsable', 'lugar_ejecucion', 'tipo_actividad', 'aplica_encuesta')
-    verbose_name = "Tarea"
-    verbose_name_plural = "Tareas"
-
-
-class FaseProyectoInline(admin.StackedInline):
-    model = FaseProyecto
-    extra = 1
-    fields = ('orden', 'nombre', 'descripcion', 'fecha_inicio', 'fecha_fin', 'estado')
+    fields = ('orden', 'descripcion', 'mes_semana', 'responsable', 'estado_avance')
     ordering = ['orden']
-    verbose_name = "Fase"
-    verbose_name_plural = "VI/VII. Fases del proyecto"
+    verbose_name = "Acción"
+    verbose_name_plural = "── VII. Cronograma de acciones"
 
 
 class DocumentoSustentoProyectoInline(admin.TabularInline):
@@ -388,13 +379,11 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
         'fecha_inicio_ejecucion', 'fecha_cierre',
     )
 
-    # Inlines: siempre aparecen al final en Django admin.
-    # El verbose_name_plural indica visualmente a qué sección pertenece cada uno.
     inlines = [
         ProyectoAsignaturaInline,         # I (1.5)
         ProyectoDocenteInline,            # I (docentes adicionales)
-        ObjetivoEspecificoInline,         # IV
-        FaseProyectoInline,               # VI/VII
+        ActividadProyectoInline,          # VI
+        CronogramaAccionInline,           # VII
         DocumentoSustentoProyectoInline,  # IX
     ]
 
@@ -494,11 +483,9 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
         ('IV. Objetivos', {
             'classes': ('collapse',),
             'description': (
-                'Escribe el objetivo general aquí. '
-                'Los objetivos específicos (OE1, OE2…) se administran en la tabla '
-                '"IV. Objetivos específicos" abajo.'
+                'Responda a estas dos preguntas para definir los objetivos.'
             ),
-            'fields': ('objetivo_general',),
+            'fields': ('obj_logro_intervencion', 'obj_mejora_curricular'),
         }),
 
         # ── V. RESULTADOS ESPERADOS ───────────────────────────────────────────
@@ -608,26 +595,17 @@ class ProyectoDocenteAdmin(admin.ModelAdmin):
     search_fields = ('docente__nombre_completo',)
 
 
-@admin.register(ObjetivoEspecifico)
-class ObjetivoEspecificoAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'descripcion')
-    list_filter = ('proyecto__estado',)
+@admin.register(ActividadProyecto)
+class ActividadProyectoAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'orden', 'nombre', 'fecha', 'responsable')
     ordering = ['proyecto', 'orden']
 
 
-@admin.register(FaseProyecto)
-class FaseProyectoAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'nombre', 'estado', 'fecha_inicio', 'fecha_fin')
-    list_filter = ('estado', 'proyecto__estado')
+@admin.register(CronogramaAccion)
+class CronogramaAccionAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'orden', 'descripcion', 'mes_semana', 'estado_avance')
+    list_filter = ('estado_avance',)
     ordering = ['proyecto', 'orden']
-    inlines = [TareaProyectoInline]
-
-
-@admin.register(TareaProyecto)
-class TareaProyectoAdmin(admin.ModelAdmin):
-    list_display = ('fase', 'nombre', 'estado', 'porcentaje_avance', 'fecha_fin', 'responsable')
-    list_filter = ('estado', 'tipo_actividad', 'aplica_encuesta')
-    ordering = ['fase', 'fecha_fin']
 
 
 @admin.register(PartidaPresupuestaria)

@@ -8,14 +8,13 @@ from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
 from .models import (
-    ProyectoRSU, ObjetivoEspecifico, FaseProyecto, TareaProyecto,
+    ProyectoRSU, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto,
 )
 from .serializers import (
     ProyectoRSUSerializer,
-    ObjetivoEspecificoSerializer,
-    FaseProyectoSerializer,
-    TareaProyectoSerializer,
+    ActividadProyectoSerializer,
+    CronogramaAccionSerializer,
     PartidaPresupuestariaSerializer,
     MetaIndicadorProyectoSerializer,
 )
@@ -29,7 +28,7 @@ def _proyecto_qs_base():
         'docente_responsable',
     ).prefetch_related(
         'ods', 'asignaturas', 'docentes_adicionales',
-        'objetivos_especificos', 'fases__tareas',
+        'actividades', 'cronograma',
     )
 
 
@@ -178,7 +177,7 @@ class ProyectoEnviarRevisionView(APIView):
                     'docente_responsable',
                 )
                 .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
-                                  'objetivos_especificos', 'actividades', 'cronograma')
+                                  'actividades', 'cronograma')
                 .get(pk=pk)
             )
         except ProyectoRSU.DoesNotExist:
@@ -210,7 +209,7 @@ class ProyectoEnviarRevisionView(APIView):
         proyecto = (
             ProyectoRSU.objects
             .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
-                              'objetivos_especificos', 'fases__tareas')
+                              'actividades', 'cronograma')
             .get(pk=pk)
         )
         serializer = ProyectoRSUSerializer(proyecto, context={'request': request})
@@ -220,12 +219,12 @@ class ProyectoEnviarRevisionView(APIView):
         )
 
 
-class ObjetivoEspecificoListCreateView(generics.ListCreateAPIView):
-    serializer_class = ObjetivoEspecificoSerializer
+class ActividadProyectoListCreateView(generics.ListCreateAPIView):
+    serializer_class = ActividadProyectoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return ObjetivoEspecifico.objects.filter(
+        return ActividadProyecto.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
 
@@ -234,12 +233,13 @@ class ObjetivoEspecificoListCreateView(generics.ListCreateAPIView):
         serializer.save(proyecto=proyecto)
 
 
-class ObjetivoEspecificoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = ObjetivoEspecificoSerializer
+class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ActividadProyectoSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        return ObjetivoEspecifico.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+        return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
@@ -250,69 +250,27 @@ class ObjetivoEspecificoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
-class FaseProyectoListCreateView(generics.ListCreateAPIView):
-    serializer_class = FaseProyectoSerializer
+class CronogramaAccionListCreateView(generics.ListCreateAPIView):
+    serializer_class = CronogramaAccionSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return FaseProyecto.objects.filter(
+        return CronogramaAccion.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
-        ).prefetch_related('tareas').order_by('orden')
+        ).order_by('orden')
 
     def perform_create(self, serializer):
         proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
-class FaseProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = FaseProyectoSerializer
+class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = CronogramaAccionSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        return FaseProyecto.objects.filter(
-            proyecto_id=self.kwargs['proyecto_pk']
-        ).prefetch_related('tareas')
-
-    def update(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        return super().destroy(request, *args, **kwargs)
-
-
-class TareaProyectoListCreateView(generics.ListCreateAPIView):
-    serializer_class = TareaProyectoSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return TareaProyecto.objects.filter(
-            fase_id=self.kwargs['fase_pk'],
-            fase__proyecto_id=self.kwargs['proyecto_pk'],
-        ).select_related('responsable').order_by('fecha_fin', 'id')
-
-    def perform_create(self, serializer):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        fase = get_object_or_404(
-            FaseProyecto,
-            pk=self.kwargs['fase_pk'],
-            proyecto_id=self.kwargs['proyecto_pk'],
-        )
-        serializer.save(fase=fase)
-
-
-class TareaProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = TareaProyectoSerializer
-    permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
-
-    def get_queryset(self):
-        return TareaProyecto.objects.filter(
-            fase_id=self.kwargs['fase_pk'],
-            fase__proyecto_id=self.kwargs['proyecto_pk'],
-        ).select_related('responsable')
+        return CronogramaAccion.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)

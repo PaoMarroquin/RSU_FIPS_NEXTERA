@@ -187,8 +187,8 @@ class ProyectoRSU(models.Model):
         null=True, blank=True, help_text="1.17 Encuesta a Grupo Destinatario")
 
     # 1.18 Lugar de ejecución
-    lugar_ejecucion = models.CharField(
-        max_length=400, blank=True, null=True,
+    lugar_ejecucion = models.TextField(
+        blank=True, null=True,
         help_text="1.18 Lugar de ejecución (ej: Distrito de Cayma, Arequipa)")
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -223,10 +223,12 @@ class ProyectoRSU(models.Model):
     # ──────────────────────────────────────────────────────────────────────────
     # SECCIÓN IV - OBJETIVOS
     # ──────────────────────────────────────────────────────────────────────────
-    objetivo_general = models.TextField(
+    obj_logro_intervencion = models.TextField(
         blank=True, null=True,
-        help_text="IV Objetivo general del proyecto")
-    # Objetivos específicos → modelo ObjetivoEspecifico (FK inverso)
+        help_text="IV ¿Qué queremos lograr con nuestra intervención en el grupo beneficiario?")
+    obj_mejora_curricular = models.TextField(
+        blank=True, null=True,
+        help_text="IV ¿Qué queremos mejorar en el proceso curricular?")
 
     # ──────────────────────────────────────────────────────────────────────────
     # SECCIÓN V - RESULTADOS ESPERADOS
@@ -382,99 +384,64 @@ class ProyectoDocente(models.Model):
         return f'{self.docente.nombre_completo} - proyecto#{self.proyecto_id}'
 
 
-class ObjetivoEspecifico(models.Model):
+class ActividadProyecto(models.Model):
     """
-    IV. Objetivos específicos del proyecto (lista dinámica).
+    VI. Desarrollo de Actividades - cada actividad conducente al logro de objetivos.
     """
     proyecto = models.ForeignKey(
-        ProyectoRSU, on_delete=models.CASCADE, related_name='objetivos_especificos')
-    descripcion = models.TextField(help_text="Descripción del objetivo específico")
+        ProyectoRSU, on_delete=models.CASCADE, related_name='actividades')
+    nombre = models.CharField(max_length=300, help_text="Nombre de la actividad")
+    descripcion = models.TextField(blank=True, null=True, help_text="Descripción breve")
+    curso_vinculado = models.CharField(
+        max_length=300, blank=True, null=True, help_text="Asignatura vinculada")
+    responsable = models.CharField(
+        max_length=200, blank=True, null=True, help_text="Responsable de la actividad")
+    fecha = models.DateField(null=True, blank=True)
+    evidencia_esperada = models.CharField(
+        max_length=400, blank=True, null=True,
+        help_text="Evidencia esperada (ej: Fotos, listas, informes)")
     orden = models.PositiveIntegerField(default=0)
 
     class Meta:
-        db_table = 'proyecto_objetivos_especificos'
-        verbose_name = 'Objetivo Específico'
-        verbose_name_plural = 'Objetivos Específicos'
-        ordering = ['orden']
+        db_table = 'proyecto_actividades'
+        verbose_name = 'Actividad de Proyecto'
+        verbose_name_plural = 'Actividades de Proyecto'
+        ordering = ['orden', 'fecha']
 
     def __str__(self):
-        return f'OE{self.orden} - proyecto#{self.proyecto_id}'
+        return f'{self.proyecto.codigo} - {self.nombre}'
 
 
-class FaseProyecto(models.Model):
+class CronogramaAccion(models.Model):
     """
-    VI. Desarrollo de Actividades - cada fase agrupa tareas del proyecto.
-    Corresponde a `fases_proyecto` en el schema DBML.
+    VII. Cronograma - distribución de acciones a lo largo del periodo de ejecución.
     """
-    ESTADOS = [
+    ESTADOS_AVANCE = [
         ('pendiente',  'Pendiente'),
         ('en_proceso', 'En Proceso'),
-        ('completada', 'Completada'),
+        ('finalizado', 'Finalizado'),
     ]
     proyecto = models.ForeignKey(
-        ProyectoRSU, on_delete=models.CASCADE, related_name='fases')
-    nombre = models.CharField(max_length=300)
-    descripcion = models.TextField(blank=True, null=True)
+        ProyectoRSU, on_delete=models.CASCADE, related_name='cronograma')
+    descripcion = models.CharField(
+        max_length=400, help_text="Descripción de la acción")
+    mes_semana = models.CharField(
+        max_length=100, blank=True, null=True,
+        help_text="Periodo de ejecución (ej: Mes 1, Sem 2)")
+    responsable = models.CharField(
+        max_length=200, blank=True, null=True)
+    estado_avance = models.CharField(
+        max_length=30, choices=ESTADOS_AVANCE, default='pendiente')
     orden = models.PositiveIntegerField(default=0)
-    fecha_inicio = models.DateField(null=True, blank=True)
-    fecha_fin = models.DateField(null=True, blank=True)
-    estado = models.CharField(max_length=30, choices=ESTADOS, default='pendiente')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'fases_proyecto'
-        verbose_name = 'Fase de Proyecto'
-        verbose_name_plural = 'Fases de Proyecto'
+        db_table = 'proyecto_cronograma'
+        verbose_name = 'Acción de Cronograma'
+        verbose_name_plural = 'Acciones de Cronograma'
         ordering = ['orden']
 
     def __str__(self):
-        return f'proyecto#{self.proyecto_id} - {self.nombre}'
-
-
-class TareaProyecto(models.Model):
-    """
-    VII. Cronograma - tareas específicas dentro de una fase.
-    Corresponde a `tareas_proyecto` en el schema DBML.
-    """
-    ESTADOS = [
-        ('pendiente',  'Pendiente'),
-        ('en_proceso', 'En Proceso'),
-        ('completado', 'Completado'),
-    ]
-    TIPOS_ACTIVIDAD = [
-        ('programas_formativos',    'Programas formativos'),
-        ('acompanamiento_social',   'Acompañamiento social'),
-        ('asesorias',               'Asesorías'),
-        ('actividades_comunitarias','Actividades comunitarias'),
-        ('otras',                   'Otras'),
-    ]
-    fase = models.ForeignKey(
-        FaseProyecto, on_delete=models.CASCADE, related_name='tareas')
-    nombre = models.CharField(max_length=300)
-    descripcion = models.TextField(blank=True, null=True)
-    fecha_inicio = models.DateField(null=True, blank=True)
-    fecha_fin = models.DateField(null=True, blank=True)
-    estado = models.CharField(max_length=30, choices=ESTADOS, default='pendiente')
-    porcentaje_avance = models.PositiveIntegerField(default=0)
-    responsable = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='tareas_asignadas')
-    lugar_ejecucion = models.CharField(max_length=300, blank=True, null=True)
-    tipo_actividad = models.CharField(
-        max_length=150, choices=TIPOS_ACTIVIDAD, blank=True, null=True)
-    aplica_encuesta = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'tareas_proyecto'
-        verbose_name = 'Tarea de Proyecto'
-        verbose_name_plural = 'Tareas de Proyecto'
-        ordering = ['fecha_fin', 'id']
-
-    def __str__(self):
-        return f'fase#{self.fase_id} - {self.nombre}'
+        return f'{self.proyecto.codigo} - {self.descripcion[:50]}'
 
 
 class DocumentoSustentoProyecto(models.Model):

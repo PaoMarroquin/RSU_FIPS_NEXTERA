@@ -71,6 +71,7 @@ class ActividadSugeridaSerializer(serializers.ModelSerializer):
 
 
 class MatrizOperativaSerializer(serializers.ModelSerializer):
+    periodo = serializers.PrimaryKeyRelatedField(queryset=PeriodoAcademico.objects.all(), required=False)
     periodo_nombre = serializers.CharField(source='periodo.nombre', read_only=True)
     facultad_nombre = serializers.CharField(source='facultad.nombre', read_only=True)
     coordinador_nombre = serializers.CharField(source='coordinador.nombre_completo', read_only=True)

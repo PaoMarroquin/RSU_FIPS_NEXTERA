@@ -1,5 +1,8 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsCoordinador
 from .models import (
     PeriodoAcademico,
@@ -22,6 +25,7 @@ from .serializers import (
     ActividadSugeridaSerializer,
 )
 from apps.usuarios.models import Rol
+from .services import export_matriz_excel, export_matriz_pdf
 
 
 class PeriodoAcademicoListCreateView(generics.ListCreateAPIView):
@@ -119,7 +123,10 @@ class MatrizOperativaListCreateView(generics.ListCreateAPIView):
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(coordinador=self.request.user)
+        periodo = serializer.validated_data.get('periodo')
+        if not periodo:
+            periodo = PeriodoAcademico.objects.filter(activo=True).first()
+        serializer.save(coordinador=self.request.user, periodo=periodo)
 
 
 class MatrizOperativaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -237,3 +244,48 @@ class ActividadSugeridaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyA
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
             return [IsAuthenticated(), IsCoordinador()]
         return [IsAuthenticated()]
+
+
+class MatrizOperativaExportExcelView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        matriz = get_object_or_404(
+            MatrizOperativa.objects.select_related('periodo', 'facultad', 'coordinador')
+            .prefetch_related(
+                'objetivos__indicadores',
+                'objetivos__linea_estrategica',
+                'objetivos__eje_rsu',
+                'actividades_sugeridas__eje_rsu',
+                'actividades_sugeridas__objetivo',
+            ), 
+            pk=pk
+        )
+        excel_file = export_matriz_excel(matriz)
+        response = HttpResponse(
+            excel_file.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="matriz_operativa_{matriz.id}.xlsx"'
+        return response
+
+
+class MatrizOperativaExportPDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        matriz = get_object_or_404(
+            MatrizOperativa.objects.select_related('periodo', 'facultad', 'coordinador')
+            .prefetch_related(
+                'objetivos__indicadores',
+                'objetivos__linea_estrategica',
+                'objetivos__eje_rsu',
+                'actividades_sugeridas__eje_rsu',
+                'actividades_sugeridas__objetivo',
+            ), 
+            pk=pk
+        )
+        pdf_file = export_matriz_pdf(matriz)
+        response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="matriz_operativa_{matriz.id}.pdf"'
+        return response
