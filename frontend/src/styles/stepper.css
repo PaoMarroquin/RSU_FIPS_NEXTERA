@@ -1,0 +1,55 @@
+.stepper-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  overflow-x: auto;
+}
+
+.stepper-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.stepper-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  transition: all 0.3s ease;
+}
+
+.stepper-circle.active {
+  background: #b1122b; /* Rojo UNSA */
+  color: white;
+  box-shadow: 0 4px 6px rgba(177, 18, 43, 0.2);
+}
+
+.stepper-circle.completed {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.stepper-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+  transition: color 0.3s ease;
+}
+
+.stepper-label.active-label {
+  color: #1e293b;
+}

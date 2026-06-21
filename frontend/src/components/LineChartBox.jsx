@@ -11,20 +11,25 @@ const data = [
 
 export default function LineChartBox() {
   return (
-    <div className="chart-box">
-      <h3>Evolución Mensual</h3>
+    <div className="flex flex-col h-full">
+      <h3 className="text-base font-bold text-slate-800 mb-6">Evolución Mensual</h3>
 
-      <ResponsiveContainer width="100%" height={250}>
-        <LineChart data={data}>
-          <XAxis dataKey="name" />
-          <Tooltip />
-          <Line
-            dataKey="value"
-            stroke="#d02b45"
-            strokeWidth={3}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="flex-1 min-h-[250px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#b1122b"
+              strokeWidth={3}
+              dot={{ r: 4, fill: "#b1122b", strokeWidth: 2, stroke: "#fff" }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
