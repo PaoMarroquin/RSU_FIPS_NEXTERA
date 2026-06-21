@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
 from apps.planificacion.models import PeriodoAcademico, EjeRSU, LineaEstrategica, ObjetivoInstitucional, ODS
 
@@ -400,64 +401,80 @@ class ObjetivoEspecifico(models.Model):
         return f'OE{self.orden} - proyecto#{self.proyecto_id}'
 
 
-class ActividadProyecto(models.Model):
+class FaseProyecto(models.Model):
     """
-    VI. Desarrollo de Actividades - cada actividad conducente al logro de objetivos.
+    VI. Desarrollo de Actividades - cada fase agrupa tareas del proyecto.
+    Corresponde a `fases_proyecto` en el schema DBML.
     """
+    ESTADOS = [
+        ('pendiente',  'Pendiente'),
+        ('en_proceso', 'En Proceso'),
+        ('completada', 'Completada'),
+    ]
     proyecto = models.ForeignKey(
-        ProyectoRSU, on_delete=models.CASCADE, related_name='actividades')
-    nombre = models.CharField(max_length=300, help_text="Nombre de la actividad")
-    descripcion = models.TextField(blank=True, null=True, help_text="Descripción breve")
-    curso_vinculado = models.CharField(
-        max_length=300, blank=True, null=True, help_text="Asignatura vinculada")
-    responsable = models.CharField(
-        max_length=200, blank=True, null=True, help_text="Responsable de la actividad")
-    fecha = models.DateField(null=True, blank=True)
-    evidencia_esperada = models.CharField(
-        max_length=400, blank=True, null=True,
-        help_text="Evidencia esperada (ej: Fotos, listas, informes)")
+        ProyectoRSU, on_delete=models.CASCADE, related_name='fases')
+    nombre = models.CharField(max_length=300)
+    descripcion = models.TextField(blank=True, null=True)
     orden = models.PositiveIntegerField(default=0)
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=30, choices=ESTADOS, default='pendiente')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'proyecto_actividades'
-        verbose_name = 'Actividad de Proyecto'
-        verbose_name_plural = 'Actividades de Proyecto'
-        ordering = ['orden', 'fecha']
+        db_table = 'fases_proyecto'
+        verbose_name = 'Fase de Proyecto'
+        verbose_name_plural = 'Fases de Proyecto'
+        ordering = ['orden']
 
     def __str__(self):
         return f'proyecto#{self.proyecto_id} - {self.nombre}'
 
 
-class CronogramaAccion(models.Model):
+class TareaProyecto(models.Model):
     """
-    VII. Cronograma - distribución de acciones a lo largo del periodo de ejecución.
+    VII. Cronograma - tareas específicas dentro de una fase.
+    Corresponde a `tareas_proyecto` en el schema DBML.
     """
-    ESTADOS_AVANCE = [
+    ESTADOS = [
         ('pendiente',  'Pendiente'),
         ('en_proceso', 'En Proceso'),
-        ('finalizado', 'Finalizado'),
+        ('completado', 'Completado'),
     ]
-    proyecto = models.ForeignKey(
-        ProyectoRSU, on_delete=models.CASCADE, related_name='cronograma')
-    descripcion = models.CharField(
-        max_length=400, help_text="Descripción de la acción")
-    mes_semana = models.CharField(
-        max_length=100, blank=True, null=True,
-        help_text="Periodo de ejecución (ej: Mes 1, Sem 2)")
-    responsable = models.CharField(
-        max_length=200, blank=True, null=True)
-    estado_avance = models.CharField(
-        max_length=30, choices=ESTADOS_AVANCE, default='pendiente')
-    orden = models.PositiveIntegerField(default=0)
+    TIPOS_ACTIVIDAD = [
+        ('programas_formativos',    'Programas formativos'),
+        ('acompanamiento_social',   'Acompañamiento social'),
+        ('asesorias',               'Asesorías'),
+        ('actividades_comunitarias','Actividades comunitarias'),
+        ('otras',                   'Otras'),
+    ]
+    fase = models.ForeignKey(
+        FaseProyecto, on_delete=models.CASCADE, related_name='tareas')
+    nombre = models.CharField(max_length=300)
+    descripcion = models.TextField(blank=True, null=True)
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=30, choices=ESTADOS, default='pendiente')
+    porcentaje_avance = models.PositiveIntegerField(default=0)
+    responsable = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='tareas_asignadas')
+    lugar_ejecucion = models.CharField(max_length=300, blank=True, null=True)
+    tipo_actividad = models.CharField(
+        max_length=150, choices=TIPOS_ACTIVIDAD, blank=True, null=True)
+    aplica_encuesta = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'proyecto_cronograma'
-        verbose_name = 'Acción de Cronograma'
-        verbose_name_plural = 'Acciones de Cronograma'
-        ordering = ['orden']
+        db_table = 'tareas_proyecto'
+        verbose_name = 'Tarea de Proyecto'
+        verbose_name_plural = 'Tareas de Proyecto'
+        ordering = ['fecha_fin', 'id']
 
     def __str__(self):
-        return f'proyecto#{self.proyecto_id} - {self.descripcion[:50]}'
+        return f'fase#{self.fase_id} - {self.nombre}'
 
 
 class DocumentoSustentoProyecto(models.Model):
@@ -482,14 +499,33 @@ class DocumentoSustentoProyecto(models.Model):
 
 class PartidaPresupuestaria(models.Model):
     """
-    IX. Financiamiento - Desglose detallado del presupuesto estimado por rubro.
-    Cada fila representa un concepto de gasto con su cantidad y costo unitario.
-    El total del proyecto se obtiene sumando todas las partidas.
+    IX. Financiamiento - Desglose detallado del presupuesto por rubro.
+    Corresponde a `presupuesto_proyecto` en el schema DBML.
     """
+    CATEGORIAS = [
+        ('movilidad',         'Movilidad'),
+        ('material_educativo','Material educativo'),
+        ('equipos',           'Equipos'),
+        ('alimentacion',      'Alimentación'),
+        ('servicios',         'Servicios'),
+        ('otros',             'Otros'),
+    ]
+    TIPOS_RECURSO = [
+        ('humano',     'Humano'),
+        ('material',   'Material'),
+        ('financiero', 'Financiero'),
+    ]
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='partidas_presupuesto')
-    concepto = models.CharField(
-        max_length=300, help_text="Descripción del rubro o concepto de gasto")
+    categoria = models.CharField(
+        max_length=150, choices=CATEGORIAS, blank=True,
+        help_text="Categoría del gasto")
+    tipo_recurso = models.CharField(
+        max_length=50, choices=TIPOS_RECURSO, blank=True,
+        help_text="Tipo de recurso")
+    descripcion = models.CharField(
+        max_length=500, blank=True,
+        help_text="Descripción del rubro o concepto de gasto")
     unidad = models.CharField(
         max_length=50, blank=True,
         help_text="Unidad de medida (ej: unidad, hora, taller, kit)")
@@ -498,24 +534,29 @@ class PartidaPresupuestaria(models.Model):
     costo_unitario = models.DecimalField(
         max_digits=10, decimal_places=2,
         help_text="Costo por unidad en Soles (S/)")
+    monto_ejecutado = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+        help_text="Monto efectivamente gastado al cierre")
     fuente = models.CharField(
         max_length=50, choices=ProyectoRSU.FUENTES_FINANCIAMIENTO,
         blank=True, null=True,
         help_text="Fuente de financiamiento de este rubro")
     orden = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'proyecto_partidas_presupuesto'
+        db_table = 'presupuesto_proyecto'
         verbose_name = 'Partida Presupuestaria'
         verbose_name_plural = 'Partidas Presupuestarias'
         ordering = ['orden']
 
     @property
-    def total(self):
+    def monto_presupuestado(self):
         return self.cantidad * self.costo_unitario
 
     def __str__(self):
-        return f'{self.concepto} - proyecto#{self.proyecto_id}'
+        return f'{self.descripcion} - proyecto#{self.proyecto_id}'
 
 
 class MetaIndicadorProyecto(models.Model):

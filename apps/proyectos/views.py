@@ -8,14 +8,14 @@ from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
 from .models import (
-    ProyectoRSU, ObjetivoEspecifico, ActividadProyecto, CronogramaAccion,
+    ProyectoRSU, ObjetivoEspecifico, FaseProyecto, TareaProyecto,
     PartidaPresupuestaria, MetaIndicadorProyecto,
 )
 from .serializers import (
     ProyectoRSUSerializer,
     ObjetivoEspecificoSerializer,
-    ActividadProyectoSerializer,
-    CronogramaAccionSerializer,
+    FaseProyectoSerializer,
+    TareaProyectoSerializer,
     PartidaPresupuestariaSerializer,
     MetaIndicadorProyectoSerializer,
 )
@@ -29,7 +29,7 @@ def _proyecto_qs_base():
         'docente_responsable',
     ).prefetch_related(
         'ods', 'asignaturas', 'docentes_adicionales',
-        'objetivos_especificos', 'actividades', 'cronograma',
+        'objetivos_especificos', 'fases__tareas',
     )
 
 
@@ -207,6 +207,12 @@ class ProyectoEnviarRevisionView(APIView):
         proyecto.fecha_envio_revision = timezone.now()
         proyecto.save(update_fields=['estado', 'fecha_envio_revision'])
 
+        proyecto = (
+            ProyectoRSU.objects
+            .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
+                              'objetivos_especificos', 'fases__tareas')
+            .get(pk=pk)
+        )
         serializer = ProyectoRSUSerializer(proyecto, context={'request': request})
         return Response(
             {'detail': 'El proyecto ha sido enviado a revisión exitosamente.', 'proyecto': serializer.data},
@@ -244,26 +250,29 @@ class ObjetivoEspecificoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
-class ActividadProyectoListCreateView(generics.ListCreateAPIView):
-    serializer_class = ActividadProyectoSerializer
+class FaseProyectoListCreateView(generics.ListCreateAPIView):
+    serializer_class = FaseProyectoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return ActividadProyecto.objects.filter(
+        return FaseProyecto.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
-        ).order_by('orden', 'fecha')
+        ).prefetch_related('tareas').order_by('orden')
 
     def perform_create(self, serializer):
         proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
-class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = ActividadProyectoSerializer
+class FaseProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = FaseProyectoSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+        return FaseProyecto.objects.filter(
+            proyecto_id=self.kwargs['proyecto_pk']
+        ).prefetch_related('tareas')
 
     def update(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
@@ -274,26 +283,36 @@ class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
-class CronogramaAccionListCreateView(generics.ListCreateAPIView):
-    serializer_class = CronogramaAccionSerializer
+class TareaProyectoListCreateView(generics.ListCreateAPIView):
+    serializer_class = TareaProyectoSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return CronogramaAccion.objects.filter(
-            proyecto_id=self.kwargs['proyecto_pk']
-        ).order_by('orden')
+        return TareaProyecto.objects.filter(
+            fase_id=self.kwargs['fase_pk'],
+            fase__proyecto_id=self.kwargs['proyecto_pk'],
+        ).select_related('responsable').order_by('fecha_fin', 'id')
 
     def perform_create(self, serializer):
-        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
-        serializer.save(proyecto=proyecto)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        fase = get_object_or_404(
+            FaseProyecto,
+            pk=self.kwargs['fase_pk'],
+            proyecto_id=self.kwargs['proyecto_pk'],
+        )
+        serializer.save(fase=fase)
 
 
-class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = CronogramaAccionSerializer
+class TareaProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = TareaProyectoSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        return CronogramaAccion.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+        return TareaProyecto.objects.filter(
+            fase_id=self.kwargs['fase_pk'],
+            fase__proyecto_id=self.kwargs['proyecto_pk'],
+        ).select_related('responsable')
 
     def update(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
@@ -357,19 +376,22 @@ class PresupuestoResumenView(APIView):
 
         partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
 
-        total_general = sum(p.total for p in partidas)
+        total_presupuestado = sum(p.monto_presupuestado for p in partidas)
+        total_ejecutado = sum(p.monto_ejecutado for p in partidas)
 
         desglose = {}
         for p in partidas:
             fuente_key = p.fuente or 'sin_especificar'
             fuente_label = p.get_fuente_display() if p.fuente else 'Sin especificar'
             if fuente_key not in desglose:
-                desglose[fuente_key] = {'fuente': fuente_label, 'total': 0}
-            desglose[fuente_key]['total'] += float(p.total)
+                desglose[fuente_key] = {'fuente': fuente_label, 'presupuestado': 0, 'ejecutado': 0}
+            desglose[fuente_key]['presupuestado'] += float(p.monto_presupuestado)
+            desglose[fuente_key]['ejecutado'] += float(p.monto_ejecutado)
 
         return Response({
             'proyecto_id': proyecto_pk,
-            'total_general': float(total_general),
+            'total_presupuestado': float(total_presupuestado),
+            'total_ejecutado': float(total_ejecutado),
             'nro_partidas': partidas.count(),
             'desglose_por_fuente': list(desglose.values()),
         })

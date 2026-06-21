@@ -11,13 +11,11 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/objetivos/', views.ObjetivoEspecificoListCreateView.as_view(), name='objetivo-list'),
     path('proyectos/<int:proyecto_pk>/objetivos/<int:pk>/', views.ObjetivoEspecificoDetailView.as_view(), name='objetivo-detail'),
 
-    # ── VI. Actividades ───────────────────────────────────────────────────────
-    path('proyectos/<int:proyecto_pk>/actividades/', views.ActividadProyectoListCreateView.as_view(), name='actividad-list'),
-    path('proyectos/<int:proyecto_pk>/actividades/<int:pk>/', views.ActividadProyectoDetailView.as_view(), name='actividad-detail'),
-
-    # ── VII. Cronograma ───────────────────────────────────────────────────────
-    path('proyectos/<int:proyecto_pk>/cronograma/', views.CronogramaAccionListCreateView.as_view(), name='cronograma-list'),
-    path('proyectos/<int:proyecto_pk>/cronograma/<int:pk>/', views.CronogramaAccionDetailView.as_view(), name='cronograma-detail'),
+    # ── VI/VII. Fases y Tareas ────────────────────────────────────────────────
+    path('proyectos/<int:proyecto_pk>/fases/', views.FaseProyectoListCreateView.as_view(), name='fase-list'),
+    path('proyectos/<int:proyecto_pk>/fases/<int:pk>/', views.FaseProyectoDetailView.as_view(), name='fase-detail'),
+    path('proyectos/<int:proyecto_pk>/fases/<int:fase_pk>/tareas/', views.TareaProyectoListCreateView.as_view(), name='tarea-list'),
+    path('proyectos/<int:proyecto_pk>/fases/<int:fase_pk>/tareas/<int:pk>/', views.TareaProyectoDetailView.as_view(), name='tarea-detail'),
 
     # ── IX. Presupuesto estimado ──────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/presupuesto/', views.PartidaPresupuestariaListCreateView.as_view(), name='presupuesto-list'),

@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Sum, F
 from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
-    ObjetivoEspecifico, ActividadProyecto, CronogramaAccion,
+    ObjetivoEspecifico, FaseProyecto, TareaProyecto,
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
 )
 from apps.planificacion.models import ODS, EjeRSU, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
@@ -35,19 +35,54 @@ class ObjetivoEspecificoSerializer(serializers.ModelSerializer):
         fields = ['id', 'descripcion', 'orden']
 
 
-class ActividadProyectoSerializer(serializers.ModelSerializer):
+class TareaProyectoSerializer(serializers.ModelSerializer):
+    responsable_nombre = serializers.CharField(
+        source='responsable.nombre_completo', read_only=True)
+
     class Meta:
-        model = ActividadProyecto
+        model = TareaProyecto
         fields = [
-            'id', 'nombre', 'descripcion', 'curso_vinculado',
-            'responsable', 'fecha', 'evidencia_esperada', 'orden',
+            'id', 'nombre', 'descripcion', 'fecha_inicio', 'fecha_fin',
+            'estado', 'porcentaje_avance',
+            'responsable', 'responsable_nombre',
+            'lugar_ejecucion', 'tipo_actividad', 'aplica_encuesta',
         ]
 
+    def validate_porcentaje_avance(self, value):
+        if not (0 <= value <= 100):
+            raise serializers.ValidationError('El porcentaje debe estar entre 0 y 100.')
+        return value
 
-class CronogramaAccionSerializer(serializers.ModelSerializer):
+
+class FaseProyectoSerializer(serializers.ModelSerializer):
+    tareas = TareaProyectoSerializer(many=True, required=False)
+
     class Meta:
-        model = CronogramaAccion
-        fields = ['id', 'descripcion', 'mes_semana', 'responsable', 'estado_avance', 'orden']
+        model = FaseProyecto
+        fields = [
+            'id', 'nombre', 'descripcion', 'orden',
+            'fecha_inicio', 'fecha_fin', 'estado', 'tareas',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def create(self, validated_data):
+        tareas_data = validated_data.pop('tareas', [])
+        fase = FaseProyecto.objects.create(**validated_data)
+        for tarea_data in tareas_data:
+            TareaProyecto.objects.create(fase=fase, **tarea_data)
+        return fase
+
+    def update(self, instance, validated_data):
+        tareas_data = validated_data.pop('tareas', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if tareas_data is not None:
+            instance.tareas.all().delete()
+            for tarea_data in tareas_data:
+                TareaProyecto.objects.create(fase=instance, **tarea_data)
+        return instance
 
 
 class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
@@ -57,19 +92,25 @@ class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
 
 
 class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
-    total = serializers.SerializerMethodField(read_only=True)
+    monto_presupuestado = serializers.SerializerMethodField(read_only=True)
     fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
+    categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
+    tipo_recurso_display = serializers.CharField(source='get_tipo_recurso_display', read_only=True)
 
     class Meta:
         model = PartidaPresupuestaria
         fields = [
-            'id', 'concepto', 'unidad', 'cantidad',
-            'costo_unitario', 'total',
+            'id', 'categoria', 'categoria_display',
+            'tipo_recurso', 'tipo_recurso_display',
+            'descripcion', 'unidad', 'cantidad',
+            'costo_unitario', 'monto_presupuestado', 'monto_ejecutado',
             'fuente', 'fuente_display', 'orden',
+            'created_at', 'updated_at',
         ]
+        read_only_fields = ['created_at', 'updated_at']
 
-    def get_total(self, obj):
-        return obj.total
+    def get_monto_presupuestado(self, obj):
+        return obj.monto_presupuestado
 
     def validate_cantidad(self, value):
         if value < 1:
@@ -124,8 +165,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     asignaturas = ProyectoAsignaturaSerializer(many=True, required=False)
     docentes_adicionales = ProyectoDocenteSerializer(many=True, required=False)
     objetivos_especificos = ObjetivoEspecificoSerializer(many=True, required=False)
-    actividades = ActividadProyectoSerializer(many=True, required=False)
-    cronograma = CronogramaAccionSerializer(many=True, required=False)
+    fases = FaseProyectoSerializer(many=True, required=False)
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
 
     # Read-only display fields
@@ -213,11 +253,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'resultado_en_curriculo',
             'impacto_esperado',
 
-            # ── Sección VI - Actividades ──────────────────────────────────
-            'actividades',
-
-            # ── Sección VII - Cronograma ──────────────────────────────────
-            'cronograma',
+            # ── Sección VI/VII - Fases y Tareas ──────────────────────────
+            'fases',
 
             # ── Sección VIII - Recursos ───────────────────────────────────
             'rec_hum_docentes', 'rec_hum_administrativos',
@@ -302,18 +339,13 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             })
         return attrs
 
-    def _save_nested(self, proyecto, data_map, replace=False):
-        """
-        Crea o reemplaza objetos relacionados en lote.
-        data_map: dict { attr_name: list_of_dicts }
-        """
+    def _save_nested_flat(self, proyecto, data_map, replace=False):
+        """Crea o reemplaza objetos relacionados directamente al proyecto."""
         mapping = {
-            'asignaturas': ProyectoAsignatura,
-            'docentes_adicionales': ProyectoDocente,
+            'asignaturas':           ProyectoAsignatura,
+            'docentes_adicionales':  ProyectoDocente,
             'objetivos_especificos': ObjetivoEspecifico,
-            'actividades': ActividadProyecto,
-            'cronograma': CronogramaAccion,
-            'documentos_sustento': DocumentoSustentoProyecto,
+            'documentos_sustento':   DocumentoSustentoProyecto,
         }
         for attr, items in data_map.items():
             if items is None:
@@ -324,14 +356,25 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             for item in items:
                 model.objects.create(proyecto=proyecto, **item)
 
+    def _save_fases(self, proyecto, fases_data, replace=False):
+        """Crea o reemplaza fases con sus tareas anidadas."""
+        if fases_data is None:
+            return
+        if replace:
+            proyecto.fases.all().delete()
+        for fase_data in fases_data:
+            tareas_data = fase_data.pop('tareas', [])
+            fase = FaseProyecto.objects.create(proyecto=proyecto, **fase_data)
+            for tarea_data in tareas_data:
+                TareaProyecto.objects.create(fase=fase, **tarea_data)
+
     def create(self, validated_data):
-        asignaturas_data    = validated_data.pop('asignaturas', [])
-        docentes_data       = validated_data.pop('docentes_adicionales', [])
-        objetivos_data      = validated_data.pop('objetivos_especificos', [])
-        actividades_data    = validated_data.pop('actividades', [])
-        cronograma_data     = validated_data.pop('cronograma', [])
-        documentos_data     = validated_data.pop('documentos_sustento', [])
-        ods_data            = validated_data.pop('ods', [])
+        asignaturas_data = validated_data.pop('asignaturas', [])
+        docentes_data    = validated_data.pop('docentes_adicionales', [])
+        objetivos_data   = validated_data.pop('objetivos_especificos', [])
+        fases_data       = validated_data.pop('fases', [])
+        documentos_data  = validated_data.pop('documentos_sustento', [])
+        ods_data         = validated_data.pop('ods', [])
 
         validated_data['docente_responsable'] = self.context['request'].user
         validated_data['estado'] = 'borrador'
@@ -342,14 +385,13 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             proyecto.save(update_fields=['codigo'])
 
             proyecto.ods.set(ods_data)
-            self._save_nested(proyecto, {
+            self._save_nested_flat(proyecto, {
                 'asignaturas':           asignaturas_data,
                 'docentes_adicionales':  docentes_data,
                 'objetivos_especificos': objetivos_data,
-                'actividades':           actividades_data,
-                'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
             }, replace=False)
+            self._save_fases(proyecto, fases_data, replace=False)
 
         return proyecto
 
@@ -358,13 +400,12 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "No se puede editar un proyecto que está en revisión o ya aprobado.")
 
-        asignaturas_data    = validated_data.pop('asignaturas', None)
-        docentes_data       = validated_data.pop('docentes_adicionales', None)
-        objetivos_data      = validated_data.pop('objetivos_especificos', None)
-        actividades_data    = validated_data.pop('actividades', None)
-        cronograma_data     = validated_data.pop('cronograma', None)
-        documentos_data     = validated_data.pop('documentos_sustento', None)
-        ods_data            = validated_data.pop('ods', None)
+        asignaturas_data = validated_data.pop('asignaturas', None)
+        docentes_data    = validated_data.pop('docentes_adicionales', None)
+        objetivos_data   = validated_data.pop('objetivos_especificos', None)
+        fases_data       = validated_data.pop('fases', None)
+        documentos_data  = validated_data.pop('documentos_sustento', None)
+        ods_data         = validated_data.pop('ods', None)
 
         with transaction.atomic():
             changed_fields = list(validated_data.keys())
@@ -375,13 +416,12 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             if ods_data is not None:
                 instance.ods.set(ods_data)
 
-            self._save_nested(instance, {
+            self._save_nested_flat(instance, {
                 'asignaturas':           asignaturas_data,
                 'docentes_adicionales':  docentes_data,
                 'objetivos_especificos': objetivos_data,
-                'actividades':           actividades_data,
-                'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
             }, replace=True)
+            self._save_fases(instance, fases_data, replace=True)
 
         return instance

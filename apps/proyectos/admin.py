@@ -6,8 +6,8 @@ from django.utils.safestring import mark_safe
 
 from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
-    ObjetivoEspecifico, ActividadProyecto, CronogramaAccion,
-    DocumentoSustentoProyecto,
+    ObjetivoEspecifico, FaseProyecto, TareaProyecto,
+    DocumentoSustentoProyecto, PartidaPresupuestaria,
 )
 
 
@@ -335,23 +335,22 @@ class ObjetivoEspecificoInline(admin.TabularInline):
     verbose_name_plural = "── IV. Objetivos específicos (orden = número del objetivo: 1, 2, 3…)"
 
 
-class ActividadProyectoInline(admin.TabularInline):
-    model = ActividadProyecto
+class TareaProyectoInline(admin.TabularInline):
+    model = TareaProyecto
     extra = 1
-    fields = ('orden', 'nombre', 'descripcion', 'curso_vinculado',
-              'responsable', 'fecha', 'evidencia_esperada')
-    ordering = ['orden']
-    verbose_name = "Actividad"
-    verbose_name_plural = "VI. Actividades (orden = secuencia en el informe: 1, 2, 3…)"
+    fields = ('nombre', 'fecha_inicio', 'fecha_fin', 'estado', 'porcentaje_avance',
+              'responsable', 'lugar_ejecucion', 'tipo_actividad', 'aplica_encuesta')
+    verbose_name = "Tarea"
+    verbose_name_plural = "Tareas"
 
 
-class CronogramaAccionInline(admin.TabularInline):
-    model = CronogramaAccion
+class FaseProyectoInline(admin.StackedInline):
+    model = FaseProyecto
     extra = 1
-    fields = ('orden', 'descripcion', 'mes_semana', 'responsable', 'estado_avance')
+    fields = ('orden', 'nombre', 'descripcion', 'fecha_inicio', 'fecha_fin', 'estado')
     ordering = ['orden']
-    verbose_name = "Acción"
-    verbose_name_plural = "VII. Cronograma de acciones (orden = secuencia en la tabla: 1, 2, 3…)"
+    verbose_name = "Fase"
+    verbose_name_plural = "VI/VII. Fases del proyecto"
 
 
 class DocumentoSustentoProyectoInline(admin.TabularInline):
@@ -395,8 +394,7 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
         ProyectoAsignaturaInline,         # I (1.5)
         ProyectoDocenteInline,            # I (docentes adicionales)
         ObjetivoEspecificoInline,         # IV
-        ActividadProyectoInline,          # VI
-        CronogramaAccionInline,           # VII
+        FaseProyectoInline,               # VI/VII
         DocumentoSustentoProyectoInline,  # IX
     ]
 
@@ -617,18 +615,26 @@ class ObjetivoEspecificoAdmin(admin.ModelAdmin):
     ordering = ['proyecto', 'orden']
 
 
-@admin.register(ActividadProyecto)
-class ActividadProyectoAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'nombre', 'responsable', 'fecha')
-    list_filter = ('proyecto__estado',)
+@admin.register(FaseProyecto)
+class FaseProyectoAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'orden', 'nombre', 'estado', 'fecha_inicio', 'fecha_fin')
+    list_filter = ('estado', 'proyecto__estado')
     ordering = ['proyecto', 'orden']
+    inlines = [TareaProyectoInline]
 
 
-@admin.register(CronogramaAccion)
-class CronogramaAccionAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'descripcion',
-                    'mes_semana', 'responsable', 'estado_avance')
-    list_filter = ('estado_avance', 'proyecto__estado')
+@admin.register(TareaProyecto)
+class TareaProyectoAdmin(admin.ModelAdmin):
+    list_display = ('fase', 'nombre', 'estado', 'porcentaje_avance', 'fecha_fin', 'responsable')
+    list_filter = ('estado', 'tipo_actividad', 'aplica_encuesta')
+    ordering = ['fase', 'fecha_fin']
+
+
+@admin.register(PartidaPresupuestaria)
+class PartidaPresupuestariaAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'categoria', 'descripcion', 'cantidad',
+                    'costo_unitario', 'monto_ejecutado', 'fuente')
+    list_filter = ('categoria', 'tipo_recurso', 'fuente')
     ordering = ['proyecto', 'orden']
 
 
