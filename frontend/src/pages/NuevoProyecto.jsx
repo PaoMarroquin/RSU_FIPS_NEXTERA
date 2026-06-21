@@ -44,10 +44,10 @@ export default function NuevoProyecto() {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8">
-            {/* Pasamos las propiedades al Stepper */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5 overflow-x-auto">     
             <Stepper currentStep={step} highestStep={highestStep} goToStep={goToStep} />
-            
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]"> 
             <div className="mt-6">
               {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}
               {step === 2 && <Fundamentacion data={formData} updateData={updateData} />}

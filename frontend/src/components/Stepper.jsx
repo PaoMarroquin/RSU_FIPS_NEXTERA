@@ -1,68 +1,75 @@
 import React from 'react';
 
-// Componente simple de icono Check
+// Icono Check circular
 const CheckIcon = () => (
-  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
 export default function Stepper({ currentStep, highestStep, goToStep }) {
   const steps = [
-    { id: 1, label: 'DATOS GENERALES' },
-    { id: 2, label: 'FUNDAMENTACIÓN' },
-    { id: 3, label: 'DIAGNÓSTICO' },
-    { id: 4, label: 'OBJETIVOS' },
-    { id: 5, label: 'RESULTADOS' },
-    { id: 6, label: 'ACTIVIDADES' },
-    { id: 7, label: 'CRONOGRAMA' },
-    { id: 8, label: 'RECURSOS' },
-    { id: 9, label: 'FINANCIAMIENTO' },
+    { id: 1, roman: 'I', label: 'Datos Generales' },
+    { id: 2, roman: 'II', label: 'Fundamentación' },
+    { id: 3, roman: 'III', label: 'Diagnóstico' },
+    { id: 4, roman: 'IV', label: 'Objetivos' },
+    { id: 5, roman: 'V', label: 'Resultados' },
+    { id: 6, roman: 'VI', label: 'Actividades' },
+    { id: 7, roman: 'VII', label: 'Cronograma' },
+    { id: 8, roman: 'VIII', label: 'Recursos' },
+    { id: 9, roman: 'IX', label: 'Financiamiento' },
   ];
 
   return (
-    <div className="flex items-center w-full mb-6 pb-4 overflow-x-auto border-b border-slate-100 px-2">
-      {steps.map((step, index) => {
-        // Lógica de estados para coincidir con tu imagen
-        const isCurrent = currentStep === step.id;
-        const isCompleted = step.id < currentStep || (step.id < highestStep && !isCurrent);
-        const isClickable = step.id <= highestStep;
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="flex items-start min-w-max">
+        {steps.map((step, index) => {
+          const isCurrent = currentStep === step.id;
+          const isCompleted = step.id < currentStep || (step.id < highestStep && !isCurrent);
+          const isClickable = step.id <= highestStep;
 
-        return (
-          <React.Fragment key={step.id}>
-            {/* Contenedor del Círculo y Texto */}
-            <div className="flex flex-col items-center min-w-[100px]">
-              <button
-                onClick={() => goToStep(step.id)}
-                disabled={!isClickable}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold mb-2 transition-all duration-300
-                  ${isCurrent
-                    ? 'bg-[#b1122b] text-white ring-4 ring-red-100 shadow-md' // Estado activo (Rojo)
-                    : isCompleted
-                      ? 'bg-[#10b981] text-white cursor-pointer hover:bg-emerald-600' // Completado (Verde)
-                      : 'bg-slate-100 text-slate-400 cursor-not-allowed' // Pendiente (Gris)
-                  }`}
-              >
-                {isCompleted ? <CheckIcon /> : step.id}
-              </button>
-              <span
-                className={`text-[10px] font-bold text-center tracking-wider transition-colors duration-300 uppercase
-                  ${isCurrent ? 'text-slate-800' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}
-              >
-                {step.label}
-              </span>
-            </div>
-
-            {/* Línea conectora (se omite después del último paso) */}
-            {index < steps.length - 1 && (
+          return (
+            <React.Fragment key={step.id}>
+              
+              {/* Contenedor del Paso */}
               <div 
-                className={`flex-1 h-[2px] mx-2 transition-colors duration-300 -mt-6
-                  ${step.id < highestStep && step.id < currentStep ? 'bg-[#10b981]' : 'bg-slate-200'}`} 
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
+                onClick={() => isClickable && goToStep(step.id)}
+                className={`flex flex-col items-center relative group w-24 shrink-0 transition-opacity ${isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-80'}`}
+              >
+                {/* Círculo */}
+                <div 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all
+                    ${isCurrent 
+                      ? 'bg-[#b1122b] text-white ring-4 ring-[#b1122b]/20' // Activo (Tu rojo UNSA)
+                      : isCompleted
+                        ? 'bg-[#10b981] text-white hover:bg-emerald-600' // Completado (Verde)
+                        : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200' // Pendiente (Gris)
+                    }`}
+                >
+                  {isCompleted ? <CheckIcon /> : step.roman}
+                </div>
+                
+                {/* Texto */}
+                <span 
+                  className={`text-[10px] uppercase tracking-wider mt-2 font-semibold text-center leading-tight
+                    ${isCurrent ? 'text-slate-800' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}
+                >
+                  {step.label}
+                </span>
+              </div>
+
+              {/* Línea Separadora (Directamente entre los flex items como en tu HTML) */}
+              {index < steps.length - 1 && (
+                <div 
+                  className={`h-0.5 w-6 mt-5 transition-colors shrink-0
+                    ${isCompleted ? 'bg-[#10b981]' : 'bg-slate-200'}`}
+                />
+              )}
+
+            </React.Fragment>
+          );
+        })}
+      </div>
     </div>
   );
 }
