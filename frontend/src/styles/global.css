@@ -1,0 +1,19 @@
+:root {
+  --bg: #f1f5f9;              /* fondo general */
+  --panel: #f8fafc;           /* columnas */
+  --card: #f9fafb;            /* tarjetas */
+
+  --border: #e2e8f0;
+
+  --text: #0f172a;
+  --text-soft: #64748b;
+
+  --red: #dc2626;
+  --red-soft: #fee2e2;
+
+  --blue: #2563eb;
+  --blue-soft: #dbeafe;
+
+  --green: #16a34a;
+  --green-soft: #dcfce7;
+}
