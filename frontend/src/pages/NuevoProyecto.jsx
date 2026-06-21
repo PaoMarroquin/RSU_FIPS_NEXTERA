@@ -31,7 +31,7 @@ export default function NuevoProyecto() {
       <div className="ml-[230px] flex flex-col min-h-screen relative pb-24">
         <Topbar />
 
-        <div className="p-6 md:p-8">
+        <div className="max-w-5xl mx-auto space-y-6 pb-24">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold text-slate-800 m-0">Nuevo Proyecto RSU</h1>
@@ -43,10 +43,8 @@ export default function NuevoProyecto() {
               Cancelar
             </button>
           </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5 overflow-x-auto">     
-            <Stepper currentStep={step} highestStep={highestStep} goToStep={goToStep} />
-          </div>
+     
+          <Stepper currentStep={step} highestStep={highestStep} goToStep={goToStep} />
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]"> 
             <div className="mt-6">
               {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}
