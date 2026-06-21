@@ -10,14 +10,21 @@ export default function NuevoProyecto() {
   const { step, formData, updateData, nextStep, prevStep, handleBorrador } = useFormRSU();
 
   return (
-    <div className="layout">
+    <div className="min-h-screen bg-slate-50">
+      
+      {/* 1. Sidebar Fijo a la izquierda */}
       <Sidebar />
 
-      <div className="content relative pb-24 min-h-screen bg-slate-50">
+      {/* 2. Contenido principal desplazado 230px a la derecha */}
+      {/* El pb-24 (padding-bottom) asegura que el FormFooter fijo no tape el contenido del formulario */}
+      <div className="ml-[230px] flex flex-col min-h-screen relative pb-24">
+        
         <Topbar />
 
-        <div className="p-8">
-          <div className="flex justify-between items-center mb-6">
+        {/* 3. Área de trabajo */}
+        <div className="p-6 md:p-8">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-2xl font-bold text-slate-800 m-0">Nuevo Proyecto RSU</h1>
               <p className="text-slate-500 text-sm m-0 mt-1">Formato Oficial OURS - Universidad Nacional de San Agustín</p>
@@ -27,7 +34,7 @@ export default function NuevoProyecto() {
             </button>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 md:p-8">
             <Stepper currentStep={step} />
             
             <div className="mt-6">
@@ -36,12 +43,14 @@ export default function NuevoProyecto() {
           </div>
         </div>
 
+        {/* 4. Footer Fijo */}
         <FormFooter 
           step={step} 
           nextStep={nextStep} 
           prevStep={prevStep} 
           handleBorrador={handleBorrador}
         />
+        
       </div>
     </div>
   );
