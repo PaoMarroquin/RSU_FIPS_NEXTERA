@@ -94,6 +94,58 @@ const mockInitialData = {
   // Paso 4
   obj_general: '',
   obj_especificos: ['', '', ''],
+
+  // Paso 5: Resultados
+  res_beneficiario: '',
+  res_curricular: '',
+
+  // Paso 6: Actividades
+  actividades: [
+    {
+      actividad: '',
+      descripcion: '',
+      curso: '',
+      responsable: '',
+      fecha: '',
+      evidencia: '',
+    }
+  ],
+
+  //Paso 7: Cronograma
+  cronograma: [
+    {
+      accion: "",
+      fechaInicio: "",
+      fechaFin: "",
+      responsable: "",
+      estado: "Pendiente",
+    }
+  ],
+
+  // Paso 8: Recursos
+  recursos: {
+    rec_hum_docentes: 0,
+    rec_hum_administrativos: 0,
+    rec_hum_estudiantes: 0,
+    rec_hum_egresados: 0,
+    rec_hum_voluntarios: 0,
+    rec_hum_otros: 0,
+
+    rec_mat_material_didactico: "",
+    rec_mat_afiches: "",
+    rec_mat_equipos: "",
+    rec_mat_utiles: "",
+    rec_mat_otros: "",
+  },
+
+  // Paso 9: Financiamiento
+  financiamiento: {
+    monto_financiamiento: "",
+    fuente_financiamiento: "",
+    descripcion_gastos: "",
+    observaciones_financiamiento: "",
+  },
+
 };
 
 export const useFormRSU = () => {

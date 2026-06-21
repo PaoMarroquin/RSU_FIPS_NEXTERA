@@ -7,8 +7,16 @@ import DatosGenerales from "../components/forms/DatosGenerales";
 import Fundamentacion from "../components/forms/Fundamentacion";
 import Diagnostico from "../components/forms/Diagnostico";
 import Objetivos from "../components/forms/Objetivos";
+import Resultados from "../components/forms/Resultados";
+import Actividades from "../components/forms/Actividades";
+import Cronograma from "../components/forms/Cronograma";
+import Recursos from "../components/forms/Recursos";
+import Financiamiento from "../components/forms/Financiamiento";
+
+
 import { useFormRSU } from "../hooks/useFormRSU";
 import { useNavigate } from 'react-router-dom';
+
 
 export default function NuevoProyecto() {
   // Extraemos las nuevas funciones y variables del hook
@@ -51,6 +59,13 @@ export default function NuevoProyecto() {
               {step === 2 && <Fundamentacion data={formData} updateData={updateData} />}
               {step === 3 && <Diagnostico data={formData} updateData={updateData} />}
               {step === 4 && <Objetivos data={formData} updateData={updateData} />}
+              {step === 5 && <Resultados data={formData} updateData={updateData} />}
+              {step === 6 && <Actividades data={formData} updateData={updateData} />}
+              {step === 7 && <Cronograma data={formData} updateData={updateData} />}
+              {step === 8 && <Recursos data={formData} updateData={updateData} />}
+              {step === 9 && <Financiamiento data={formData} updateData={updateData} />}
+
+
               {/* {step === 2 && <Fundamentacion ... />}  ACA MAS PASOS*/}
             </div>
           </div>
