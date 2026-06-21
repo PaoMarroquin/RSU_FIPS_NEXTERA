@@ -2,6 +2,9 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import ProjectCard from "../components/ProjectCard";
 
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import {
   FiSearch,
   FiGrid,
@@ -89,9 +92,12 @@ export default function Proyectos() {
               </p>
             </div>
 
-            <button className="new-project-btn">
+            <button
+              className="new-project-btn"
+              onClick={() => navigate('/proyectos/nuevo')}
+            >
               <FiPlus />
-                 Nuevo Proyecto
+              Nuevo Proyecto
             </button>
 
           </div>
