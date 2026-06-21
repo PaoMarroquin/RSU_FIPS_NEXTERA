@@ -78,7 +78,22 @@ const mockInitialData = {
 
   // Cronograma
   fechaInicio: '', fechaEvaluacion: '', fechaTermino: '',
-  encuestaDocentes: '', encuestaEstudiantes: '', encuestaDestinatarios: ''
+  encuestaDocentes: '', encuestaEstudiantes: '', encuestaDestinatarios: '',
+
+  // Paso 2
+  fund_razonGrupo: '',
+  fund_proposito: '',
+  fund_metodologia: '',
+
+  // Paso 3
+  diag_estadoActual: '',
+  diag_problemas: '',
+  diag_aportes: '',
+  diag_justificacion: '',
+
+  // Paso 4
+  obj_general: '',
+  obj_especificos: ['', '', ''],
 };
 
 export const useFormRSU = () => {

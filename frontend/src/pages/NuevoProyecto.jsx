@@ -4,6 +4,9 @@ import Topbar from "../components/Topbar";
 import Stepper from "../components/Stepper";
 import FormFooter from "../components/FormFooter";
 import DatosGenerales from "../components/forms/DatosGenerales";
+import Fundamentacion from "../components/forms/Fundamentacion";
+import Diagnostico from "../components/forms/Diagnostico";
+import Objetivos from "../components/forms/Objetivos";
 import { useFormRSU } from "../hooks/useFormRSU";
 import { useNavigate } from 'react-router-dom';
 
@@ -47,7 +50,10 @@ export default function NuevoProyecto() {
             
             <div className="mt-6">
               {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}
-              {/* {step === 2 && <Fundamentacion ... />} */}
+              {step === 2 && <Fundamentacion data={formData} updateData={updateData} />}
+              {step === 3 && <Diagnostico data={formData} updateData={updateData} />}
+              {step === 4 && <Objetivos data={formData} updateData={updateData} />}
+              {/* {step === 2 && <Fundamentacion ... />}  ACA MAS PASOS*/}
             </div>
           </div>
         </div>
