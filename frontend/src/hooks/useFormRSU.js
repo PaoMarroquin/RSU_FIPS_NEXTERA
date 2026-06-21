@@ -83,11 +83,16 @@ const mockInitialData = {
 
 export const useFormRSU = () => {
   const [step, setStep] = useState(1);
+  const [highestStep, setHighestStep] = useState(1);
   const [formData, setFormData] = useState(mockInitialData);
 
   useEffect(() => {
     const draft = localStorage.getItem('rsu_draft');
-    if (draft) setFormData(JSON.parse(draft));
+    if (draft) {
+      const parsedData = JSON.parse(draft);
+      setFormData(parsedData);
+      // Opcional: Si guardas el step en el draft, también podrías restaurarlo aquí
+    }
   }, []);
 
   const saveDraft = (dataToSave) => {
@@ -101,7 +106,9 @@ export const useFormRSU = () => {
   const nextStep = () => {
     setStep(prev => {
       saveDraft(formData);
-      return Math.min(prev + 1, 9);
+      const next = Math.min(prev + 1, 9);
+      setHighestStep(currentMax => Math.max(currentMax, next)); // Actualiza el progreso máximo
+      return next;
     });
   };
 
@@ -112,10 +119,16 @@ export const useFormRSU = () => {
     });
   };
 
+  const goToStep = (targetStep) => {
+    if (targetStep <= highestStep) {
+      setStep(targetStep);
+    }
+  };
+
   const handleBorrador = () => {
     saveDraft(formData);
     alert("Borrador guardado exitosamente en LocalStorage");
   };
 
-  return { step, formData, updateData, nextStep, prevStep, handleBorrador };
+  return { step, highestStep, formData, updateData, nextStep, prevStep, goToStep, handleBorrador };
 };
