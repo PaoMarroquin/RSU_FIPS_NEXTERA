@@ -33,12 +33,11 @@ export default function Login() {
     }
   };
 
-  // Función para Login con Google (Se ejecuta cuando Google retorna el id_token)
+  // Función para Login con Google
   const handleGoogleSuccess = async (credentialResponse) => {
     setError('');
     setLoading(true);
     try {
-      // El "credential" es el id_token de Google
       const data = await authService.loginWithGoogle(credentialResponse.credential);
       saveSessionAndRedirect(data);
     } catch (err) {
@@ -48,20 +47,28 @@ export default function Login() {
     }
   };
 
-  // Función auxiliar para guardar tokens
+  // Función auxiliar para guardar TODO en el localStorage
   const saveSessionAndRedirect = (data) => {
+    // 1. Guardamos los tokens
     localStorage.setItem('access_token', data.access);
     localStorage.setItem('refresh_token', data.refresh);
+    
+    // 2. Guardamos el objeto completo por si acaso
     localStorage.setItem('user', JSON.stringify(data.usuario));
-    navigate('/dashboard'); // Ajusta a la ruta que desees
+
+    // 3. ¡LO NUEVO! Guardamos datos clave sueltos para facilitar su uso (restringir rutas, topbar, etc.)
+    localStorage.setItem('user_role', data.usuario.rol);
+    localStorage.setItem('user_name', data.usuario.nombre_completo);
+    localStorage.setItem('user_email', data.usuario.correo_institucional);
+
+    navigate('/dashboard'); 
   };
 
   return (
-    // Envolvemos todo el login en el Provider de Google
     <GoogleOAuthProvider clientId={clientId}>
       <div className="flex min-h-screen w-full bg-slate-50">
         
-        {/* PANEL IZQUIERDO (Marca UNSA) - Oculto en móviles */}
+        {/* PANEL IZQUIERDO */}
         <div className="hidden lg:flex lg:w-1/2 bg-[#b1122b] relative overflow-hidden flex-col justify-center items-center text-center p-12">
           <div className="absolute inset-0 bg-black/10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIi8+PC9zdmc+')] opacity-30"></div>
           <div className="absolute -top-24 -left-24 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
@@ -78,7 +85,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* PANEL DERECHO (Formulario) */}
+        {/* PANEL DERECHO */}
         <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-6 sm:p-12 relative">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100 p-8 sm:p-10 z-10 relative">
             
@@ -91,7 +98,6 @@ export default function Login() {
               Inicia sesión con tu cuenta institucional
             </p>
 
-            {/* Mensaje de Error */}
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-200">
                 {error}
@@ -99,8 +105,6 @@ export default function Login() {
             )}
 
             <form className="space-y-5" onSubmit={handleLoginSubmit}>
-              
-              {/* Input Correo */}
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-slate-700 block">Correo institucional</label>
                 <div className="relative flex items-center">
@@ -108,6 +112,7 @@ export default function Login() {
                   <input
                     type="email"
                     required
+                    autoComplete="username"
                     value={correo}
                     onChange={(e) => setCorreo(e.target.value)}
                     placeholder="usuario@unsa.edu.pe"
@@ -116,7 +121,6 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Input Contraseña */}
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-slate-700 block">Contraseña</label>
                 <div className="relative flex items-center">
@@ -124,6 +128,7 @@ export default function Login() {
                   <input
                     type="password"
                     required
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
@@ -157,7 +162,6 @@ export default function Login() {
               <div className="flex-grow border-t border-slate-200"></div>
             </div>
 
-            {/* BOTÓN OFICIAL DE GOOGLE */}
             <div className="flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}

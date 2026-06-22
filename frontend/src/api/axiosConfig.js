@@ -23,38 +23,43 @@ api.interceptors.request.use(
 
 // Interceptor de RESPUESTAS: Maneja el Refresh Token Automático
 api.interceptors.response.use(
-  (response) => response, // Si todo sale bien, devuelve la respuesta normal
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
     // Si el error es 401 (No autorizado) y no hemos reintentado ya esta petición
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true; // Marcamos para no entrar en bucle infinito
+      originalRequest._retry = true; // Evita bucle infinito
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          const res = await axios.post(`${BASE_URL}/auth/token/refresh/`, {
+          // Ajustado el path para que coincida con /api/v1/
+          const res = await axios.post(`${BASE_URL}/api/v1/auth/token/refresh/`, {
             refresh: refreshToken
           });
 
           const newAccessToken = res.data.access;
           localStorage.setItem('access_token', newAccessToken);
 
-          // Si tu backend también rota el refresh token, guárdalo
+          // Si tu backend también rota el refresh token, guárdalo (el JSON que enviaste no lo tenía, pero por si acaso)
           if (res.data.refresh) {
             localStorage.setItem('refresh_token', res.data.refresh);
           }
 
-          // Actualizamos la cabecera de la petición original fallida y la volvemos a lanzar
+          // Actualizamos la cabecera original y repetimos
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
-        // Si el refresh token también expiró o es inválido, forzamos cierre de sesión
+        // Si falla el refresh, limpiamos TODAS las variables para cerrar sesión limpiamente
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
+        localStorage.removeItem('user_role');
+        localStorage.removeItem('user_name');
+        localStorage.removeItem('user_email');
+        
         window.location.href = '/'; // Redirigimos al Login
         return Promise.reject(refreshError);
       }
