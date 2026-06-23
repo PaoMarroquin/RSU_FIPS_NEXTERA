@@ -48,19 +48,13 @@ class DepartamentoAcademico(models.Model):
 
 class Rol(models.Model):
     ADMINISTRADOR = 'Administrador'
-    COORDINADOR   = 'Coordinador'
-    COMITE        = 'Comite'
     DOCENTE       = 'Docente'
-    AUTORIDAD     = 'Autoridad'
-    ESTUDIANTE    = 'Estudiante'
+    JEFATURA_RSU  = 'Jefatura RSU'
 
     ROLES = [
         (ADMINISTRADOR, 'Administrador'),
-        (COORDINADOR,   'Coordinador RSU'),
-        (COMITE,        'Comité RSU'),
         (DOCENTE,       'Docente'),
-        (AUTORIDAD,     'Autoridad Universitaria'),
-        (ESTUDIANTE,    'Estudiante'),
+        (JEFATURA_RSU,  'Jefatura RSU'),
     ]
 
     nombre      = models.CharField(max_length=50, unique=True, choices=ROLES)

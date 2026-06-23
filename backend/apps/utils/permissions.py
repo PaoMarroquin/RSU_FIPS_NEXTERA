@@ -2,14 +2,14 @@ from rest_framework import permissions
 from apps.usuarios.models import Rol
 
 
-class IsCoordinador(permissions.BasePermission):
-    """Allows access only to users with 'Coordinador' or 'Administrador' role."""
+class IsJefaturaRSU(permissions.BasePermission):
+    """Allows access only to users with 'Jefatura RSU' or 'Administrador' role."""
     def has_permission(self, request, view):
         return (
             request.user and
             request.user.is_authenticated and
             request.user.rol and
-            request.user.rol.nombre in [Rol.COORDINADOR, Rol.ADMINISTRADOR]
+            request.user.rol.nombre in [Rol.JEFATURA_RSU, Rol.ADMINISTRADOR]
         )
 
 
@@ -24,14 +24,16 @@ class IsDocente(permissions.BasePermission):
         )
 
 
-class IsComite(permissions.BasePermission):
-    """Allows access only to users with 'Comite' role."""
+class IsAdministrador(permissions.BasePermission):
+    """Allows access only to users with 'Administrador' role or is_staff."""
     def has_permission(self, request, view):
         return (
             request.user and
             request.user.is_authenticated and
-            request.user.rol and
-            request.user.rol.nombre == Rol.COMITE
+            (
+                request.user.is_staff or
+                (request.user.rol and request.user.rol.nombre == Rol.ADMINISTRADOR)
+            )
         )
 
 
@@ -39,17 +41,16 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     Safe methods are always allowed.
     Write methods (PATCH/PUT) require the user to be the object owner
-    OR to hold an administrative role (Administrador / Coordinador / Comité).
+    OR to hold an administrative role (Administrador / Jefatura RSU).
     DELETE is intentionally excluded here: the view's queryset already
     filters to owner-only results, producing a 404 for non-owners.
     """
-    _ROLES_ADMIN = [Rol.ADMINISTRADOR, Rol.COORDINADOR, Rol.COMITE]
+    _ROLES_ADMIN = [Rol.ADMINISTRADOR, Rol.JEFATURA_RSU]
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        # Administrative roles have full write access
         if request.user.rol and request.user.rol.nombre in self._ROLES_ADMIN:
             return True
 

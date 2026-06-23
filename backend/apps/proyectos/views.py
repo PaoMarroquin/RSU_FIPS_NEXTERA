@@ -125,8 +125,6 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(
                 Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
             ).distinct()
-        elif user.rol and user.rol.nombre == Rol.ESTUDIANTE:
-            qs = qs.filter(estado='aprobado')
 
         return qs
 
@@ -149,8 +147,6 @@ class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
             return qs.filter(
                 Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
             ).distinct()
-        elif user.rol and user.rol.nombre == Rol.ESTUDIANTE:
-            return qs.filter(estado='aprobado')
         return qs
 
     def get_permissions(self):
