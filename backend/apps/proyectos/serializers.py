@@ -178,6 +178,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             # 1.10 Eje RSU
             'eje_rsu', 'eje_rsu_nombre',
             'eje_rsu_subitems',
+            'eje_rsu_otro_detalle',
             'linea_estrategica', 'linea_estrategica_nombre',
             'objetivo_institucional', 'objetivo_institucional_nombre',
 
@@ -285,8 +286,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        """Valida coherencia entre facultad, escuela y departamento."""
-        # Para PATCH, usar el valor actual del campo si no viene en attrs
+        """Valida coherencia entre facultad, escuela, departamento y eje RSU."""
         facultad = attrs.get('facultad', getattr(self.instance, 'facultad', None))
         escuela = attrs.get('escuela', getattr(self.instance, 'escuela', None))
         departamento = attrs.get('departamento', getattr(self.instance, 'departamento', None))
@@ -299,6 +299,17 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'
             })
+
+        eje_rsu = attrs.get('eje_rsu', getattr(self.instance, 'eje_rsu', None))
+        eje_rsu_otro_detalle = attrs.get(
+            'eje_rsu_otro_detalle',
+            getattr(self.instance, 'eje_rsu_otro_detalle', None),
+        )
+        if eje_rsu and eje_rsu.nombre == 'Otros' and not (eje_rsu_otro_detalle or '').strip():
+            raise serializers.ValidationError({
+                'eje_rsu_otro_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'
+            })
+
         return attrs
 
     def _save_nested_flat(self, proyecto, data_map, replace=False):

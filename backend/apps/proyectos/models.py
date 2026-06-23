@@ -134,16 +134,17 @@ class ProyectoRSU(models.Model):
     #   "investigacion": ["metas_ods", "formacion_ciudadana"],
     #   "extension": ["metas_ods", "calidad_vida"],
     #   "extension_ods_numeros": "3, 4, 11",
-    #   "extension_ambito_detalle": "...",
-    #   "voluntariado": true,
-    #   "voluntariado_ambito_detalle": "..."
+    #   "extension_ambito_detalle": "..."
     # }
     eje_rsu = models.ForeignKey(
         EjeRSU, on_delete=models.PROTECT, related_name='proyectos',
-        help_text="1.10 Eje RSU principal del proyecto")
+        help_text="1.10 Eje RSU principal del proyecto (selección excluyente)")
     eje_rsu_subitems = models.JSONField(
         default=dict, blank=True,
-        help_text="1.10 Sub-ítems seleccionados por eje RSU (Gestión, Formación, Investigación, Extensión, Voluntariado)")
+        help_text="1.10 Sub-ítems seleccionados por eje RSU (Gestión, Formación, Investigación, Extensión)")
+    eje_rsu_otro_detalle = models.TextField(
+        blank=True, null=True,
+        help_text="1.10 Descripción obligatoria cuando el eje RSU seleccionado es 'Otros'")
 
     linea_estrategica = models.ForeignKey(
         LineaEstrategica, on_delete=models.SET_NULL,
