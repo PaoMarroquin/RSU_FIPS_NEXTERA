@@ -101,6 +101,9 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
                                              null=True, blank=True, related_name='usuarios')
     estado               = models.CharField(max_length=20, default='activo',
                                             choices=[('activo', 'Activo'), ('inactivo', 'Inactivo')])
+    firma_digital        = models.ImageField(
+                                             upload_to='firmas/', null=True, blank=True,
+                                             help_text='Firma digital del usuario (JPG/PNG)')
     is_staff             = models.BooleanField(default=False)
     ultimo_acceso        = models.DateTimeField(null=True, blank=True)
     created_at           = models.DateTimeField(auto_now_add=True)

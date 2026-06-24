@@ -71,7 +71,8 @@ class UsuarioListSerializer(serializers.ModelSerializer):
         model = Usuario
         fields = [
             'id', 'nombre_completo', 'correo_institucional',
-            'celular', 'rol_nombre', 'facultad_nombre', 'estado', 'created_at',
+            'celular', 'rol_nombre', 'facultad_nombre', 'estado',
+            'firma_digital', 'created_at',
         ]
 
 
@@ -98,7 +99,7 @@ class MiPerfilUpdateSerializer(serializers.ModelSerializer):
     """Serializer para que el usuario edite su propio perfil. No expone el campo estado."""
     class Meta:
         model = Usuario
-        fields = ['id', 'nombre_completo', 'celular', 'facultad', 'escuela', 'departamento']
+        fields = ['id', 'nombre_completo', 'celular', 'facultad', 'escuela', 'departamento', 'firma_digital']
 
 
 class AuditoriaUsuarioSerializer(serializers.ModelSerializer):

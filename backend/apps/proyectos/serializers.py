@@ -23,10 +23,17 @@ class ProyectoAsignaturaSerializer(serializers.ModelSerializer):
 class ProyectoDocenteSerializer(serializers.ModelSerializer):
     docente_nombre = serializers.CharField(source='docente.nombre_completo', read_only=True)
     docente_correo = serializers.CharField(source='docente.correo_institucional', read_only=True)
+    docente_firma  = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = ProyectoDocente
-        fields = ['id', 'docente', 'docente_nombre', 'docente_correo', 'rol_en_proyecto']
+        fields = ['id', 'docente', 'docente_nombre', 'docente_correo', 'docente_firma', 'rol_en_proyecto']
+
+    def get_docente_firma(self, obj):
+        request = self.context.get('request')
+        if obj.docente.firma_digital and request:
+            return request.build_absolute_uri(obj.docente.firma_digital.url)
+        return None
 
 
 class ActividadProyectoSerializer(serializers.ModelSerializer):
@@ -131,6 +138,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     ods_info = serializers.SerializerMethodField(read_only=True)
     docente_responsable_nombre = serializers.CharField(
         source='docente_responsable.nombre_completo', read_only=True)
+    docente_responsable_detalle = serializers.SerializerMethodField(read_only=True)
     eje_rsu_nombre = serializers.CharField(source='eje_rsu.nombre', read_only=True)
     linea_estrategica_nombre = serializers.CharField(
         source='linea_estrategica.nombre', read_only=True)
@@ -234,7 +242,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             # ── Clasificación académica ───────────────────────────────────
             'periodo', 'periodo_nombre',
-            'docente_responsable', 'docente_responsable_nombre',
+            'docente_responsable', 'docente_responsable_nombre', 'docente_responsable_detalle',
             'anio_carrera', 'anio_carrera_display',
             'es_tesis_quinto_anio',
 
@@ -263,6 +271,21 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
     def get_ods_info(self, obj):
         return [{'id': o.id, 'numero': o.numero, 'nombre': o.nombre} for o in obj.ods.all()]
+
+    def get_docente_responsable_detalle(self, obj):
+        u = obj.docente_responsable
+        if not u:
+            return None
+        request = self.context.get('request')
+        firma_url = None
+        if u.firma_digital and request:
+            firma_url = request.build_absolute_uri(u.firma_digital.url)
+        return {
+            'id': u.id,
+            'nombre_completo': u.nombre_completo,
+            'correo_institucional': u.correo_institucional,
+            'firma_digital': firma_url,
+        }
 
     def get_tipo_actividad_display(self, obj):
         labels = {
