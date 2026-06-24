@@ -9,8 +9,9 @@ const mockInitialData = {
   beneficiarios: '', 
 
   // Eje: Gestión 
-  ejeRsu = '',
-  ejeRsuDetalle = '',
+  ejeRsuSeccion: '',
+  ejeRsu: '',
+  ejeRsuDetalle: '',
 
   // Tipo de Actividad (Booleanos)
   actividad_formativos: false,
