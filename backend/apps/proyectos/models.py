@@ -338,6 +338,13 @@ class ProyectoRSU(models.Model):
         verbose_name = 'Proyecto RSU'
         verbose_name_plural = 'Proyectos RSU'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['escuela', 'periodo', 'anio_carrera'],
+                condition=models.Q(es_continuacion=False) & ~models.Q(estado='rechazado'),
+                name='unique_proyecto_escuela_periodo_anio',
+            )
+        ]
 
     def __str__(self):
         return f'{self.codigo or "SIN-CÓDIGO"} - {self.titulo}'

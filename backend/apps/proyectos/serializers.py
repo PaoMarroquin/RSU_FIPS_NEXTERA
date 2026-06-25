@@ -339,6 +339,27 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'eje_rsu_otro_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'
             })
 
+        # Unicidad: 1 proyecto no-continuación por (escuela, periodo, anio_carrera)
+        if self.instance is None:
+            escuela = attrs.get('escuela')
+            periodo = attrs.get('periodo')
+            anio_carrera = attrs.get('anio_carrera')
+            if escuela and periodo and anio_carrera:
+                existe = ProyectoRSU.objects.filter(
+                    escuela=escuela,
+                    periodo=periodo,
+                    anio_carrera=anio_carrera,
+                    es_continuacion=False,
+                ).exclude(estado='rechazado').exists()
+                if existe:
+                    label = dict(ProyectoRSU.ANIOS).get(anio_carrera, str(anio_carrera))
+                    raise serializers.ValidationError({
+                        'anio_carrera': (
+                            f'Ya existe un proyecto para {label} en la escuela y periodo seleccionados. '
+                            f'Solo se permite uno por año académico por semestre.'
+                        )
+                    })
+
         return attrs
 
     def _save_nested_flat(self, proyecto, data_map, replace=False):

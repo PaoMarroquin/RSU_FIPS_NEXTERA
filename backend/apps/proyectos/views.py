@@ -200,6 +200,21 @@ class ProyectoEnviarRevisionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if not proyecto.es_continuacion and proyecto.anio_carrera:
+            conflicto = ProyectoRSU.objects.filter(
+                escuela=proyecto.escuela,
+                periodo=proyecto.periodo,
+                anio_carrera=proyecto.anio_carrera,
+                es_continuacion=False,
+                estado__in=['en_revision', 'corregido', 'aprobado', 'en_ejecucion', 'finalizado'],
+            ).exclude(pk=proyecto.pk).exists()
+            if conflicto:
+                return Response(
+                    {'detail': 'Conflicto de unicidad.',
+                     'errors': {'anio_carrera': 'Ya existe otro proyecto activo para este año/escuela/periodo.'}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         proyecto.estado = 'en_revision'
         proyecto.fecha_envio_revision = timezone.now()
         proyecto.save(update_fields=['estado', 'fecha_envio_revision'])
