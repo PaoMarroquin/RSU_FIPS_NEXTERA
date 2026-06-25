@@ -139,6 +139,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     docente_responsable_nombre = serializers.CharField(
         source='docente_responsable.nombre_completo', read_only=True)
     docente_responsable_detalle = serializers.SerializerMethodField(read_only=True)
+    continuaciones_count = serializers.SerializerMethodField(read_only=True)
     eje_rsu_nombre = serializers.CharField(source='eje_rsu.nombre', read_only=True)
     linea_estrategica_nombre = serializers.CharField(
         source='linea_estrategica.nombre', read_only=True)
@@ -158,6 +159,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         fields = [
             # ── Identificación ────────────────────────────────────────────
             'id', 'codigo', 'estado',
+            'es_continuacion', 'proyecto_origen', 'continuaciones_count',
 
             # ── Sección I - Datos Generales ───────────────────────────────
             'facultad', 'facultad_nombre',
@@ -264,6 +266,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'codigo', 'estado', 'docente_responsable',
+            'es_continuacion', 'proyecto_origen',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
             'created_at', 'updated_at',
@@ -271,6 +274,9 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
     def get_ods_info(self, obj):
         return [{'id': o.id, 'numero': o.numero, 'nombre': o.nombre} for o in obj.ods.all()]
+
+    def get_continuaciones_count(self, obj):
+        return obj.continuaciones.count()
 
     def get_docente_responsable_detalle(self, obj):
         u = obj.docente_responsable

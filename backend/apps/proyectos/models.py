@@ -66,6 +66,12 @@ class ProyectoRSU(models.Model):
     estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS, db_index=True)
     presentado_con_anticipacion = models.BooleanField(default=False)
 
+    # Continuación de proyectos entre semestres
+    es_continuacion = models.BooleanField(default=False)
+    proyecto_origen = models.ForeignKey(
+        'self', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='continuaciones')
+
     # ──────────────────────────────────────────────────────────────────────────
     # SECCIÓN I - DATOS GENERALES
     # ──────────────────────────────────────────────────────────────────────────

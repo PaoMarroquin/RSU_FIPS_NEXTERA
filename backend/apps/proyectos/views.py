@@ -4,11 +4,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
+from apps.planificacion.models import PeriodoAcademico
 from .models import (
-    ProyectoRSU, ActividadProyecto, CronogramaAccion,
+    ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto,
 )
 from .serializers import (
@@ -398,3 +400,123 @@ class MetaIndicadorProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
+
+
+# ─── Continuación de proyectos ────────────────────────────────────────────────
+
+class ProyectoContinuarView(APIView):
+    """
+    POST /proyectos/<pk>/continuar/
+    Crea una continuación del proyecto en un nuevo periodo.
+    Copia los campos principales, conserva los docentes originales
+    y permite añadir nuevos docentes adicionales.
+
+    Body: { "periodo": <id>, "docentes_adicionales": [{"docente": <id>, "rol_en_proyecto": "..."}] }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        original = get_object_or_404(
+            ProyectoRSU.objects.select_related(
+                'facultad', 'escuela', 'departamento',
+                'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+                'docente_responsable',
+            ).prefetch_related('ods', 'docentes_adicionales__docente'),
+            pk=pk,
+        )
+
+        if original.docente_responsable != request.user and not request.user.is_staff:
+            return Response(
+                {'error': 'Sin permiso',
+                 'detail': 'Solo el docente responsable puede crear una continuación.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        estados_validos = ['aprobado', 'en_ejecucion', 'finalizado']
+        if original.estado not in estados_validos:
+            return Response(
+                {'error': 'Estado inválido',
+                 'detail': f'Solo se puede continuar un proyecto en estado: {", ".join(estados_validos)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        periodo_id = request.data.get('periodo')
+        if not periodo_id:
+            return Response(
+                {'error': 'Campo requerido', 'detail': 'Debe indicar el periodo para la continuación.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            nuevo_periodo = PeriodoAcademico.objects.get(pk=periodo_id)
+        except PeriodoAcademico.DoesNotExist:
+            return Response(
+                {'error': 'No encontrado', 'detail': f'No existe un periodo con id={periodo_id}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if ProyectoRSU.objects.filter(proyecto_origen=original, periodo=nuevo_periodo).exists():
+            return Response(
+                {'error': 'Duplicado',
+                 'detail': 'Ya existe una continuación de este proyecto para ese periodo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nuevos_docentes = request.data.get('docentes_adicionales', [])
+
+        with transaction.atomic():
+            nuevo = ProyectoRSU.objects.create(
+                facultad=original.facultad,
+                escuela=original.escuela,
+                departamento=original.departamento,
+                eje_rsu=original.eje_rsu,
+                eje_rsu_subitems=original.eje_rsu_subitems,
+                eje_rsu_otro_detalle=original.eje_rsu_otro_detalle,
+                linea_estrategica=original.linea_estrategica,
+                objetivo_institucional=original.objetivo_institucional,
+                titulo=f'{original.titulo} (Continuación)',
+                anio_carrera=original.anio_carrera,
+                es_tesis_quinto_anio=original.es_tesis_quinto_anio,
+                docente_responsable=original.docente_responsable,
+                periodo=nuevo_periodo,
+                semestre_academico=nuevo_periodo.nombre,
+                estado='borrador',
+                es_continuacion=True,
+                proyecto_origen=original,
+                fund_por_que_grupo=original.fund_por_que_grupo,
+                fund_para_que_proyecto=original.fund_para_que_proyecto,
+                fund_mecanismo_ensenanza=original.fund_mecanismo_ensenanza,
+                diag_estado_grupo=original.diag_estado_grupo,
+                diag_problemas_detectados=original.diag_problemas_detectados,
+                diag_aportes_formacion=original.diag_aportes_formacion,
+                diag_justificacion_intervencion=original.diag_justificacion_intervencion,
+            )
+            nuevo.codigo = f'PROY-FIPS-{nuevo.id:04d}'
+            nuevo.save(update_fields=['codigo'])
+
+            nuevo.ods.set(original.ods.all())
+
+            # Docentes originales (responsable ya está en docente_responsable, copiar adicionales)
+            for pd in original.docentes_adicionales.all():
+                ProyectoDocente.objects.create(
+                    proyecto=nuevo,
+                    docente=pd.docente,
+                    rol_en_proyecto=pd.rol_en_proyecto,
+                )
+
+            # Nuevos docentes adicionales enviados en el request
+            for item in nuevos_docentes:
+                docente_id = item.get('docente')
+                rol = item.get('rol_en_proyecto', 'Colaborador')
+                if docente_id:
+                    ProyectoDocente.objects.get_or_create(
+                        proyecto=nuevo,
+                        docente_id=docente_id,
+                        defaults={'rol_en_proyecto': rol},
+                    )
+
+        serializer = ProyectoRSUSerializer(
+            _proyecto_qs_base().get(pk=nuevo.pk),
+            context={'request': request},
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
