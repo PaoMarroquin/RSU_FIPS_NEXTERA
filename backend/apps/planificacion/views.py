@@ -104,16 +104,26 @@ class MatrizOperativaListCreateView(generics.ListCreateAPIView):
             .order_by('-created_at')
         )
 
-        facultad_id = self.request.query_params.get('facultad')
-        if facultad_id:
-            qs = qs.filter(facultad_id=facultad_id)
+        # Aislamiento por rol
+        if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+            # Admin: ve todo; ?facultad respetado
+            facultad_id = self.request.query_params.get('facultad')
+            if facultad_id:
+                qs = qs.filter(facultad_id=facultad_id)
+        elif user.rol and user.rol.nombre == Rol.JEFATURA_RSU:
+            # Jefatura RSU: solo su facultad, ignora ?facultad externo
+            qs = qs.filter(facultad=user.facultad) if user.facultad_id else qs.none()
+        elif user.rol and user.rol.nombre == Rol.DOCENTE:
+            # Docente: solo matrices publicadas de su facultad
+            qs = qs.filter(estado='publicada')
+            if user.facultad_id:
+                qs = qs.filter(facultad=user.facultad)
+        else:
+            qs = qs.none()
 
         periodo_id = self.request.query_params.get('periodo')
         if periodo_id:
             qs = qs.filter(periodo_id=periodo_id)
-
-        if user.rol and user.rol.nombre == Rol.DOCENTE:
-            qs = qs.filter(estado='publicada')
 
         return qs
 

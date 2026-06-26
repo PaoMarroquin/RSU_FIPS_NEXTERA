@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views_reportes import ReporteGeneralView, ReporteFacultadView
 
 urlpatterns = [
     # ── Proyecto principal ────────────────────────────────────────────────────
@@ -25,4 +26,8 @@ urlpatterns = [
     # ── IV/V. Metas e Indicadores ─────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/metas-indicadores/', views.MetaIndicadorProyectoListCreateView.as_view(), name='meta-indicador-list'),
     path('proyectos/<int:proyecto_pk>/metas-indicadores/<int:pk>/', views.MetaIndicadorProyectoDetailView.as_view(), name='meta-indicador-detail'),
+
+    # ── Reportes ──────────────────────────────────────────────────────────────
+    path('reportes/general/', ReporteGeneralView.as_view(), name='reporte-general'),
+    path('reportes/facultad/<int:facultad_pk>/', ReporteFacultadView.as_view(), name='reporte-facultad'),
 ]

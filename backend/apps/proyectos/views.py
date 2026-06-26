@@ -104,16 +104,31 @@ def _validar_campos_obligatorios(proyecto):
     return errores
 
 
+def _filter_proyectos_por_rol(qs, user):
+    """Visibilidad por rol: Admin ve todo; Jefatura RSU ve su facultad; Docente ve sus proyectos."""
+    if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+        return qs
+    if user.rol and user.rol.nombre == Rol.JEFATURA_RSU:
+        return qs.filter(facultad=user.facultad) if user.facultad_id else qs.none()
+    if user.rol and user.rol.nombre == Rol.DOCENTE:
+        return qs.filter(
+            Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
+        ).distinct()
+    return qs.none()
+
+
 class ProyectoListCreateView(generics.ListCreateAPIView):
     serializer_class = ProyectoRSUSerializer
 
     def get_queryset(self):
         user = self.request.user
-        qs = _proyecto_qs_base().order_by('-created_at')
+        qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user).order_by('-created_at')
 
-        facultad_id = self.request.query_params.get('facultad')
-        if facultad_id:
-            qs = qs.filter(facultad_id=facultad_id)
+        # ?facultad solo respetado para Admin (los demás roles ya tienen su scope fijado)
+        if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+            facultad_id = self.request.query_params.get('facultad')
+            if facultad_id:
+                qs = qs.filter(facultad_id=facultad_id)
 
         estado = self.request.query_params.get('estado')
         if estado:
@@ -122,11 +137,6 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         periodo_id = self.request.query_params.get('periodo')
         if periodo_id:
             qs = qs.filter(periodo_id=periodo_id)
-
-        if user.rol and user.rol.nombre == Rol.DOCENTE:
-            qs = qs.filter(
-                Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
-            ).distinct()
 
         return qs
 
@@ -141,14 +151,13 @@ class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = _proyecto_qs_base()
+        qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user)
 
-        if user.rol and user.rol.nombre == Rol.DOCENTE:
-            if self.request.method == 'DELETE':
-                return qs.filter(docente_responsable=user)
-            return qs.filter(
-                Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
-            ).distinct()
+        # Para DELETE, Docente solo puede borrar si es responsable
+        if (self.request.method == 'DELETE'
+                and user.rol and user.rol.nombre == Rol.DOCENTE):
+            return _proyecto_qs_base().filter(docente_responsable=user)
+
         return qs
 
     def get_permissions(self):
