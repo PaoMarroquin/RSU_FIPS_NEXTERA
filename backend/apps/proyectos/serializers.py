@@ -88,6 +88,15 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('El costo unitario debe ser mayor a 0.')
         return value
 
+    def validate(self, attrs):
+        categoria = attrs.get('categoria', getattr(self.instance, 'categoria', ''))
+        descripcion = attrs.get('descripcion', getattr(self.instance, 'descripcion', ''))
+        if categoria == 'otros' and not str(descripcion).strip():
+            raise serializers.ValidationError({
+                'descripcion': 'La descripción es obligatoria cuando la categoría es "Otros".'
+            })
+        return attrs
+
 
 class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
     porcentaje_avance = serializers.SerializerMethodField(read_only=True)

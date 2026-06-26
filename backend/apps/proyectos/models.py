@@ -484,12 +484,10 @@ class PartidaPresupuestaria(models.Model):
     Corresponde a `presupuesto_proyecto` en el schema DBML.
     """
     CATEGORIAS = [
-        ('movilidad',         'Movilidad'),
-        ('material_educativo','Material educativo'),
-        ('equipos',           'Equipos'),
-        ('alimentacion',      'Alimentación'),
-        ('servicios',         'Servicios'),
-        ('otros',             'Otros'),
+        ('material_escritorio', 'Material de escritorio'),
+        ('refrigerio',          'Refrigerio'),
+        ('transporte',          'Transporte'),
+        ('otros',               'Otros'),
     ]
     TIPOS_RECURSO = [
         ('humano',     'Humano'),
