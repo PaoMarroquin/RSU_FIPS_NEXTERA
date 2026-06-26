@@ -26,21 +26,21 @@ class ProyectosAPITests(APITestCase):
         self.coord_user = Usuario.objects.create_user(
             correo_institucional='coord@unsa.edu.pe',
             password='password123',
-            nombre_completo='Coordinador RSU',
+            nombres='Coordinador RSU',
             rol=self.rol_coord,
             facultad=self.facultad
         )
         self.docente_user = Usuario.objects.create_user(
             correo_institucional='docente@unsa.edu.pe',
             password='password123',
-            nombre_completo='Docente Prueba',
+            nombres='Docente Prueba',
             rol=self.rol_docente,
             facultad=self.facultad
         )
         self.docente_user_2 = Usuario.objects.create_user(
             correo_institucional='docente2@unsa.edu.pe',
             password='password123',
-            nombre_completo='Otro Docente',
+            nombres='Otro Docente',
             rol=self.rol_docente,
             facultad=self.facultad
         )
@@ -356,14 +356,14 @@ class BaseProyectoTestCase(APITestCase):
         self.docente = Usuario.objects.create_user(
             correo_institucional='docente.act@unsa.edu.pe',
             password=self._cred,
-            nombre_completo='Docente Actividades',
+            nombres='Docente Actividades',
             rol=self.rol_docente,
             facultad=self.facultad,
         )
         self.otro_docente = Usuario.objects.create_user(
             correo_institucional='otro.act@unsa.edu.pe',
             password=self._cred,
-            nombre_completo='Otro Docente',
+            nombres='Otro Docente',
             rol=self.rol_docente,
             facultad=self.facultad,
         )

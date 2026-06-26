@@ -41,7 +41,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = [
-            'id', 'nombre_completo', 'correo_institucional',
+            'id', 'nombres', 'apellidos', 'correo_institucional',
             'password', 'celular', 'rol', 'facultad',
             'escuela', 'departamento', 'estado',
         ]
@@ -58,7 +58,7 @@ class UsuarioEditSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = [
-            'id', 'nombre_completo', 'celular',
+            'id', 'nombres', 'apellidos', 'celular',
             'facultad', 'escuela', 'departamento', 'estado',
         ]
 
@@ -70,7 +70,7 @@ class UsuarioListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = [
-            'id', 'nombre_completo', 'correo_institucional',
+            'id', 'nombres', 'apellidos', 'correo_institucional',
             'celular', 'rol_nombre', 'facultad_nombre', 'estado',
             'firma_digital', 'created_at',
         ]
@@ -82,7 +82,7 @@ class AsignarRolSerializer(serializers.Serializer):
 
 
 class HistorialRolSerializer(serializers.ModelSerializer):
-    cambiado_por_nombre  = serializers.CharField(source='cambiado_por.nombre_completo', read_only=True)
+    cambiado_por_nombre  = serializers.CharField(source='cambiado_por.nombres', read_only=True)
     rol_anterior_nombre  = serializers.CharField(source='rol_anterior.nombre', read_only=True)
     rol_nuevo_nombre     = serializers.CharField(source='rol_nuevo.nombre', read_only=True)
 
@@ -99,12 +99,12 @@ class MiPerfilUpdateSerializer(serializers.ModelSerializer):
     """Serializer para que el usuario edite su propio perfil. No expone el campo estado."""
     class Meta:
         model = Usuario
-        fields = ['id', 'nombre_completo', 'celular', 'facultad', 'escuela', 'departamento', 'firma_digital']
+        fields = ['id', 'nombres', 'apellidos', 'celular', 'facultad', 'escuela', 'departamento', 'firma_digital']
 
 
 class AuditoriaUsuarioSerializer(serializers.ModelSerializer):
-    ejecutado_por_nombre     = serializers.CharField(source='ejecutado_por.nombre_completo', read_only=True)
-    usuario_afectado_nombre  = serializers.CharField(source='usuario_afectado.nombre_completo', read_only=True)
+    ejecutado_por_nombre     = serializers.CharField(source='ejecutado_por.nombres', read_only=True)
+    usuario_afectado_nombre  = serializers.CharField(source='usuario_afectado.nombres', read_only=True)
 
     class Meta:
         model = AuditoriaUsuario

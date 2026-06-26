@@ -395,7 +395,7 @@ class ProyectoDocente(models.Model):
         verbose_name_plural = 'Docentes de Proyecto'
 
     def __str__(self):
-        return f'{self.docente.nombre_completo} - proyecto#{self.proyecto_id}'
+        return f'{self.docente.nombres} - proyecto#{self.proyecto_id}'
 
 
 class ActividadProyecto(models.Model):

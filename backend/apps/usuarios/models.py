@@ -88,7 +88,8 @@ class UsuarioManager(BaseUserManager):
 
 
 class Usuario(AbstractBaseUser, PermissionsMixin):
-    nombre_completo      = models.CharField(max_length=150)
+    nombres      = models.CharField(max_length=150)
+    apellidos            = models.CharField(max_length=100, blank=True, default='')
     correo_institucional = models.EmailField(unique=True)
     celular              = models.CharField(max_length=20, blank=True, null=True)
     rol                  = models.ForeignKey(Rol, on_delete=models.PROTECT,
@@ -110,7 +111,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     updated_at           = models.DateTimeField(auto_now=True)
 
     USERNAME_FIELD  = 'correo_institucional'
-    REQUIRED_FIELDS = ['nombre_completo']
+    REQUIRED_FIELDS = ['nombres']
 
     objects = UsuarioManager()
 
@@ -120,7 +121,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = 'Usuarios'
 
     def __str__(self):
-        return f'{self.nombre_completo} ({self.correo_institucional})'
+        return f'{self.nombres} ({self.correo_institucional})'
 
 
 class Sesion(models.Model):

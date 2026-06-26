@@ -370,7 +370,7 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'codigo', 'titulo',
-        'docente_responsable__nombre_completo',
+        'docente_responsable__nombres',
     )
     filter_horizontal = ('ods',)
     readonly_fields = (
@@ -592,7 +592,7 @@ class ProyectoAsignaturaAdmin(admin.ModelAdmin):
 class ProyectoDocenteAdmin(admin.ModelAdmin):
     list_display = ('docente', 'proyecto', 'rol_en_proyecto')
     list_filter = ('rol_en_proyecto',)
-    search_fields = ('docente__nombre_completo',)
+    search_fields = ('docente__nombres',)
 
 
 @admin.register(ActividadProyecto)

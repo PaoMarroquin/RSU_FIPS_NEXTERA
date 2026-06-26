@@ -21,13 +21,18 @@ class ProyectoAsignaturaSerializer(serializers.ModelSerializer):
 
 
 class ProyectoDocenteSerializer(serializers.ModelSerializer):
-    docente_nombre = serializers.CharField(source='docente.nombre_completo', read_only=True)
-    docente_correo = serializers.CharField(source='docente.correo_institucional', read_only=True)
-    docente_firma  = serializers.SerializerMethodField(read_only=True)
+    docente_nombre    = serializers.CharField(source='docente.nombres', read_only=True)
+    docente_apellidos = serializers.CharField(source='docente.apellidos', read_only=True)
+    docente_correo    = serializers.CharField(source='docente.correo_institucional', read_only=True)
+    docente_firma     = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = ProyectoDocente
-        fields = ['id', 'docente', 'docente_nombre', 'docente_correo', 'docente_firma', 'rol_en_proyecto']
+        fields = [
+            'id', 'docente',
+            'docente_nombre', 'docente_apellidos', 'docente_correo', 'docente_firma',
+            'rol_en_proyecto',
+        ]
 
     def get_docente_firma(self, obj):
         request = self.context.get('request')
@@ -146,7 +151,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     # Read-only display fields
     ods_info = serializers.SerializerMethodField(read_only=True)
     docente_responsable_nombre = serializers.CharField(
-        source='docente_responsable.nombre_completo', read_only=True)
+        source='docente_responsable.nombres', read_only=True)
     docente_responsable_detalle = serializers.SerializerMethodField(read_only=True)
     continuaciones_count = serializers.SerializerMethodField(read_only=True)
     eje_rsu_nombre = serializers.CharField(source='eje_rsu.nombre', read_only=True)
@@ -297,7 +302,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             firma_url = request.build_absolute_uri(u.firma_digital.url)
         return {
             'id': u.id,
-            'nombre_completo': u.nombre_completo,
+            'nombres': u.nombres,
+            'apellidos': u.apellidos,
             'correo_institucional': u.correo_institucional,
             'firma_digital': firma_url,
         }

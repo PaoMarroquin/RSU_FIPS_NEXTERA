@@ -51,7 +51,7 @@ class ActividadSugeridaInline(admin.TabularInline):
 class MatrizOperativaAdmin(admin.ModelAdmin):
     list_display = ('id', 'facultad', 'periodo', 'coordinador', 'presupuesto_global', 'estado')
     list_filter = ('facultad', 'periodo', 'estado')
-    search_fields = ('coordinador__nombre_completo', 'observaciones')
+    search_fields = ('coordinador__nombres', 'observaciones')
     inlines = [ObjetivoInstitucionalInline, ActividadSugeridaInline]
 
 

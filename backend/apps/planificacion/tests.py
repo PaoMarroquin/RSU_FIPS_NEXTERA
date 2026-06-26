@@ -23,14 +23,14 @@ class PlanificacionAPITests(APITestCase):
         self.coord_user = Usuario.objects.create_user(
             correo_institucional='coord@unsa.edu.pe',
             password='password123',
-            nombre_completo='Coordinador RSU',
+            nombres='Coordinador RSU',
             rol=self.rol_coord,
             facultad=self.facultad
         )
         self.docente_user = Usuario.objects.create_user(
             correo_institucional='docente@unsa.edu.pe',
             password='password123',
-            nombre_completo='Docente Prueba',
+            nombres='Docente Prueba',
             rol=self.rol_docente,
             facultad=self.facultad
         )
@@ -69,7 +69,7 @@ class PlanificacionAPITests(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(float(response.data['presupuesto_global']), 50000.00)
-        self.assertEqual(response.data['coordinador_nombre'], self.coord_user.nombre_completo)
+        self.assertEqual(response.data['coordinador_nombre'], self.coord_user.nombres)
 
     def test_docente_cannot_create_matriz(self):
         """
