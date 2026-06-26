@@ -19,6 +19,7 @@ urlpatterns = [
     # ── IX. Presupuesto estimado ──────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/presupuesto/', views.PartidaPresupuestariaListCreateView.as_view(), name='presupuesto-list'),
     path('proyectos/<int:proyecto_pk>/presupuesto/resumen/', views.PresupuestoResumenView.as_view(), name='presupuesto-resumen'),
+    path('proyectos/<int:proyecto_pk>/presupuesto/confirmar/', views.FinanciamientoConfirmarView.as_view(), name='financiamiento-confirmar'),
     path('proyectos/<int:proyecto_pk>/presupuesto/<int:pk>/', views.PartidaPresupuestariaDetailView.as_view(), name='presupuesto-detail'),
 
     # ── IV/V. Metas e Indicadores ─────────────────────────────────────────────

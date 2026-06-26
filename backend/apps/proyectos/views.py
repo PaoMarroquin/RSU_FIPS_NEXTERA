@@ -337,35 +337,99 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class PresupuestoResumenView(APIView):
     """
-    GET /proyectos/<pk>/presupuesto/resumen/
-    Devuelve el total estimado del proyecto y el desglose por fuente de financiamiento.
+    GET /proyectos/<proyecto_pk>/presupuesto/resumen/
+    Devuelve el total estimado, desglose por categoría y fuente, datos del docente
+    y estado de confirmación del financiamiento.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, proyecto_pk):
-        get_object_or_404(ProyectoRSU, pk=proyecto_pk)
-
+        proyecto = get_object_or_404(
+            ProyectoRSU.objects.select_related('docente_responsable'),
+            pk=proyecto_pk,
+        )
         partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
 
         total_presupuestado = sum(p.monto_presupuestado for p in partidas)
         total_ejecutado = sum(p.monto_ejecutado for p in partidas)
 
-        desglose = {}
+        por_categoria = {}
+        por_fuente = {}
         for p in partidas:
+            cat_key = p.categoria or 'sin_especificar'
+            cat_label = dict(PartidaPresupuestaria.CATEGORIAS).get(cat_key, 'Sin especificar')
+            if cat_key not in por_categoria:
+                por_categoria[cat_key] = {'categoria': cat_label, 'presupuestado': 0, 'ejecutado': 0}
+            por_categoria[cat_key]['presupuestado'] += float(p.monto_presupuestado)
+            por_categoria[cat_key]['ejecutado'] += float(p.monto_ejecutado)
+
             fuente_key = p.fuente or 'sin_especificar'
             fuente_label = p.get_fuente_display() if p.fuente else 'Sin especificar'
-            if fuente_key not in desglose:
-                desglose[fuente_key] = {'fuente': fuente_label, 'presupuestado': 0, 'ejecutado': 0}
-            desglose[fuente_key]['presupuestado'] += float(p.monto_presupuestado)
-            desglose[fuente_key]['ejecutado'] += float(p.monto_ejecutado)
+            if fuente_key not in por_fuente:
+                por_fuente[fuente_key] = {'fuente': fuente_label, 'presupuestado': 0, 'ejecutado': 0}
+            por_fuente[fuente_key]['presupuestado'] += float(p.monto_presupuestado)
+            por_fuente[fuente_key]['ejecutado'] += float(p.monto_ejecutado)
+
+        docente = proyecto.docente_responsable
+        docente_data = None
+        if docente:
+            firma_url = None
+            if docente.firma_digital:
+                firma_url = request.build_absolute_uri(docente.firma_digital.url)
+            docente_data = {
+                'id': docente.id,
+                'nombres': docente.nombres,
+                'apellidos': docente.apellidos,
+                'correo_institucional': docente.correo_institucional,
+                'firma_digital': firma_url,
+            }
 
         return Response({
             'proyecto_id': proyecto_pk,
             'total_presupuestado': float(total_presupuestado),
             'total_ejecutado': float(total_ejecutado),
             'nro_partidas': partidas.count(),
-            'desglose_por_fuente': list(desglose.values()),
+            'desglose_por_categoria': list(por_categoria.values()),
+            'desglose_por_fuente': list(por_fuente.values()),
+            'docente_responsable': docente_data,
+            'financiamiento_confirmado': proyecto.financiamiento_confirmado,
+            'financiamiento_fecha_confirmacion': proyecto.financiamiento_fecha_confirmacion,
         })
+
+
+class FinanciamientoConfirmarView(APIView):
+    """
+    POST /proyectos/<proyecto_pk>/presupuesto/confirmar/
+    El docente responsable confirma el resumen de financiamiento con su firma.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, proyecto_pk):
+        proyecto = get_object_or_404(
+            ProyectoRSU.objects.select_related('docente_responsable'),
+            pk=proyecto_pk,
+        )
+        if proyecto.docente_responsable != request.user:
+            return Response(
+                {'error': 'Sin permiso',
+                 'detail': 'Solo el docente responsable puede confirmar el financiamiento.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not request.user.firma_digital:
+            return Response(
+                {'error': 'Sin firma digital',
+                 'detail': 'Debe cargar su firma digital antes de confirmar el financiamiento.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proyecto.financiamiento_confirmado = True
+        proyecto.financiamiento_fecha_confirmacion = timezone.now()
+        proyecto.save(update_fields=['financiamiento_confirmado', 'financiamiento_fecha_confirmacion'])
+        return Response(
+            {'detail': 'Financiamiento confirmado correctamente.',
+             'financiamiento_confirmado': True,
+             'financiamiento_fecha_confirmacion': proyecto.financiamiento_fecha_confirmacion},
+            status=status.HTTP_200_OK,
+        )
 
 
 # ─── Metas e Indicadores ─────────────────────────────────────────────────────

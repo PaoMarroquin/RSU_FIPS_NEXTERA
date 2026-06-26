@@ -300,6 +300,8 @@ class ProyectoRSU(models.Model):
     observaciones_financiamiento = models.TextField(
         blank=True, null=True,
         help_text="IX Observaciones adicionales sobre el financiamiento")
+    financiamiento_confirmado = models.BooleanField(default=False)
+    financiamiento_fecha_confirmacion = models.DateTimeField(null=True, blank=True)
 
     # ──────────────────────────────────────────────────────────────────────────
     # CLASIFICACIÓN ACADÉMICA / RELACIONES

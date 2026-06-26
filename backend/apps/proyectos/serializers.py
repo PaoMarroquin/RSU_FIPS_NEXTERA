@@ -255,6 +255,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'fuente_financiamiento', 'fuente_financiamiento_display',
             'descripcion_gastos',
             'observaciones_financiamiento',
+            'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',
 
             # ── Clasificación académica ───────────────────────────────────
             'periodo', 'periodo_nombre',
@@ -283,6 +284,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'es_continuacion', 'proyecto_origen',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
+            'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',
             'created_at', 'updated_at',
         ]
 
