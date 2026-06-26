@@ -24,6 +24,7 @@ export default function NuevoProyecto() {
     step, 
     highestStep, 
     formData, 
+    pasosCompletados,
     updateData, 
     nextStep, 
     prevStep, 
@@ -52,7 +53,7 @@ export default function NuevoProyecto() {
             </button>
           </div>
      
-          <Stepper currentStep={step} highestStep={highestStep} goToStep={goToStep} />
+          <Stepper currentStep={step} pasosCompletados={pasosCompletados} goToStep={goToStep} />
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]"> 
             <div className="mt-6">
               {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}

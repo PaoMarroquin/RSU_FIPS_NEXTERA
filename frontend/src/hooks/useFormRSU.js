@@ -1,29 +1,13 @@
 import { useState, useEffect } from 'react';
 
 const mockInitialData = {
-  // Información Institucional
+  // Paso 1: Datos Generales
   facultad: '', escuela: '', departamento: '', semestre: '',
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
-
-  // Beneficiarios
   beneficiarios: '', 
-
-  // Eje: Gestión 
-  ejeRsuSeccion: '',
-  ejeRsu: '',
-  ejeRsuDetalle: '',
-
-  // Tipo de Actividad (Booleanos)
-  actividad_formativos: false,
-  actividad_acompanamiento: false,
-  actividad_asesoria: false,
-  actividad_acercamiento: false,
-  actividad_otros: false,
-
-  // Meta e Indicador
+  ejeRsuSeccion: '',   ejeRsuDetalle: '',
+  tipoActividad: '',
   meta: '', indicador: '',
-
-  // Cronograma
   fechaInicio: '', fechaEvaluacion: '', fechaTermino: '',
   encuestaDocentes: '', encuestaEstudiantes: '', encuestaDestinatarios: '',
 
@@ -95,54 +79,107 @@ const mockInitialData = {
 
 };
 
+const isTextValid = (value) => typeof value === 'string' && value.trim() !== '';
+const isIdValid = (value) => value !== null && value !== '' && value !== 0;
+const isNumberValid = (value) => value !== null && value >= 0;
+
+const VALIDACIONES = {
+  1: {
+    facultad: (data) => isIdValid(data.facultad),
+    escuela: (data) => isIdValid(data.escuela),
+    departamento: (data) => isIdValid(data.departamento),
+    semestre: (data) => isTextValid(data.semestre),
+    asignaturas: (data) => isTextValid(data.asignaturas),
+    titulo: (data) => isTextValid(data.titulo),
+    beneficiarios: (data) => isTextValid(data.beneficiarios),
+    numDocentes: (data) => isNumberValid(data.numDocentes),
+    numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
+    ejeRsuSeccion: (data) => isTextValid(data.ejeRsuSeccion),
+    ejeRsuDetalle: (data) => isTextValid(data.ejeRsuDetalle),
+    meta: (data) => isTextValid(data.meta),
+    indicador: (data) => isTextValid(data.indicador),
+    fechaInicio: (data) => isTextValid(data.fechaInicio),
+    fechaTermino: (data) => isTextValid(data.fechaTermino),
+  },
+  2: {
+    fund_razonGrupo: (data) => isTextValid(data.fund_razonGrupo),
+    fund_proposito: (data) => isTextValid(data.fund_proposito),
+    fund_metodologia: (data) => isTextValid(data.fund_metodologia),
+  }, 
+  3: {},
+  4: {},
+  5: {},
+  6: {},
+  7: {},
+  8: {},
+  9: {},
+};
+
 export const useFormRSU = () => {
   const [step, setStep] = useState(1);
-  const [highestStep, setHighestStep] = useState(1);
-  const [formData, setFormData] = useState(mockInitialData);
-
-  useEffect(() => {
-    const draft = localStorage.getItem('rsu_draft');
-    if (draft) {
-      const parsedData = JSON.parse(draft);
-      setFormData(parsedData);
-      // Opcional: Si guardas el step en el draft, también podrías restaurarlo aquí
+  
+  // Inicialización perezosa: Carga el borrador del localStorage al instante si existe
+  const [formData, setFormData] = useState(() => {
+    try {
+      const draft = localStorage.getItem('rsu_draft');
+      if (draft) {
+        const parsedDraft = JSON.parse(draft);
+        return { ...mockInitialData, ...parsedDraft };
+      }
+    } catch (error) {
+      console.error("Error leyendo el borrador del LocalStorage:", error);
     }
-  }, []);
+    return mockInitialData;
+  });
 
-  const saveDraft = (dataToSave) => {
-    localStorage.setItem('rsu_draft', JSON.stringify(dataToSave));
-  };
+  // Guardado Automatico
+  useEffect(() => {
+    localStorage.setItem('rsu_draft', JSON.stringify(formData));
+  }, [formData]);
 
   const updateData = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const nextStep = () => {
-    setStep(prev => {
-      saveDraft(formData);
-      const next = Math.min(prev + 1, 9);
-      setHighestStep(currentMax => Math.max(currentMax, next)); // Actualiza el progreso máximo
-      return next;
-    });
-  };
-
-  const prevStep = () => {
-    setStep(prev => {
-      saveDraft(formData);
-      return Math.max(prev - 1, 1);
-    });
-  };
-
-  const goToStep = (targetStep) => {
-    if (targetStep <= highestStep) {
-      setStep(targetStep);
+  // Motor de Validación: Revisa si el paso cumple todas las reglas
+  const isStepValid = (stepNumber) => {
+    try {
+      const reglas = VALIDACIONES[stepNumber];
+      if (!reglas || Object.keys(reglas).length === 0) return false; 
+      return Object.values(reglas).every(reglaFn => reglaFn(formData));
+    } catch (error) {
+      console.error("Error al validar el paso:", error);
+      return false;
     }
   };
 
-  const handleBorrador = () => {
-    saveDraft(formData);
-    alert("Borrador guardado exitosamente en LocalStorage");
+  // Obtenemos un arreglo con los números de todos los pasos que están 100% llenos
+  const pasosCompletados = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(s => isStepValid(s));
+
+  const nextStep = () => {
+    setStep(prev => Math.min(prev + 1, 9));
   };
 
-  return { step, highestStep, formData, updateData, nextStep, prevStep, goToStep, handleBorrador };
+  const prevStep = () => {
+    setStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const goToStep = (targetStep) => {
+    setStep(targetStep);
+  };
+
+  const handleBorrador = () => {
+    alert("Borrador guardado exitosamente en el navegador.");
+  };
+
+  return { 
+    step, 
+    formData, 
+    pasosCompletados, 
+    updateData, 
+    nextStep, 
+    prevStep, 
+    goToStep, 
+    handleBorrador 
+  };
 };

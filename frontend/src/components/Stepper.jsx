@@ -7,7 +7,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-export default function Stepper({ currentStep, highestStep, goToStep }) {
+export default function Stepper({ currentStep, pasosCompletados = [], goToStep }) {
   const steps = [
     { id: 1, roman: 'I', label: 'Datos Generales' },
     { id: 2, roman: 'II', label: 'Fundamentación' },
@@ -25,8 +25,12 @@ export default function Stepper({ currentStep, highestStep, goToStep }) {
       <div className="flex items-start min-w-max">
         {steps.map((step, index) => {
           const isCurrent = currentStep === step.id;
-          const isCompleted = step.id < currentStep || (step.id < highestStep && !isCurrent);
-          const isClickable = step.id <= highestStep;
+          
+          // La validación ahora viene del arreglo que escupe el Hook (Verde solo si cumple las reglas)
+          const isCompleted = pasosCompletados.includes(step.id);
+          
+          // Navegación libre habilitada para todas las secciones
+          const isClickable = true; 
 
           return (
             <React.Fragment key={step.id}>
@@ -40,13 +44,14 @@ export default function Stepper({ currentStep, highestStep, goToStep }) {
                 <div 
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold transition-all
                     ${isCurrent 
-                      ? 'bg-[#b1122b] text-white ring-4 ring-[#b1122b]/20' // Activo (Tu rojo UNSA)
+                      ? 'bg-[#b1122b] text-white ring-4 ring-[#b1122b]/20' // Activo (Rojo UNSA)
                       : isCompleted
-                        ? 'bg-[#10b981] text-white hover:bg-emerald-600' // Completado (Verde)
-                        : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200' // Pendiente (Gris)
+                        ? 'bg-[#10b981] text-white hover:bg-emerald-600' // Completado y validado (Verde)
+                        : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200' // Incompleto (Gris/Plomito)
                     }`}
                 >
-                  {isCompleted ? <CheckIcon /> : step.roman}
+                  {/* Muestra el check solo si está completado y no lo estás editando ahora mismo */}
+                  {(isCompleted && !isCurrent) ? <CheckIcon /> : step.roman}
                 </div>
                 
                 {/* Texto */}

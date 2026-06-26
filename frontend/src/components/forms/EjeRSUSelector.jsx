@@ -5,91 +5,88 @@ const SECCIONES_RSU = {
     titulo: "GESTIÓN: (IMPACTO INTERNO - INSTITUCIONAL)",
     badge: "GESTIÓN",
     opciones: [
-      { id: "gestion_admin", texto: "a. Programa de acciones ambientales a nivel administrativo", requiereDetalle: false },
-      { id: "gestion_academico", texto: "b. Programa de acciones ambientales a nivel académico", requiereDetalle: false },
-      { id: "gestion_activacion", texto: "c. Programa de iniciativas de activación ambiental", requiereDetalle: false },
-      { id: "gestion_clima", texto: "d. Conjunto de acciones sobre clima laboral y cultura organizacional", requiereDetalle: false },
-      { id: "gestion_inclusion", texto: "e. Iniciativas orientadas a fomentar la inclusión y equidad social en el ámbito laboral", requiereDetalle: false },
-      { id: "gestion_otro", texto: "f. Otro", requiereDetalle: true, labelDetalle: "Especificar otro de Gestión" }
+      { texto: "a. Programa de acciones ambientales a nivel administrativo", requiereDetalle: false },
+      { texto: "b. Programa de acciones ambientales a nivel académico", requiereDetalle: false },
+      { texto: "c. Programa de iniciativas de activación ambiental", requiereDetalle: false },
+      { texto: "d. Conjunto de acciones sobre clima laboral y cultura organizacional", requiereDetalle: false },
+      { texto: "e. Iniciativas orientadas a fomentar la inclusión y equidad social en el ámbito laboral", requiereDetalle: false },
+      { texto: "f. Otro", requiereDetalle: true, labelDetalle: "Especificar otro de Gestión" }
     ]
   },
   formacion: {
     titulo: "FORMACIÓN: (IMPACTO INTERNO - ESTUDIANTES)",
     badge: "FORMACIÓN",
     opciones: [
-      { id: "formacion_etica", texto: "a. Incorpora la temática de ética en el desempeño profesional", requiereDetalle: false },
-      { id: "formacion_anticorrupcion", texto: "b. Incorpora la temática de prácticas anticorrupción en la formación profesional", requiereDetalle: false },
-      { id: "formacion_inclusion", texto: "c. Incorpora la temática de inclusión social en la formación profesional", requiereDetalle: false },
-      { id: "formacion_equidad", texto: "d. Incorpora la temática de equidad en el desarrollo profesional", requiereDetalle: false },
-      { id: "formacion_ambiental", texto: "e. Incorpora la temática Educación ambiental relacionado al ejercicio profesional", requiereDetalle: false },
-      { id: "formacion_ddhh", texto: "f. Incorpora la temática de Derechos Humanos en la formación profesional", requiereDetalle: false },
-      { id: "formacion_ods", texto: "g. Incorpora la temática Objetivos de Desarrollo Sostenible en la formación profesional", requiereDetalle: false },
-      { id: "formacion_otro", texto: "h. Otro", requiereDetalle: true, labelDetalle: "Especificar otro de Formación" }
+      { texto: "a. Incorpora la temática de ética en el desempeño profesional", requiereDetalle: false },
+      { texto: "b. Incorpora la temática de prácticas anticorrupción en la formación profesional", requiereDetalle: false },
+      { texto: "c. Incorpora la temática de inclusión social en la formación profesional", requiereDetalle: false },
+      { texto: "d. Incorpora la temática de equidad en el desarrollo profesional", requiereDetalle: false },
+      { texto: "e. Incorpora la temática Educación ambiental relacionado al ejercicio profesional", requiereDetalle: false },
+      { texto: "f. Incorpora la temática de Derechos Humanos en la formación profesional", requiereDetalle: false },
+      { texto: "g. Incorpora la temática Objetivos de Desarrollo Sostenible en la formación profesional", requiereDetalle: false },
+      { texto: "h. Otro", requiereDetalle: true, labelDetalle: "Especificar otro de Formación" }
     ]
   },
   investigacion: {
     titulo: "INVESTIGACIÓN: (IMPACTO INTERNO - ESTUDIANTES)",
     badge: "INVESTIGACIÓN",
     opciones: [
-      { id: "inv_ods", texto: "a. Contribuye a alguna de las metas de los Objetivos de Desarrollo Sostenible", requiereDetalle: false },
-      { id: "inv_politicas", texto: "b. Contribuye a políticas de salud, educación, igualdad de género, inclusión social, justicia", requiereDetalle: false },
-      { id: "inv_ciudadana", texto: "c. Contribuye a la formación ciudadana", requiereDetalle: false },
-      { id: "inv_calidad", texto: "d. Contribuye a mejorar calidad de vida y condiciones económicas", requiereDetalle: false },
-      { id: "inv_ambiental", texto: "e. Contribuye al cumplimiento de la Política Ambiental Nacional (líneas MINAM)", requiereDetalle: false }
+      { texto: "a. Contribuye a alguna de las metas de los Objetivos de Desarrollo Sostenible", requiereDetalle: false },
+      { texto: "b. Contribuye a políticas de salud, educación, igualdad de género, inclusión social, justicia", requiereDetalle: false },
+      { texto: "c. Contribuye a la formación ciudadana", requiereDetalle: false },
+      { texto: "d. Contribuye a mejorar calidad de vida y condiciones económicas", requiereDetalle: false },
+      { texto: "e. Contribuye al cumplimiento de la Política Ambiental Nacional (líneas MINAM)", requiereDetalle: false }
     ]
   },
   extension: {
     titulo: "EXTENSIÓN: (IMPACTO EXTERNO)",
     badge: "EXTENSIÓN",
     opciones: [
-      { id: "ext_ods", texto: "a. Contribuye a alguna de las metas de los Objetivos de Desarrollo Sostenible", requiereDetalle: true, labelDetalle: "ODS Nro." },
-      { id: "ext_politicas", texto: "b. Contribuye a políticas de salud, educación, igualdad de género, inclusión social, justicia", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" },
-      { id: "ext_ciudadana", texto: "c. Contribuye a la formación ciudadana", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" },
-      { id: "ext_calidad", texto: "d. Contribuye a mejorar calidad de vida y condiciones económicas", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" },
-      { id: "ext_ambiental", texto: "e. Contribuye al cumplimiento de la Política Ambiental Nacional (líneas MINAM)", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" }
+      { texto: "a. Contribuye a alguna de las metas de los Objetivos de Desarrollo Sostenible", requiereDetalle: true, labelDetalle: "ODS Nro." },
+      { texto: "b. Contribuye a políticas de salud, educación, igualdad de género, inclusión social, justicia", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" },
+      { texto: "c. Contribuye a la formación ciudadana", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" },
+      { texto: "d. Contribuye a mejorar calidad de vida y condiciones económicas", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" },
+      { texto: "e. Contribuye al cumplimiento de la Política Ambiental Nacional (líneas MINAM)", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" }
     ]
   },
   voluntariado: {
     titulo: "VOLUNTARIADO: (IMPACTO EXTERNO)",
     badge: "VOLUNTARIADO",
     opciones: [
-      { id: "vol_iniciativas", texto: "a. Contribuye a la realización de iniciativas de voluntariado (evitando asistencialismo)", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" }
+      { texto: "a. Contribuye a la realización de iniciativas de voluntariado (evitando asistencialismo)", requiereDetalle: true, labelDetalle: "Detallar el ámbito de intervención" }
     ]
   }
 };
 
-export default function EjeRSUSelector({ valueEje, valueDetalle, onChange }) {
+export default function EjeRSUSelector({ valueSeccion, valueDetalle, onChange }) {
 
-  const handleSelectChange = (e, nombreSeccion) => {
-    const nuevoValor = e.target.value;
+  const handleSelectChange = (e, seccionObj) => {
+    const opcionSeleccionadaTexto = e.target.value;
 
-    if (nuevoValor !== "") {
-      // 1. Guardamos el Nombre de la Sección (Ej. "GESTIÓN")
-      onChange({ target: { name: "ejeRsuSeccion", value: nombreSeccion } });
-      // 2. Guardamos la subcategoría seleccionada
-      onChange({ target: { name: "ejeRsu", value: nuevoValor } });
-      // 3. Limpiamos el detalle por si venía de otra opción
-      onChange({ target: { name: "ejeRsuDetalle", value: "" } });
-    } else {
-      // Si elige "Sin seleccionar", limpiamos todo
+    if (opcionSeleccionadaTexto === "") {
       onChange({ target: { name: "ejeRsuSeccion", value: "" } });
-      onChange({ target: { name: "ejeRsu", value: "" } });
       onChange({ target: { name: "ejeRsuDetalle", value: "" } });
+      return;
+    }
+
+    // 1. Guardamos el texto completo de la sección ("GESTIÓN: (IMPACTO...")
+    onChange({ target: { name: "ejeRsuSeccion", value: seccionObj.titulo } });
+
+    // 2. Buscamos si la opción requiere que el usuario escriba
+    const opt = seccionObj.opciones.find(o => o.texto === opcionSeleccionadaTexto);
+    if (opt.requiereDetalle) {
+      // Le ponemos un " : " al final como separador, para que el input sepa dónde escribir
+      onChange({ target: { name: "ejeRsuDetalle", value: `${opt.texto} : ` } });
+    } else {
+      onChange({ target: { name: "ejeRsuDetalle", value: opt.texto } });
     }
   };
 
-  const handleInputChange = (e) => {
-    onChange({ target: { name: "ejeRsuDetalle", value: e.target.value } });
+  const handleInputChange = (e, opcionBaseTexto) => {
+    const userText = e.target.value;
+    // Concatenamos la opción base con lo que el usuario está tipeando
+    onChange({ target: { name: "ejeRsuDetalle", value: `${opcionBaseTexto} : ${userText}` } });
   };
-
-  // Averiguar qué sección está activa según el valueEje actual
-  let claveSeccionActiva = "";
-  for (const [clave, seccion] of Object.entries(SECCIONES_RSU)) {
-    if (seccion.opciones.some(opt => opt.id === valueEje)) {
-      claveSeccionActiva = clave;
-      break;
-    }
-  }
 
   return (
     <div className="space-y-4 w-full">
@@ -98,9 +95,30 @@ export default function EjeRSUSelector({ valueEje, valueDetalle, onChange }) {
       </p>
 
       {Object.entries(SECCIONES_RSU).map(([claveSeccion, seccion]) => {
-        const esActiva = claveSeccionActiva === claveSeccion;
-        const haySeleccionGlobal = claveSeccionActiva !== ""; // Para saber si oscurecer a las demás
-        const optSeleccionada = esActiva ? seccion.opciones.find(opt => opt.id === valueEje) : null;
+        // ¿Esta sección es la que está seleccionada actualmente?
+        const esActiva = valueSeccion === seccion.titulo;
+        // ¿Hay alguna sección seleccionada a nivel global?
+        const haySeleccionGlobal = (valueSeccion && valueSeccion !== "");
+        
+        let optSeleccionada = null;
+        let textoInputUsuario = ""; // Lo que el usuario escribió después de los dos puntos
+        let selectValue = ""; // Lo que muestra el desplegable
+
+        if (esActiva && valueDetalle) {
+          // Buscamos cuál opción coincide con el inicio de nuestra súper cadena de texto
+          optSeleccionada = seccion.opciones.find(opt => valueDetalle.startsWith(opt.texto));
+          if (optSeleccionada) {
+            selectValue = optSeleccionada.texto;
+            
+            // Si tiene detalle, separamos la parte escrita por el usuario
+            if (optSeleccionada.requiereDetalle) {
+              const prefijo = `${optSeleccionada.texto} : `;
+              if (valueDetalle.startsWith(prefijo)) {
+                textoInputUsuario = valueDetalle.substring(prefijo.length);
+              }
+            }
+          }
+        }
 
         return (
           <div 
@@ -132,18 +150,18 @@ export default function EjeRSUSelector({ valueEje, valueDetalle, onChange }) {
                     ? 'border-[#b1122b] bg-white text-slate-800 font-medium focus:ring-2 focus:ring-[#b1122b]/10' 
                     : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400 disabled:cursor-not-allowed disabled:bg-slate-50'
                 }`}
-                value={esActiva ? valueEje : ""}
-                onChange={(e) => handleSelectChange(e, seccion.badge)}
+                value={esActiva ? selectValue : ""}
+                onChange={(e) => handleSelectChange(e, seccion)}
               >
                 <option value="">-- No aplica / Sin seleccionar --</option>
                 {seccion.opciones.map(opt => (
-                  <option key={opt.id} value={opt.id} className="text-slate-700 font-normal">
+                  <option key={opt.texto} value={opt.texto} className="text-slate-700 font-normal">
                     {opt.texto}
                   </option>
                 ))}
               </select>
 
-              {/* INPUT CONDICIONAL PARA "OTRO" Y "DETALLES" */}
+              {/* INPUT CONDICIONAL */}
               {esActiva && optSeleccionada?.requiereDetalle && (
                 <div className="animate-in fade-in slide-in-from-top-2 bg-white p-3 rounded-md border border-slate-200 mt-1">
                   <label className="text-xs font-bold text-slate-700 block mb-1.5">
@@ -153,8 +171,8 @@ export default function EjeRSUSelector({ valueEje, valueDetalle, onChange }) {
                     type="text"
                     className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 py-1 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all"
                     placeholder="Escriba aquí..."
-                    value={valueDetalle || ""}
-                    onChange={handleInputChange}
+                    value={textoInputUsuario}
+                    onChange={(e) => handleInputChange(e, optSeleccionada.texto)}
                     required
                     autoFocus
                   />

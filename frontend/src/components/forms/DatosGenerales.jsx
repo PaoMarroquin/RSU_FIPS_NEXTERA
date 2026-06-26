@@ -96,12 +96,12 @@ export default function DatosGenerales({ data, updateData }) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">N° Docentes Participantes</label>
+            <label className="text-xs font-semibold text-slate-600">N° Docentes Participantes <span className="text-red-500">*</span> </label>
             <input type="number" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="numDocentes" value={data.numDocentes === null ? '' : data.numDocentes} onChange={handleChange} />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">N° Estudiantes Participantes</label>
+            <label className="text-xs font-semibold text-slate-600">N° Estudiantes Participantes <span className="text-red-500">*</span> </label>
             <input type="number" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="numEstudiantes" value={data.numEstudiantes === null ? '' : data.numEstudiantes} onChange={handleChange} />
           </div>
 
@@ -134,7 +134,7 @@ export default function DatosGenerales({ data, updateData }) {
         </h3>
 
         <EjeRSUSelector
-          valueEje={data.ejeRsu}
+          valueSeccion={data.ejeRsuSeccion}
           valueDetalle={data.ejeRsuDetalle}
           onChange={handleChange}
         />
@@ -145,13 +145,84 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Tipo de Actividad
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <CheckboxItem label="Programas formativos" name="actividad_formativos" />
-          <CheckboxItem label="Acompañamiento a sectores identificados" name="actividad_acompanamiento" />
-          <CheckboxItem label="Asesoría" name="actividad_asesoria" />
-          <CheckboxItem label="Iniciativas de acercamiento a la comunidad" name="actividad_acercamiento" />
-          <CheckboxItem label="Otros (especificar)" name="actividad_otros" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* OPCIONES ESTÁNDAR */}
+          {[
+            "Programas formativos",
+            "Acompañamiento a sectores identificados",
+            "Asesoría",
+            "Iniciativas de acercamiento a la comunidad"
+          ].map((opcion) => {
+            const isSelected = data.tipoActividad === opcion;
+
+            return (
+              <label
+                key={opcion}
+                className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isSelected
+                    ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
+                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                  }`}
+              >
+                <input
+                  type="radio"
+                  name="tipoActividad_radio"
+                  value={opcion}
+                  checked={isSelected}
+                  onChange={(e) => updateData("tipoActividad", e.target.value)}
+                  className="mt-0.5 w-4 h-4 text-[#b1122b] focus:ring-[#b1122b] border-slate-300"
+                />
+                <span className="text-xs leading-tight">{opcion}</span>
+              </label>
+            );
+          })}
+
+          {/* RADIO "OTROS" */}
+          {(() => {
+            const opcionesEstandar = [
+              "Programas formativos", "Acompañamiento a sectores identificados",
+              "Asesoría", "Iniciativas de acercamiento a la comunidad"
+            ];
+            // Está marcado si tiene texto y no es de la lista estándar, o si tiene el comodín
+            const isOtrosChecked = (data.tipoActividad !== '' && !opcionesEstandar.includes(data.tipoActividad)) || data.tipoActividad === '__OTROS__';
+
+            return (
+              <label
+                className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isOtrosChecked
+                    ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
+                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                  }`}
+              >
+                <input
+                  type="radio"
+                  name="tipoActividad_radio"
+                  checked={isOtrosChecked}
+                  onChange={() => updateData("tipoActividad", "__OTROS__")}
+                  className="mt-0.5 w-4 h-4 text-[#b1122b] focus:ring-[#b1122b] border-slate-300"
+                />
+                <span className="text-xs leading-tight">Otros (especificar)</span>
+              </label>
+            );
+          })()}
         </div>
+
+        {/* INPUT DE TEXTO PURO */}
+        {((data.tipoActividad !== '' && !["Programas formativos", "Acompañamiento a sectores identificados", "Asesoría", "Iniciativas de acercamiento a la comunidad"].includes(data.tipoActividad)) || data.tipoActividad === '__OTROS__') && (
+          <div className="animate-in fade-in slide-in-from-top-2 mt-3 bg-slate-50 p-4 rounded-lg border border-slate-200 w-full md:w-1/2">
+            <label className="text-xs font-bold text-slate-700 block mb-2">
+              Especifique el tipo de actividad <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all placeholder:text-slate-400 shadow-inner"
+              placeholder="Escriba aquí..."
+              value={data.tipoActividad === '__OTROS__' ? '' : data.tipoActividad}
+              onChange={(e) => updateData("tipoActividad", e.target.value || '__OTROS__')}
+              required
+              autoFocus
+            />
+          </div>
+        )}
       </div>
 
       {/* 5. META E INDICADOR */}
@@ -162,11 +233,11 @@ export default function DatosGenerales({ data, updateData }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Meta (cuantificable) <span className="text-red-500">*</span></label>
-            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="meta" placeholder="Ej. Capacitar a 50 docentes" value={data.meta} onChange={handleChange} />
+            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="meta" placeholder="Ej. Capacitar a 50 estudiantes" value={data.meta} onChange={handleChange} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Indicador <span className="text-red-500">*</span></label>
-            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="indicador" placeholder="Ej. N° de docentes capacitados" value={data.indicador} onChange={handleChange} />
+            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="indicador" placeholder="Ej. N° de estudiantes capacitados" value={data.indicador} onChange={handleChange} />
           </div>
         </div>
       </div>
