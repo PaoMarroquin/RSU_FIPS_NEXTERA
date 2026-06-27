@@ -56,9 +56,9 @@ export default function Login() {
     // 2. Guardamos el objeto completo por si acaso
     localStorage.setItem('user', JSON.stringify(data.usuario));
 
-    // 3. ¡LO NUEVO! Guardamos datos clave sueltos para facilitar su uso (restringir rutas, topbar, etc.)
+    // 3. Guardamos datos clave sueltos para facilitar su uso (restringir rutas, topbar, etc.)
     localStorage.setItem('user_role', data.usuario.rol);
-    localStorage.setItem('user_name', data.usuario.nombre_completo);
+    localStorage.setItem('user_name', data.usuario.nombres);
     localStorage.setItem('user_email', data.usuario.correo_institucional);
 
     navigate('/dashboard'); 

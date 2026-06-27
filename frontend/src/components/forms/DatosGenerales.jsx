@@ -44,7 +44,17 @@ export default function DatosGenerales({ data, updateData }) {
             label="Facultad"
             name="facultad"
             value={data.facultad}
-            onChange={handleChange}
+            selectedName={data.facultad_nombre}
+            onChange={(e, nombre) => {
+              handleChange(e); // Guarda el ID normalmente
+              updateData('facultad_nombre', nombre); // Guarda el Nombre explícitamente
+
+              // Limpiamos los hijos 
+              updateData('escuela', null);
+              updateData('escuela_nombre', '');
+              updateData('departamento', null);
+              updateData('departamento_nombre', '');
+            }}
             endpoint="/api/v1/facultades/"
             placeholder="Seleccione una facultad"
           />
@@ -53,18 +63,26 @@ export default function DatosGenerales({ data, updateData }) {
             label="Escuela Profesional"
             name="escuela"
             value={data.escuela}
-            onChange={handleChange}
+            selectedName={data.escuela_nombre}
+            onChange={(e, nombre) => {
+              handleChange(e);
+              updateData('escuela_nombre', nombre);
+            }}
             endpoint="/api/v1/escuelas/"
             placeholder="Seleccione una escuela"
-            disabled={!data.facultad} // Se deshabilita si no hay facultad seleccionada
-            dependencia={data.facultad} // Para que el backend filtre (opcional)
+            disabled={!data.facultad}
+            dependencia={data.facultad}
           />
 
           <PaginatedSelect
             label="Departamento Académico"
             name="departamento"
             value={data.departamento}
-            onChange={handleChange}
+            selectedName={data.departamento_nombre}
+            onChange={(e, nombre) => {
+              handleChange(e);
+              updateData('departamento_nombre', nombre);
+            }}
             endpoint="/api/v1/departamentos/"
             placeholder="Seleccione un departamento"
             disabled={!data.facultad}
@@ -160,8 +178,8 @@ export default function DatosGenerales({ data, updateData }) {
               <label
                 key={opcion}
                 className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isSelected
-                    ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
-                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                  ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
+                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
                   }`}
               >
                 <input
@@ -189,8 +207,8 @@ export default function DatosGenerales({ data, updateData }) {
             return (
               <label
                 className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isOtrosChecked
-                    ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
-                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                  ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
+                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
                   }`}
               >
                 <input

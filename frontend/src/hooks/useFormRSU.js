@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 const mockInitialData = {
   // Paso 1: Datos Generales
   facultad: '', escuela: '', departamento: '', semestre: '',
+  facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
   beneficiarios: '', 
   ejeRsuSeccion: '',   ejeRsuDetalle: '',
@@ -23,8 +24,8 @@ const mockInitialData = {
   diag_justificacion: '',
 
   // Paso 4
-  obj_general: '',
-  obj_especificos: ['', '', ''],
+  obj_lograrBeneficiario: '', 
+  obj_mejorarCurricular: '',
 
   // Paso 5: Resultados
   res_beneficiario: '',
@@ -106,8 +107,16 @@ const VALIDACIONES = {
     fund_proposito: (data) => isTextValid(data.fund_proposito),
     fund_metodologia: (data) => isTextValid(data.fund_metodologia),
   }, 
-  3: {},
-  4: {},
+  3: {
+    diag_estadoActual: (data) => isTextValid(data.diag_estadoActual),
+    diag_problemas: (data) => isTextValid(data.diag_problemas),
+    diag_aportes: (data) => isTextValid(data.diag_aportes),
+    diag_justificacion: (data) => isTextValid(data.diag_justificacion),
+  },
+  4: {
+    obj_lograrBeneficiario: (data) => isTextValid(data.obj_lograrBeneficiario),
+    obj_mejorarCurricular: (data) => isTextValid(data.obj_mejorarCurricular),
+  },
   5: {},
   6: {},
   7: {},

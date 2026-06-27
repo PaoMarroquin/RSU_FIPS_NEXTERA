@@ -5,7 +5,8 @@ import api from '../../api/axiosConfig';
 export default function PaginatedSelect({ 
   label, 
   name, 
-  value, 
+  value,
+  selectedName, 
   onChange, 
   endpoint, 
   placeholder,
@@ -21,7 +22,6 @@ export default function PaginatedSelect({
   const dropdownRef = useRef(null);
   const listRef = useRef(null);
 
-  // Cerrar el dropdown si se hace clic afuera
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -32,7 +32,6 @@ export default function PaginatedSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Resetear la lista si cambia la dependencia (ej: si cambia la facultad)
   useEffect(() => {
     setOptions([]);
     setPage(1);
@@ -42,7 +41,6 @@ export default function PaginatedSelect({
     }
   }, [dependencia, disabled]);
 
-  // Obtener datos cuando se abre por primera vez o cambia la página
   useEffect(() => {
     if (isOpen && page > 1) {
       fetchData(page);
@@ -56,7 +54,6 @@ export default function PaginatedSelect({
     
     setIsLoading(true);
     try {
-      // Si hay una dependencia (ej. facultad=2), la agregamos a la URL
       const queryParam = dependencia ? `&facultad=${dependencia}` : '';
       const response = await api.get(`${endpoint}?page=${pageNum}${queryParam}`);
       
@@ -72,26 +69,26 @@ export default function PaginatedSelect({
 
   const handleScroll = (e) => {
     const { scrollTop, clientHeight, scrollHeight } = e.target;
-    // Si llegamos casi al final del contenedor (margen de 5px)
     if (scrollHeight - scrollTop <= clientHeight + 5 && hasMore && !isLoading) {
       setPage(prev => prev + 1);
     }
   };
 
   const handleSelect = (option) => {
-    // Simulamos el evento estándar para que funcione con tu handleChange original
+    // AQUÍ ESTÁ LA MAGIA: Pasamos el evento normal, y como segundo parámetro el NOMBRE real
     onChange({
       target: {
         name: name,
         value: option.id,
         type: 'select'
       }
-    });
+    }, option.nombre);
+    
     setIsOpen(false);
   };
 
-  // Buscar el nombre del valor seleccionado para mostrarlo
   const selectedOption = options.find(opt => opt.id === value);
+  const displayText = selectedOption ? selectedOption.nombre : (selectedName || placeholder);
 
   return (
     <div className="flex flex-col gap-1 relative" ref={dropdownRef}>
@@ -106,7 +103,7 @@ export default function PaginatedSelect({
         `}
       >
         <span className={value ? 'text-slate-800' : 'text-slate-400'}>
-          {selectedOption ? selectedOption.nombre : placeholder}
+          {displayText}
         </span>
         <FiChevronDown className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
