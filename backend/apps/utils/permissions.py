@@ -2,14 +2,14 @@ from rest_framework import permissions
 from apps.usuarios.models import Rol
 
 
-class IsJefaturaRSU(permissions.BasePermission):
-    """Allows access only to users with 'Jefatura RSU' or 'Administrador' role."""
+class IsCoordinadorRSU(permissions.BasePermission):
+    """Allows access only to users with 'Coordinador RSU' or 'Administrador' role."""
     def has_permission(self, request, view):
         return (
             request.user and
             request.user.is_authenticated and
             request.user.rol and
-            request.user.rol.nombre in [Rol.JEFATURA_RSU, Rol.ADMINISTRADOR]
+            request.user.rol.nombre in [Rol.COORDINADOR, Rol.ADMINISTRADOR]
         )
 
 
@@ -21,6 +21,17 @@ class IsDocente(permissions.BasePermission):
             request.user.is_authenticated and
             request.user.rol and
             request.user.rol.nombre == Rol.DOCENTE
+        )
+
+
+class IsComite(permissions.BasePermission):
+    """Allows access only to users with 'Comite' role."""
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.rol and
+            request.user.rol.nombre == Rol.COMITE
         )
 
 
@@ -37,15 +48,26 @@ class IsAdministrador(permissions.BasePermission):
         )
 
 
+class IsAutoridadUniversitaria(permissions.BasePermission):
+    """Allows access only to users with 'Autoridad Universitaria' role (solo consulta)."""
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.rol and
+            request.user.rol.nombre == Rol.AUTORIDAD
+        )
+
+
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     Safe methods are always allowed.
     Write methods (PATCH/PUT) require the user to be the object owner
-    OR to hold an administrative role (Administrador / Jefatura RSU).
+    OR to hold an administrative role (Administrador / Coordinador RSU / Comité RSU).
     DELETE is intentionally excluded here: the view's queryset already
     filters to owner-only results, producing a 404 for non-owners.
     """
-    _ROLES_ADMIN = [Rol.ADMINISTRADOR, Rol.JEFATURA_RSU]
+    _ROLES_ADMIN = [Rol.ADMINISTRADOR, Rol.COORDINADOR, Rol.COMITE]
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:

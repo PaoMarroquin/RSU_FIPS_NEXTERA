@@ -18,7 +18,7 @@ REST API built with Django and Django REST Framework for the RSU-FIPS platform.
 
 ```bash
 git clone <repository-url>
-cd rsufips-backend
+cd RSU_FIPS_NEXTERA/backend
 ```
 
 ### 2. Configure environment variables
@@ -36,9 +36,12 @@ Open `.env` and set the following variables:
 | `POSTGRES_DB` | Database name |
 | `POSTGRES_USER` | Database user |
 | `POSTGRES_PASSWORD` | Database password |
-| `POSTGRES_HOST` | Database host|
+| `POSTGRES_HOST` | Database host (`db` for Docker, `localhost` for local) |
 | `POSTGRES_PORT` | Database port |
 | `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins |
+| `ALLOWED_HOSTS` | Comma-separated allowed hosts |
+| `MEDIA_ROOT` | Path for media uploads (optional) |
 
 ---
 
@@ -133,3 +136,12 @@ The API will be available at `http://localhost:8000`.
 ```bash
 python manage.py test
 ```
+
+---
+
+## API Documentation
+
+Interactive API docs are available when `DJANGO_DEBUG=True`:
+
+- Swagger UI: `http://localhost:8000/api/schema/swagger-ui/`
+- ReDoc: `http://localhost:8000/api/schema/redoc/`

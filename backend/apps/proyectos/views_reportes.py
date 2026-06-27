@@ -6,7 +6,7 @@ from django.db.models import Count, Sum, Q
 from django.shortcuts import get_object_or_404
 
 from apps.usuarios.models import Rol, Facultad
-from apps.utils.permissions import IsAdministrador, IsJefaturaRSU
+from apps.utils.permissions import IsAdministrador, IsCoordinadorRSU
 from .models import ProyectoRSU
 
 
@@ -101,7 +101,7 @@ class ReporteFacultadView(APIView):
     GET /reportes/facultad/<facultad_pk>/
     Reporte agregado de proyectos de una facultad específica.
     - Administrador: puede ver cualquier facultad.
-    - Jefatura RSU: solo puede ver su propia facultad.
+    - Coordinador RSU: solo puede ver su propia facultad.
     """
     permission_classes = [IsAuthenticated]
 
@@ -110,16 +110,16 @@ class ReporteFacultadView(APIView):
 
         user = request.user
         es_admin = user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR)
-        es_jefatura = user.rol and user.rol.nombre == Rol.JEFATURA_RSU
+        es_coordinador = user.rol and user.rol.nombre == Rol.COORDINADOR
 
-        if not (es_admin or es_jefatura):
+        if not (es_admin or es_coordinador):
             return Response(
                 {'error': 'Sin permiso',
-                 'detail': 'Solo Administrador o Jefatura RSU pueden acceder a reportes por facultad.'},
+                 'detail': 'Solo Administrador o Coordinador RSU pueden acceder a reportes por facultad.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if es_jefatura and not es_admin:
+        if es_coordinador and not es_admin:
             if not user.facultad_id or user.facultad_id != facultad.pk:
                 return Response(
                     {'error': 'Sin permiso',

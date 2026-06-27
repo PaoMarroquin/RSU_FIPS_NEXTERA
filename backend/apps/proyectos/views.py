@@ -11,7 +11,7 @@ from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
 from apps.planificacion.models import PeriodoAcademico
 from .models import (
     ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
-    PartidaPresupuestaria, MetaIndicadorProyecto,
+    PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento,
 )
 from .serializers import (
     ProyectoRSUSerializer,
@@ -19,6 +19,7 @@ from .serializers import (
     CronogramaAccionSerializer,
     PartidaPresupuestariaSerializer,
     MetaIndicadorProyectoSerializer,
+    FuenteFinanciamientoSerializer,
 )
 from apps.usuarios.models import Rol
 
@@ -105,15 +106,15 @@ def _validar_campos_obligatorios(proyecto):
 
 
 def _filter_proyectos_por_rol(qs, user):
-    """Visibilidad por rol: Admin ve todo; Jefatura RSU ve su facultad; Docente ve sus proyectos."""
-    if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+    """Visibilidad por rol: Admin/Coordinador/Comité ve todo; Docente ve los suyos; Autoridad/Estudiante ven aprobados."""
+    if user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.COORDINADOR, Rol.COMITE]):
         return qs
-    if user.rol and user.rol.nombre == Rol.JEFATURA_RSU:
-        return qs.filter(facultad=user.facultad) if user.facultad_id else qs.none()
     if user.rol and user.rol.nombre == Rol.DOCENTE:
         return qs.filter(
             Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
         ).distinct()
+    if user.rol and user.rol.nombre in [Rol.AUTORIDAD, Rol.ESTUDIANTE]:
+        return qs.filter(estado__in=['aprobado', 'en_ejecucion', 'finalizado'])
     return qs.none()
 
 
@@ -128,8 +129,8 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user).order_by('-created_at')
 
-        # ?facultad solo respetado para Admin (los demás roles ya tienen su scope fijado)
-        if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+        # ?facultad solo respetado para Admin/Coordinador (los demás roles tienen su scope fijado)
+        if user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.COORDINADOR]):
             facultad_id = self.request.query_params.get('facultad')
             if facultad_id:
                 qs = qs.filter(facultad_id=facultad_id)
@@ -323,6 +324,35 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return PartidaPresupuestaria.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def update(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().destroy(request, *args, **kwargs)
+
+
+class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
+    serializer_class = FuenteFinanciamientoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def perform_create(self, serializer):
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        serializer.save(proyecto=proyecto)
+
+
+class FuenteFinanciamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = FuenteFinanciamientoSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)

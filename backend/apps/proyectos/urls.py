@@ -17,6 +17,10 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/cronograma/', views.CronogramaAccionListCreateView.as_view(), name='cronograma-list'),
     path('proyectos/<int:proyecto_pk>/cronograma/<int:pk>/', views.CronogramaAccionDetailView.as_view(), name='cronograma-detail'),
 
+    # ── IX. Fuentes de financiamiento ────────────────────────────────────────
+    path('proyectos/<int:proyecto_pk>/financiamiento/', views.FuenteFinanciamientoListCreateView.as_view(), name='financiamiento-list'),
+    path('proyectos/<int:proyecto_pk>/financiamiento/<int:pk>/', views.FuenteFinanciamientoDetailView.as_view(), name='financiamiento-detail'),
+
     # ── IX. Presupuesto estimado ──────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/presupuesto/', views.PartidaPresupuestariaListCreateView.as_view(), name='presupuesto-list'),
     path('proyectos/<int:proyecto_pk>/presupuesto/resumen/', views.PresupuestoResumenView.as_view(), name='presupuesto-resumen'),

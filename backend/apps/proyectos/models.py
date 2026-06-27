@@ -518,9 +518,9 @@ class PartidaPresupuestaria(models.Model):
     monto_ejecutado = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         help_text="Monto efectivamente gastado al cierre")
-    fuente = models.CharField(
-        max_length=50, choices=ProyectoRSU.FUENTES_FINANCIAMIENTO,
-        blank=True, null=True,
+    fuente = models.ForeignKey(
+        'FuenteFinanciamiento', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='partidas',
         help_text="Fuente de financiamiento de este rubro")
     orden = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
@@ -538,6 +538,34 @@ class PartidaPresupuestaria(models.Model):
 
     def __str__(self):
         return f'{self.descripcion} - proyecto#{self.proyecto_id}'
+
+
+class FuenteFinanciamiento(models.Model):
+    """
+    IX. Financiamiento - Fuentes de financiamiento del proyecto.
+    Un proyecto puede tener múltiples fuentes con distintos montos.
+    """
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='fuentes_financiamiento')
+    fuente = models.CharField(
+        max_length=50, choices=ProyectoRSU.FUENTES_FINANCIAMIENTO,
+        help_text="Fuente de financiamiento")
+    monto = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Monto aportado por esta fuente (S/)")
+    descripcion = models.CharField(
+        max_length=500, blank=True,
+        help_text="Detalle adicional sobre esta fuente")
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'fuente_financiamiento_proyecto'
+        verbose_name = 'Fuente de Financiamiento'
+        verbose_name_plural = 'Fuentes de Financiamiento'
+
+    def __str__(self):
+        return f'{self.get_fuente_display()} - S/ {self.monto} - proyecto#{self.proyecto_id}'
 
 
 class MetaIndicadorProyecto(models.Model):

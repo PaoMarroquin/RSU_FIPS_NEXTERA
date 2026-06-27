@@ -5,6 +5,7 @@ from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
+    FuenteFinanciamiento,
 )
 from apps.planificacion.models import ODS, EjeRSU, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
@@ -62,9 +63,18 @@ class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
         fields = ['id', 'archivo', 'nombre', 'uploaded_at']
 
 
+class FuenteFinanciamientoSerializer(serializers.ModelSerializer):
+    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
+
+    class Meta:
+        model = FuenteFinanciamiento
+        fields = ['id', 'fuente', 'fuente_display', 'monto', 'descripcion', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+
 class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
     monto_presupuestado = serializers.SerializerMethodField(read_only=True)
-    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
+    fuente_detalle = FuenteFinanciamientoSerializer(source='fuente', read_only=True)
     categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
     tipo_recurso_display = serializers.CharField(source='get_tipo_recurso_display', read_only=True)
 
@@ -75,7 +85,7 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
             'tipo_recurso', 'tipo_recurso_display',
             'descripcion', 'unidad', 'cantidad',
             'costo_unitario', 'monto_presupuestado', 'monto_ejecutado',
-            'fuente', 'fuente_display', 'orden',
+            'fuente', 'fuente_detalle', 'orden',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
