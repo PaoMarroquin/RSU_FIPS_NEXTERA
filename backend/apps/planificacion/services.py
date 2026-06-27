@@ -14,7 +14,7 @@ def export_matriz_excel(matriz):
     ws.append(["Matriz Operativa Anual"])
     ws.append(["Facultad:", matriz.facultad.nombre if matriz.facultad else ""])
     ws.append(["Periodo:", matriz.periodo.nombre if matriz.periodo else ""])
-    ws.append(["Coordinador:", matriz.coordinador.nombre_completo if matriz.coordinador else ""])
+    ws.append(["Coordinador:", matriz.coordinador.nombres if matriz.coordinador else ""])
     ws.append(["Estado:", matriz.get_estado_display()])
     ws.append(["Presupuesto Global:", float(matriz.presupuesto_global) if matriz.presupuesto_global else 0])
     ws.append([])
@@ -70,7 +70,7 @@ def export_matriz_pdf(matriz):
     info_data = [
         ["Facultad:", matriz.facultad.nombre if matriz.facultad else ""],
         ["Periodo:", matriz.periodo.nombre if matriz.periodo else ""],
-        ["Coordinador:", matriz.coordinador.nombre_completo if matriz.coordinador else ""],
+        ["Coordinador:", matriz.coordinador.nombres if matriz.coordinador else ""],
         ["Estado:", matriz.get_estado_display()],
         ["Presupuesto Global:", str(matriz.presupuesto_global) if matriz.presupuesto_global else "0.00"]
     ]

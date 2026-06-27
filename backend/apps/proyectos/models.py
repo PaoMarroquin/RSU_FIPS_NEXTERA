@@ -66,6 +66,12 @@ class ProyectoRSU(models.Model):
     estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS, db_index=True)
     presentado_con_anticipacion = models.BooleanField(default=False)
 
+    # Continuación de proyectos entre semestres
+    es_continuacion = models.BooleanField(default=False)
+    proyecto_origen = models.ForeignKey(
+        'self', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='continuaciones')
+
     # ──────────────────────────────────────────────────────────────────────────
     # SECCIÓN I - DATOS GENERALES
     # ──────────────────────────────────────────────────────────────────────────
@@ -134,16 +140,17 @@ class ProyectoRSU(models.Model):
     #   "investigacion": ["metas_ods", "formacion_ciudadana"],
     #   "extension": ["metas_ods", "calidad_vida"],
     #   "extension_ods_numeros": "3, 4, 11",
-    #   "extension_ambito_detalle": "...",
-    #   "voluntariado": true,
-    #   "voluntariado_ambito_detalle": "..."
+    #   "extension_ambito_detalle": "..."
     # }
     eje_rsu = models.ForeignKey(
         EjeRSU, on_delete=models.PROTECT, related_name='proyectos',
-        help_text="1.10 Eje RSU principal del proyecto")
+        help_text="1.10 Eje RSU principal del proyecto (selección excluyente)")
     eje_rsu_subitems = models.JSONField(
         default=dict, blank=True,
-        help_text="1.10 Sub-ítems seleccionados por eje RSU (Gestión, Formación, Investigación, Extensión, Voluntariado)")
+        help_text="1.10 Sub-ítems seleccionados por eje RSU (Gestión, Formación, Investigación, Extensión)")
+    eje_detalle = models.TextField(
+        blank=True, null=True,
+        help_text="1.10 Descripción obligatoria cuando el eje RSU seleccionado es 'Otros'")
 
     linea_estrategica = models.ForeignKey(
         LineaEstrategica, on_delete=models.SET_NULL,
@@ -293,6 +300,8 @@ class ProyectoRSU(models.Model):
     observaciones_financiamiento = models.TextField(
         blank=True, null=True,
         help_text="IX Observaciones adicionales sobre el financiamiento")
+    financiamiento_confirmado = models.BooleanField(default=False)
+    financiamiento_fecha_confirmacion = models.DateTimeField(null=True, blank=True)
 
     # ──────────────────────────────────────────────────────────────────────────
     # CLASIFICACIÓN ACADÉMICA / RELACIONES
@@ -331,6 +340,13 @@ class ProyectoRSU(models.Model):
         verbose_name = 'Proyecto RSU'
         verbose_name_plural = 'Proyectos RSU'
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['escuela', 'periodo', 'anio_carrera'],
+                condition=models.Q(es_continuacion=False) & ~models.Q(estado='rechazado'),
+                name='unique_proyecto_escuela_periodo_anio',
+            )
+        ]
 
     def __str__(self):
         return f'{self.codigo or "SIN-CÓDIGO"} - {self.titulo}'
@@ -381,7 +397,7 @@ class ProyectoDocente(models.Model):
         verbose_name_plural = 'Docentes de Proyecto'
 
     def __str__(self):
-        return f'{self.docente.nombre_completo} - proyecto#{self.proyecto_id}'
+        return f'{self.docente.nombres} - proyecto#{self.proyecto_id}'
 
 
 class ActividadProyecto(models.Model):
@@ -470,12 +486,10 @@ class PartidaPresupuestaria(models.Model):
     Corresponde a `presupuesto_proyecto` en el schema DBML.
     """
     CATEGORIAS = [
-        ('movilidad',         'Movilidad'),
-        ('material_educativo','Material educativo'),
-        ('equipos',           'Equipos'),
-        ('alimentacion',      'Alimentación'),
-        ('servicios',         'Servicios'),
-        ('otros',             'Otros'),
+        ('material_escritorio', 'Material de escritorio'),
+        ('refrigerio',          'Refrigerio'),
+        ('transporte',          'Transporte'),
+        ('otros',               'Otros'),
     ]
     TIPOS_RECURSO = [
         ('humano',     'Humano'),
@@ -504,9 +518,9 @@ class PartidaPresupuestaria(models.Model):
     monto_ejecutado = models.DecimalField(
         max_digits=10, decimal_places=2, default=0,
         help_text="Monto efectivamente gastado al cierre")
-    fuente = models.CharField(
-        max_length=50, choices=ProyectoRSU.FUENTES_FINANCIAMIENTO,
-        blank=True, null=True,
+    fuente = models.ForeignKey(
+        'FuenteFinanciamiento', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='partidas',
         help_text="Fuente de financiamiento de este rubro")
     orden = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now, editable=False)
@@ -524,6 +538,34 @@ class PartidaPresupuestaria(models.Model):
 
     def __str__(self):
         return f'{self.descripcion} - proyecto#{self.proyecto_id}'
+
+
+class FuenteFinanciamiento(models.Model):
+    """
+    IX. Financiamiento - Fuentes de financiamiento del proyecto.
+    Un proyecto puede tener múltiples fuentes con distintos montos.
+    """
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='fuentes_financiamiento')
+    fuente = models.CharField(
+        max_length=50, choices=ProyectoRSU.FUENTES_FINANCIAMIENTO,
+        help_text="Fuente de financiamiento")
+    monto = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text="Monto aportado por esta fuente (S/)")
+    descripcion = models.CharField(
+        max_length=500, blank=True,
+        help_text="Detalle adicional sobre esta fuente")
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'fuente_financiamiento_proyecto'
+        verbose_name = 'Fuente de Financiamiento'
+        verbose_name_plural = 'Fuentes de Financiamiento'
+
+    def __str__(self):
+        return f'{self.get_fuente_display()} - S/ {self.monto} - proyecto#{self.proyecto_id}'
 
 
 class MetaIndicadorProyecto(models.Model):

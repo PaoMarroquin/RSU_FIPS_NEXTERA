@@ -1,9 +1,9 @@
-from rest_framework import generics
+from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from apps.utils.permissions import IsCoordinador
+from apps.utils.permissions import IsCoordinadorRSU
 from .models import (
     PeriodoAcademico,
     EjeRSU,
@@ -31,10 +31,14 @@ from .services import export_matriz_excel, export_matriz_pdf
 class PeriodoAcademicoListCreateView(generics.ListCreateAPIView):
     queryset = PeriodoAcademico.objects.all().order_by('-anio', '-nombre')
     serializer_class = PeriodoAcademicoSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nombre']
+    ordering_fields = ['nombre', 'anio', 'semestre', 'fecha_inicio']
+    ordering = ['-anio', 'semestre']
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -44,7 +48,7 @@ class PeriodoAcademicoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAP
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -72,7 +76,7 @@ class LineaEstrategicaListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -82,12 +86,16 @@ class LineaEstrategicaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAP
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
 class MatrizOperativaListCreateView(generics.ListCreateAPIView):
     serializer_class = MatrizOperativaSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['facultad__nombre', 'periodo__nombre', 'coordinador__nombres']
+    ordering_fields = ['created_at', 'estado', 'periodo__nombre', 'facultad__nombre']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         user = self.request.user
@@ -104,22 +112,32 @@ class MatrizOperativaListCreateView(generics.ListCreateAPIView):
             .order_by('-created_at')
         )
 
-        facultad_id = self.request.query_params.get('facultad')
-        if facultad_id:
-            qs = qs.filter(facultad_id=facultad_id)
+        # Aislamiento por rol
+        if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+            # Admin: ve todo; ?facultad respetado
+            facultad_id = self.request.query_params.get('facultad')
+            if facultad_id:
+                qs = qs.filter(facultad_id=facultad_id)
+        elif user.rol and user.rol.nombre == Rol.COORDINADOR:
+            # Coordinador RSU: solo su facultad, ignora ?facultad externo
+            qs = qs.filter(facultad=user.facultad) if user.facultad_id else qs.none()
+        elif user.rol and user.rol.nombre in [Rol.DOCENTE, Rol.ESTUDIANTE]:
+            # Docente/Estudiante: solo matrices publicadas de su facultad
+            qs = qs.filter(estado='publicada')
+            if user.facultad_id:
+                qs = qs.filter(facultad=user.facultad)
+        else:
+            qs = qs.none()
 
         periodo_id = self.request.query_params.get('periodo')
         if periodo_id:
             qs = qs.filter(periodo_id=periodo_id)
 
-        if user.rol and user.rol.nombre in [Rol.DOCENTE, Rol.ESTUDIANTE]:
-            qs = qs.filter(estado='publicada')
-
         return qs
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -145,7 +163,7 @@ class MatrizOperativaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPI
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -166,7 +184,7 @@ class ObjetivoInstitucionalListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -180,7 +198,7 @@ class ObjetivoInstitucionalRetrieveUpdateDestroyView(generics.RetrieveUpdateDest
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -196,7 +214,7 @@ class IndicadorInstitucionalListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -206,7 +224,7 @@ class IndicadorInstitucionalRetrieveUpdateDestroyView(generics.RetrieveUpdateDes
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -232,7 +250,7 @@ class ActividadSugeridaListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 
@@ -242,7 +260,7 @@ class ActividadSugeridaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyA
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsCoordinador()]
+            return [IsAuthenticated(), IsCoordinadorRSU()]
         return [IsAuthenticated()]
 
 

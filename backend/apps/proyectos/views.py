@@ -1,15 +1,17 @@
-from rest_framework import generics, status, serializers
+from rest_framework import generics, status, serializers, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+from django.db import transaction
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
+from apps.planificacion.models import PeriodoAcademico
 from .models import (
-    ProyectoRSU, ActividadProyecto, CronogramaAccion,
-    PartidaPresupuestaria, MetaIndicadorProyecto,
+    ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
+    PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento,
 )
 from .serializers import (
     ProyectoRSUSerializer,
@@ -17,6 +19,7 @@ from .serializers import (
     CronogramaAccionSerializer,
     PartidaPresupuestariaSerializer,
     MetaIndicadorProyectoSerializer,
+    FuenteFinanciamientoSerializer,
 )
 from apps.usuarios.models import Rol
 
@@ -102,16 +105,35 @@ def _validar_campos_obligatorios(proyecto):
     return errores
 
 
+def _filter_proyectos_por_rol(qs, user):
+    """Visibilidad por rol: Admin/Coordinador/Comité ve todo; Docente ve los suyos; Autoridad/Estudiante ven aprobados."""
+    if user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.COORDINADOR, Rol.COMITE]):
+        return qs
+    if user.rol and user.rol.nombre == Rol.DOCENTE:
+        return qs.filter(
+            Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
+        ).distinct()
+    if user.rol and user.rol.nombre in [Rol.AUTORIDAD, Rol.ESTUDIANTE]:
+        return qs.filter(estado__in=['aprobado', 'en_ejecucion', 'finalizado'])
+    return qs.none()
+
+
 class ProyectoListCreateView(generics.ListCreateAPIView):
     serializer_class = ProyectoRSUSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['titulo', 'codigo', 'docente_responsable__nombres', 'escuela__nombre']
+    ordering_fields = ['titulo', 'estado', 'created_at', 'anio_carrera', 'periodo__nombre']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         user = self.request.user
-        qs = _proyecto_qs_base().order_by('-created_at')
+        qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user).order_by('-created_at')
 
-        facultad_id = self.request.query_params.get('facultad')
-        if facultad_id:
-            qs = qs.filter(facultad_id=facultad_id)
+        # ?facultad solo respetado para Admin/Coordinador (los demás roles tienen su scope fijado)
+        if user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.COORDINADOR]):
+            facultad_id = self.request.query_params.get('facultad')
+            if facultad_id:
+                qs = qs.filter(facultad_id=facultad_id)
 
         estado = self.request.query_params.get('estado')
         if estado:
@@ -120,13 +142,6 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         periodo_id = self.request.query_params.get('periodo')
         if periodo_id:
             qs = qs.filter(periodo_id=periodo_id)
-
-        if user.rol and user.rol.nombre == Rol.DOCENTE:
-            qs = qs.filter(
-                Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
-            ).distinct()
-        elif user.rol and user.rol.nombre == Rol.ESTUDIANTE:
-            qs = qs.filter(estado='aprobado')
 
         return qs
 
@@ -141,16 +156,13 @@ class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = _proyecto_qs_base()
+        qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user)
 
-        if user.rol and user.rol.nombre == Rol.DOCENTE:
-            if self.request.method == 'DELETE':
-                return qs.filter(docente_responsable=user)
-            return qs.filter(
-                Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
-            ).distinct()
-        elif user.rol and user.rol.nombre == Rol.ESTUDIANTE:
-            return qs.filter(estado='aprobado')
+        # Para DELETE, Docente solo puede borrar si es responsable
+        if (self.request.method == 'DELETE'
+                and user.rol and user.rol.nombre == Rol.DOCENTE):
+            return _proyecto_qs_base().filter(docente_responsable=user)
+
         return qs
 
     def get_permissions(self):
@@ -168,55 +180,55 @@ class ProyectoEnviarRevisionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        try:
-            proyecto = (
-                ProyectoRSU.objects
-                .select_related(
-                    'facultad', 'escuela', 'departamento', 'periodo',
-                    'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
-                    'docente_responsable',
-                )
-                .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
-                                  'actividades', 'cronograma')
-                .get(pk=pk)
+        proyecto = get_object_or_404(
+            ProyectoRSU.objects
+            .select_related(
+                'facultad', 'escuela', 'departamento', 'periodo',
+                'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+                'docente_responsable',
             )
-        except ProyectoRSU.DoesNotExist:
-            return Response({'detail': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
+                              'actividades', 'cronograma'),
+            pk=pk,
+        )
 
         if proyecto.docente_responsable != request.user:
-            return Response(
-                {'detail': 'No tienes permisos para enviar este proyecto a revisión.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied('No tienes permisos para enviar este proyecto a revisión.')
 
         if proyecto.estado not in ['borrador', 'observado']:
-            return Response(
-                {'detail': f'Estado actual {proyecto.estado} no permite envío a revisión.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            raise serializers.ValidationError(
+                {'detail': f'El estado "{proyecto.estado}" no permite envío a revisión.'}
             )
 
         errores = _validar_campos_obligatorios(proyecto)
         if errores:
-            return Response(
-                {'detail': 'Faltan completar campos obligatorios.', 'errors': errores},
-                status=status.HTTP_400_BAD_REQUEST,
+            raise serializers.ValidationError(
+                {'detail': 'Faltan completar campos obligatorios.', 'errors': errores}
             )
+
+        if not proyecto.es_continuacion and proyecto.anio_carrera:
+            conflicto = ProyectoRSU.objects.filter(
+                escuela=proyecto.escuela,
+                periodo=proyecto.periodo,
+                anio_carrera=proyecto.anio_carrera,
+                es_continuacion=False,
+                estado__in=['en_revision', 'corregido', 'aprobado', 'en_ejecucion', 'finalizado'],
+            ).exclude(pk=proyecto.pk).exists()
+            if conflicto:
+                raise serializers.ValidationError({
+                    'detail': 'Ya existe otro proyecto activo para este año/escuela/periodo.',
+                    'errors': {'anio_carrera': 'Conflicto de unicidad.'},
+                })
 
         proyecto.estado = 'en_revision'
         proyecto.fecha_envio_revision = timezone.now()
         proyecto.save(update_fields=['estado', 'fecha_envio_revision'])
 
-        proyecto = (
-            ProyectoRSU.objects
-            .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
-                              'actividades', 'cronograma')
-            .get(pk=pk)
+        serializer = ProyectoRSUSerializer(
+            _proyecto_qs_base().get(pk=pk),
+            context={'request': request},
         )
-        serializer = ProyectoRSUSerializer(proyecto, context={'request': request})
-        return Response(
-            {'detail': 'El proyecto ha sido enviado a revisión exitosamente.', 'proyecto': serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ActividadProyectoListCreateView(generics.ListCreateAPIView):
@@ -322,37 +334,127 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
+class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
+    serializer_class = FuenteFinanciamientoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def perform_create(self, serializer):
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        serializer.save(proyecto=proyecto)
+
+
+class FuenteFinanciamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = FuenteFinanciamientoSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def update(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        return super().destroy(request, *args, **kwargs)
+
+
 class PresupuestoResumenView(APIView):
     """
-    GET /proyectos/<pk>/presupuesto/resumen/
-    Devuelve el total estimado del proyecto y el desglose por fuente de financiamiento.
+    GET /proyectos/<proyecto_pk>/presupuesto/resumen/
+    Devuelve el total estimado, desglose por categoría y fuente, datos del docente
+    y estado de confirmación del financiamiento.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, proyecto_pk):
-        get_object_or_404(ProyectoRSU, pk=proyecto_pk)
-
+        proyecto = get_object_or_404(
+            ProyectoRSU.objects.select_related('docente_responsable'),
+            pk=proyecto_pk,
+        )
         partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
 
         total_presupuestado = sum(p.monto_presupuestado for p in partidas)
         total_ejecutado = sum(p.monto_ejecutado for p in partidas)
 
-        desglose = {}
+        por_categoria = {}
+        por_fuente = {}
         for p in partidas:
+            cat_key = p.categoria or 'sin_especificar'
+            cat_label = dict(PartidaPresupuestaria.CATEGORIAS).get(cat_key, 'Sin especificar')
+            if cat_key not in por_categoria:
+                por_categoria[cat_key] = {'categoria': cat_label, 'presupuestado': 0, 'ejecutado': 0}
+            por_categoria[cat_key]['presupuestado'] += float(p.monto_presupuestado)
+            por_categoria[cat_key]['ejecutado'] += float(p.monto_ejecutado)
+
             fuente_key = p.fuente or 'sin_especificar'
             fuente_label = p.get_fuente_display() if p.fuente else 'Sin especificar'
-            if fuente_key not in desglose:
-                desglose[fuente_key] = {'fuente': fuente_label, 'presupuestado': 0, 'ejecutado': 0}
-            desglose[fuente_key]['presupuestado'] += float(p.monto_presupuestado)
-            desglose[fuente_key]['ejecutado'] += float(p.monto_ejecutado)
+            if fuente_key not in por_fuente:
+                por_fuente[fuente_key] = {'fuente': fuente_label, 'presupuestado': 0, 'ejecutado': 0}
+            por_fuente[fuente_key]['presupuestado'] += float(p.monto_presupuestado)
+            por_fuente[fuente_key]['ejecutado'] += float(p.monto_ejecutado)
+
+        docente = proyecto.docente_responsable
+        docente_data = None
+        if docente:
+            firma_url = None
+            if docente.firma_digital:
+                firma_url = request.build_absolute_uri(docente.firma_digital.url)
+            docente_data = {
+                'id': docente.id,
+                'nombres': docente.nombres,
+                'apellidos': docente.apellidos,
+                'correo_institucional': docente.correo_institucional,
+                'firma_digital': firma_url,
+            }
 
         return Response({
             'proyecto_id': proyecto_pk,
             'total_presupuestado': float(total_presupuestado),
             'total_ejecutado': float(total_ejecutado),
             'nro_partidas': partidas.count(),
-            'desglose_por_fuente': list(desglose.values()),
+            'desglose_por_categoria': list(por_categoria.values()),
+            'desglose_por_fuente': list(por_fuente.values()),
+            'docente_responsable': docente_data,
+            'financiamiento_confirmado': proyecto.financiamiento_confirmado,
+            'financiamiento_fecha_confirmacion': proyecto.financiamiento_fecha_confirmacion,
         })
+
+
+class FinanciamientoConfirmarView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, proyecto_pk):
+        proyecto = get_object_or_404(
+            ProyectoRSU.objects.select_related('docente_responsable'),
+            pk=proyecto_pk,
+        )
+        if proyecto.docente_responsable != request.user:
+            return Response(
+                {'error': 'Sin permiso',
+                 'detail': 'Solo el docente responsable puede confirmar el financiamiento.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not request.user.firma_digital:
+            return Response(
+                {'error': 'Sin firma digital',
+                 'detail': 'Debe cargar su firma digital antes de confirmar el financiamiento.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        proyecto.financiamiento_confirmado = True
+        proyecto.financiamiento_fecha_confirmacion = timezone.now()
+        proyecto.save(update_fields=['financiamiento_confirmado', 'financiamiento_fecha_confirmacion'])
+        return Response(
+            {
+                'financiamiento_confirmado': proyecto.financiamiento_confirmado,
+                'financiamiento_fecha_confirmacion': proyecto.financiamiento_fecha_confirmacion,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ─── Metas e Indicadores ─────────────────────────────────────────────────────
@@ -402,3 +504,123 @@ class MetaIndicadorProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
+
+
+# ─── Continuación de proyectos ────────────────────────────────────────────────
+
+class ProyectoContinuarView(APIView):
+    """
+    POST /proyectos/<pk>/continuar/
+    Crea una continuación del proyecto en un nuevo periodo.
+    Copia los campos principales, conserva los docentes originales
+    y permite añadir nuevos docentes adicionales.
+
+    Body: { "periodo": <id>, "docentes_adicionales": [{"docente": <id>, "rol_en_proyecto": "..."}] }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        original = get_object_or_404(
+            ProyectoRSU.objects.select_related(
+                'facultad', 'escuela', 'departamento',
+                'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+                'docente_responsable',
+            ).prefetch_related('ods', 'docentes_adicionales__docente'),
+            pk=pk,
+        )
+
+        if original.docente_responsable != request.user and not request.user.is_staff:
+            return Response(
+                {'error': 'Sin permiso',
+                 'detail': 'Solo el docente responsable puede crear una continuación.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        estados_validos = ['aprobado', 'en_ejecucion', 'finalizado']
+        if original.estado not in estados_validos:
+            return Response(
+                {'error': 'Estado inválido',
+                 'detail': f'Solo se puede continuar un proyecto en estado: {", ".join(estados_validos)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        periodo_id = request.data.get('periodo')
+        if not periodo_id:
+            return Response(
+                {'error': 'Campo requerido', 'detail': 'Debe indicar el periodo para la continuación.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            nuevo_periodo = PeriodoAcademico.objects.get(pk=periodo_id)
+        except PeriodoAcademico.DoesNotExist:
+            return Response(
+                {'error': 'No encontrado', 'detail': f'No existe un periodo con id={periodo_id}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if ProyectoRSU.objects.filter(proyecto_origen=original, periodo=nuevo_periodo).exists():
+            return Response(
+                {'error': 'Duplicado',
+                 'detail': 'Ya existe una continuación de este proyecto para ese periodo.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nuevos_docentes = request.data.get('docentes_adicionales', [])
+
+        with transaction.atomic():
+            nuevo = ProyectoRSU.objects.create(
+                facultad=original.facultad,
+                escuela=original.escuela,
+                departamento=original.departamento,
+                eje_rsu=original.eje_rsu,
+                eje_rsu_subitems=original.eje_rsu_subitems,
+                eje_detalle=original.eje_detalle,
+                linea_estrategica=original.linea_estrategica,
+                objetivo_institucional=original.objetivo_institucional,
+                titulo=f'{original.titulo} (Continuación)',
+                anio_carrera=original.anio_carrera,
+                es_tesis_quinto_anio=original.es_tesis_quinto_anio,
+                docente_responsable=original.docente_responsable,
+                periodo=nuevo_periodo,
+                semestre_academico=nuevo_periodo.nombre,
+                estado='borrador',
+                es_continuacion=True,
+                proyecto_origen=original,
+                fund_por_que_grupo=original.fund_por_que_grupo,
+                fund_para_que_proyecto=original.fund_para_que_proyecto,
+                fund_mecanismo_ensenanza=original.fund_mecanismo_ensenanza,
+                diag_estado_grupo=original.diag_estado_grupo,
+                diag_problemas_detectados=original.diag_problemas_detectados,
+                diag_aportes_formacion=original.diag_aportes_formacion,
+                diag_justificacion_intervencion=original.diag_justificacion_intervencion,
+            )
+            nuevo.codigo = f'PROY-FIPS-{nuevo.id:04d}'
+            nuevo.save(update_fields=['codigo'])
+
+            nuevo.ods.set(original.ods.all())
+
+            # Docentes originales (responsable ya está en docente_responsable, copiar adicionales)
+            for pd in original.docentes_adicionales.all():
+                ProyectoDocente.objects.create(
+                    proyecto=nuevo,
+                    docente=pd.docente,
+                    rol_en_proyecto=pd.rol_en_proyecto,
+                )
+
+            # Nuevos docentes adicionales enviados en el request
+            for item in nuevos_docentes:
+                docente_id = item.get('docente')
+                rol = item.get('rol_en_proyecto', 'Colaborador')
+                if docente_id:
+                    ProyectoDocente.objects.get_or_create(
+                        proyecto=nuevo,
+                        docente_id=docente_id,
+                        defaults={'rol_en_proyecto': rol},
+                    )
+
+        serializer = ProyectoRSUSerializer(
+            _proyecto_qs_base().get(pk=nuevo.pk),
+            context={'request': request},
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

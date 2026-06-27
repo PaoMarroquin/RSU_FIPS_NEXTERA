@@ -89,7 +89,7 @@ class CorreoTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data['usuario'] = {
             'id': self.user.id,
-            'nombre_completo': self.user.nombre_completo,
+            'nombres': self.user.nombres,
             'correo_institucional': self.user.correo_institucional,
             'rol': self.user.rol.nombre if self.user.rol else None,
             'estado': self.user.estado,
@@ -202,9 +202,9 @@ class GoogleAuthView(APIView):
         try:
             usuario = Usuario.objects.select_related('rol').get(correo_institucional=email)
             update_fields = ['ultimo_acceso']
-            if usuario.nombre_completo != nombre:
-                usuario.nombre_completo = nombre
-                update_fields.append('nombre_completo')
+            if usuario.nombres != nombre:
+                usuario.nombres = nombre
+                update_fields.append('nombres')
             usuario.ultimo_acceso = timezone.now()
             usuario.save(update_fields=update_fields)
         except Usuario.DoesNotExist:
@@ -212,7 +212,7 @@ class GoogleAuthView(APIView):
                 usuario = Usuario.objects.create_user(
                     correo_institucional=email,
                     password=None,
-                    nombre_completo=nombre,
+                    nombres=nombre,
                 )
                 es_nuevo = True
             except IntegrityError:
@@ -232,7 +232,7 @@ class GoogleAuthView(APIView):
             'refresh': str(refresh),
             'usuario': {
                 'id': usuario.id,
-                'nombre_completo': usuario.nombre_completo,
+                'nombres': usuario.nombres,
                 'correo_institucional': usuario.correo_institucional,
                 'rol': usuario.rol.nombre if usuario.rol else None,
                 'es_nuevo': es_nuevo,

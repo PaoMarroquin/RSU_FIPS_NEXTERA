@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # RSU-FIPS Backend
 
 REST API built with Django and Django REST Framework for the RSU-FIPS platform.
@@ -19,7 +18,7 @@ REST API built with Django and Django REST Framework for the RSU-FIPS platform.
 
 ```bash
 git clone <repository-url>
-cd rsufips-backend
+cd RSU_FIPS_NEXTERA/backend
 ```
 
 ### 2. Configure environment variables
@@ -37,9 +36,12 @@ Open `.env` and set the following variables:
 | `POSTGRES_DB` | Database name |
 | `POSTGRES_USER` | Database user |
 | `POSTGRES_PASSWORD` | Database password |
-| `POSTGRES_HOST` | Database host|
+| `POSTGRES_HOST` | Database host (`db` for Docker, `localhost` for local) |
 | `POSTGRES_PORT` | Database port |
 | `GOOGLE_CLIENT_ID` | Google OAuth 2.0 Client ID |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed frontend origins |
+| `ALLOWED_HOSTS` | Comma-separated allowed hosts |
+| `MEDIA_ROOT` | Path for media uploads (optional) |
 
 ---
 
@@ -134,7 +136,19 @@ The API will be available at `http://localhost:8000`.
 ```bash
 python manage.py test
 ```
-=======
+
+---
+
+## API Documentation
+
+Interactive API docs are available when `DJANGO_DEBUG=True`:
+
+- Swagger UI: `http://localhost:8000/api/schema/swagger-ui/`
+- ReDoc: `http://localhost:8000/api/schema/redoc/`
+
+---
+---
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
@@ -151,4 +165,3 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
->>>>>>> origin/frontend-rsu

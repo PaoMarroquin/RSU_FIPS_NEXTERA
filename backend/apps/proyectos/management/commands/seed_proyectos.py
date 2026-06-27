@@ -26,7 +26,7 @@ class Command(BaseCommand):
         docente_1, _ = User.objects.get_or_create(
             correo_institucional='responsable.rsu@unsa.edu.pe',
             defaults={
-                'nombre_completo': 'Dr. Alberto Flores Valdivia',
+                'nombres': 'Dr. Alberto Flores Valdivia',
                 'celular': '958473621',
                 'rol': rol_docente,
                 'facultad': facultad,
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         docente_2, _ = User.objects.get_or_create(
             correo_institucional='colaborador.rsu@unsa.edu.pe',
             defaults={
-                'nombre_completo': 'Mg. Patricia Bedregal Quiroz',
+                'nombres': 'Mg. Patricia Bedregal Quiroz',
                 'celular': '984512367',
                 'rol': rol_docente,
                 'facultad': facultad,
@@ -58,7 +58,7 @@ class Command(BaseCommand):
         coordinador, _ = User.objects.get_or_create(
             correo_institucional='coordinador.rsu@unsa.edu.pe',
             defaults={
-                'nombre_completo': 'Dr. Marcos Sanz Choque',
+                'nombres': 'Dr. Marcos Sanz Choque',
                 'celular': '993481273',
                 'rol': rol_coord,
                 'facultad': facultad,
