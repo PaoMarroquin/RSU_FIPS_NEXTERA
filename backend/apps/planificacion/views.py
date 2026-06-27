@@ -1,4 +1,4 @@
-from rest_framework import generics
+from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from django.http import HttpResponse
@@ -31,6 +31,10 @@ from .services import export_matriz_excel, export_matriz_pdf
 class PeriodoAcademicoListCreateView(generics.ListCreateAPIView):
     queryset = PeriodoAcademico.objects.all().order_by('-anio', '-nombre')
     serializer_class = PeriodoAcademicoSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nombre']
+    ordering_fields = ['nombre', 'anio', 'semestre', 'fecha_inicio']
+    ordering = ['-anio', 'semestre']
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -88,6 +92,10 @@ class LineaEstrategicaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAP
 
 class MatrizOperativaListCreateView(generics.ListCreateAPIView):
     serializer_class = MatrizOperativaSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['facultad__nombre', 'periodo__nombre', 'coordinador__nombres']
+    ordering_fields = ['created_at', 'estado', 'periodo__nombre', 'facultad__nombre']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         user = self.request.user

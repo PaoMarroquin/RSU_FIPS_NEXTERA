@@ -6,7 +6,7 @@ urlpatterns = [
     # ── Proyecto principal ────────────────────────────────────────────────────
     path('proyectos/', views.ProyectoListCreateView.as_view(), name='proyecto-list'),
     path('proyectos/<int:pk>/', views.ProyectoRetrieveUpdateDestroyView.as_view(), name='proyecto-detail'),
-    path('proyectos/<int:pk>/enviar-revision/', views.ProyectoEnviarRevisionView.as_view(), name='proyecto-enviar-revision'),
+    path('proyectos/<int:pk>/revisar/', views.ProyectoEnviarRevisionView.as_view(), name='proyecto-revisar'),
     path('proyectos/<int:pk>/continuar/', views.ProyectoContinuarView.as_view(), name='proyecto-continuar'),
 
     # ── VI. Actividades ───────────────────────────────────────────────────────

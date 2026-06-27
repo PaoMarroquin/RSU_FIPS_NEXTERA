@@ -148,7 +148,7 @@ class ProyectoRSU(models.Model):
     eje_rsu_subitems = models.JSONField(
         default=dict, blank=True,
         help_text="1.10 Sub-ítems seleccionados por eje RSU (Gestión, Formación, Investigación, Extensión)")
-    eje_rsu_otro_detalle = models.TextField(
+    eje_detalle = models.TextField(
         blank=True, null=True,
         help_text="1.10 Descripción obligatoria cuando el eje RSU seleccionado es 'Otros'")
 

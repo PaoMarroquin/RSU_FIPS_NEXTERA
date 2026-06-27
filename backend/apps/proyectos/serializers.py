@@ -202,7 +202,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             # 1.10 Eje RSU
             'eje_rsu', 'eje_rsu_nombre',
             'eje_rsu_subitems',
-            'eje_rsu_otro_detalle',
+            'eje_detalle',
             'linea_estrategica', 'linea_estrategica_nombre',
             'objetivo_institucional', 'objetivo_institucional_nombre',
 
@@ -347,13 +347,13 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             })
 
         eje_rsu = attrs.get('eje_rsu', getattr(self.instance, 'eje_rsu', None))
-        eje_rsu_otro_detalle = attrs.get(
-            'eje_rsu_otro_detalle',
-            getattr(self.instance, 'eje_rsu_otro_detalle', None),
+        eje_detalle = attrs.get(
+            'eje_detalle',
+            getattr(self.instance, 'eje_detalle', None),
         )
-        if eje_rsu and eje_rsu.nombre == 'Otros' and not (eje_rsu_otro_detalle or '').strip():
+        if eje_rsu and eje_rsu.nombre == 'Otros' and not (eje_detalle or '').strip():
             raise serializers.ValidationError({
-                'eje_rsu_otro_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'
+                'eje_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'
             })
 
         # Unicidad: 1 proyecto no-continuación por (escuela, periodo, anio_carrera)

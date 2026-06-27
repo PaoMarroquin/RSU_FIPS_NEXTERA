@@ -1,4 +1,4 @@
-from rest_framework import generics, status, serializers
+from rest_framework import generics, status, serializers, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -119,6 +119,10 @@ def _filter_proyectos_por_rol(qs, user):
 
 class ProyectoListCreateView(generics.ListCreateAPIView):
     serializer_class = ProyectoRSUSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['titulo', 'codigo', 'docente_responsable__nombres', 'escuela__nombre']
+    ordering_fields = ['titulo', 'estado', 'created_at', 'anio_carrera', 'periodo__nombre']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         user = self.request.user
@@ -175,38 +179,30 @@ class ProyectoEnviarRevisionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        try:
-            proyecto = (
-                ProyectoRSU.objects
-                .select_related(
-                    'facultad', 'escuela', 'departamento', 'periodo',
-                    'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
-                    'docente_responsable',
-                )
-                .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
-                                  'actividades', 'cronograma')
-                .get(pk=pk)
+        proyecto = get_object_or_404(
+            ProyectoRSU.objects
+            .select_related(
+                'facultad', 'escuela', 'departamento', 'periodo',
+                'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+                'docente_responsable',
             )
-        except ProyectoRSU.DoesNotExist:
-            return Response({'detail': 'Proyecto no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
+                              'actividades', 'cronograma'),
+            pk=pk,
+        )
 
         if proyecto.docente_responsable != request.user:
-            return Response(
-                {'detail': 'No tienes permisos para enviar este proyecto a revisión.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            raise PermissionDenied('No tienes permisos para enviar este proyecto a revisión.')
 
         if proyecto.estado not in ['borrador', 'observado']:
-            return Response(
-                {'detail': f'Estado actual {proyecto.estado} no permite envío a revisión.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            raise serializers.ValidationError(
+                {'detail': f'El estado "{proyecto.estado}" no permite envío a revisión.'}
             )
 
         errores = _validar_campos_obligatorios(proyecto)
         if errores:
-            return Response(
-                {'detail': 'Faltan completar campos obligatorios.', 'errors': errores},
-                status=status.HTTP_400_BAD_REQUEST,
+            raise serializers.ValidationError(
+                {'detail': 'Faltan completar campos obligatorios.', 'errors': errores}
             )
 
         if not proyecto.es_continuacion and proyecto.anio_carrera:
@@ -218,27 +214,20 @@ class ProyectoEnviarRevisionView(APIView):
                 estado__in=['en_revision', 'corregido', 'aprobado', 'en_ejecucion', 'finalizado'],
             ).exclude(pk=proyecto.pk).exists()
             if conflicto:
-                return Response(
-                    {'detail': 'Conflicto de unicidad.',
-                     'errors': {'anio_carrera': 'Ya existe otro proyecto activo para este año/escuela/periodo.'}},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                raise serializers.ValidationError({
+                    'detail': 'Ya existe otro proyecto activo para este año/escuela/periodo.',
+                    'errors': {'anio_carrera': 'Conflicto de unicidad.'},
+                })
 
         proyecto.estado = 'en_revision'
         proyecto.fecha_envio_revision = timezone.now()
         proyecto.save(update_fields=['estado', 'fecha_envio_revision'])
 
-        proyecto = (
-            ProyectoRSU.objects
-            .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
-                              'actividades', 'cronograma')
-            .get(pk=pk)
+        serializer = ProyectoRSUSerializer(
+            _proyecto_qs_base().get(pk=pk),
+            context={'request': request},
         )
-        serializer = ProyectoRSUSerializer(proyecto, context={'request': request})
-        return Response(
-            {'detail': 'El proyecto ha sido enviado a revisión exitosamente.', 'proyecto': serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ActividadProyectoListCreateView(generics.ListCreateAPIView):
@@ -407,10 +396,6 @@ class PresupuestoResumenView(APIView):
 
 
 class FinanciamientoConfirmarView(APIView):
-    """
-    POST /proyectos/<proyecto_pk>/presupuesto/confirmar/
-    El docente responsable confirma el resumen de financiamiento con su firma.
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request, proyecto_pk):
@@ -434,9 +419,10 @@ class FinanciamientoConfirmarView(APIView):
         proyecto.financiamiento_fecha_confirmacion = timezone.now()
         proyecto.save(update_fields=['financiamiento_confirmado', 'financiamiento_fecha_confirmacion'])
         return Response(
-            {'detail': 'Financiamiento confirmado correctamente.',
-             'financiamiento_confirmado': True,
-             'financiamiento_fecha_confirmacion': proyecto.financiamiento_fecha_confirmacion},
+            {
+                'financiamiento_confirmado': proyecto.financiamiento_confirmado,
+                'financiamiento_fecha_confirmacion': proyecto.financiamiento_fecha_confirmacion,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -559,7 +545,7 @@ class ProyectoContinuarView(APIView):
                 departamento=original.departamento,
                 eje_rsu=original.eje_rsu,
                 eje_rsu_subitems=original.eje_rsu_subitems,
-                eje_rsu_otro_detalle=original.eje_rsu_otro_detalle,
+                eje_detalle=original.eje_detalle,
                 linea_estrategica=original.linea_estrategica,
                 objetivo_institucional=original.objetivo_institucional,
                 titulo=f'{original.titulo} (Continuación)',
