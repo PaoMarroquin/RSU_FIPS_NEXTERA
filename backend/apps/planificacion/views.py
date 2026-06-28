@@ -53,7 +53,7 @@ class PeriodoAcademicoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAP
 
 
 class EjeRSUListView(generics.ListAPIView):
-    queryset = EjeRSU.objects.all().order_by('nombre')
+    queryset = EjeRSU.objects.prefetch_related('subitems').order_by('nombre')
     serializer_class = EjeRSUSerializer
     permission_classes = [IsAuthenticated]
 

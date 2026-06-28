@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 
+from apps.planificacion.models import EjeRSUSubitem
 from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
     ActividadProyecto, CronogramaAccion,
@@ -70,7 +71,27 @@ class EjesSubitemsInline(admin.TabularInline):
     fields = ('sub_eje', 'detalle')
     verbose_name = "Sub-ítem de Eje RSU"
     verbose_name_plural = "── I. (1.10) Sub-ítems del Eje RSU seleccionado"
-    autocomplete_fields = ['sub_eje']
+
+    def get_extra(self, request, obj=None, **kwargs):
+        return 0 if obj is None else 1
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'sub_eje':
+            object_id = request.resolver_match.kwargs.get('object_id')
+            if object_id:
+                eje_rsu_id = ProyectoRSU.objects.filter(pk=object_id).values_list(
+                    'eje_rsu_id', flat=True
+                ).first()
+                if eje_rsu_id:
+                    kwargs['queryset'] = EjeRSUSubitem.objects.filter(
+                        eje_rsu_id=eje_rsu_id
+                    ).order_by('orden')
+                    return super().formfield_for_foreignkey(db_field, request, **kwargs)
+            # CREATE page o proyecto sin eje: muestra todos agrupados por eje
+            kwargs['queryset'] = EjeRSUSubitem.objects.select_related('eje_rsu').order_by(
+                'eje_rsu__nombre', 'orden'
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class ActividadProyectoInline(admin.TabularInline):
@@ -102,6 +123,9 @@ class DocumentoSustentoProyectoInline(admin.TabularInline):
 @admin.register(ProyectoRSU)
 class ProyectoRSUAdmin(admin.ModelAdmin):
     form = TipoActividadForm
+
+    class Media:
+        js = ('proyectos/js/admin_subitems.js',)
 
     list_display = (
         'codigo', 'titulo', 'docente_responsable',
