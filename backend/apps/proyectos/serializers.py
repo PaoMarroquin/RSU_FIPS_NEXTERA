@@ -5,9 +5,9 @@ from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
-    FuenteFinanciamiento,
+    FuenteFinanciamiento, TipoBeneficiario, ProyectoEjeSubitem,
 )
-from apps.planificacion.models import ODS, EjeRSU, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
+from apps.planificacion.models import ODS, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
 
 
@@ -113,6 +113,12 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class TipoBeneficiarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoBeneficiario
+        fields = ['id', 'codigo', 'label', 'orden']
+
+
 class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
     porcentaje_avance = serializers.SerializerMethodField(read_only=True)
 
@@ -146,6 +152,15 @@ class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class ProyectoEjeSubitemSerializer(serializers.ModelSerializer):
+    sub_eje_clave  = serializers.CharField(source='sub_eje.clave', read_only=True)
+    sub_eje_nombre = serializers.CharField(source='sub_eje.nombre', read_only=True)
+
+    class Meta:
+        model = ProyectoEjeSubitem
+        fields = ['id', 'sub_eje', 'sub_eje_clave', 'sub_eje_nombre', 'detalle']
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Main serializer
 # ──────────────────────────────────────────────────────────────────────────────
@@ -157,8 +172,10 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     actividades = ActividadProyectoSerializer(many=True, required=False)
     cronograma = CronogramaAccionSerializer(many=True, required=False)
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
+    ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
 
     # Read-only display fields
+    beneficiarios_info = serializers.SerializerMethodField(read_only=True)
     ods_info = serializers.SerializerMethodField(read_only=True)
     docente_responsable_nombre = serializers.CharField(
         source='docente_responsable.nombres', read_only=True)
@@ -196,22 +213,11 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'lugar_ejecucion',
 
             # 1.9 Beneficiarios
-            'benef_comunidad_universitaria',
-            'benef_inst_educativas_basicas',
-            'benef_inst_educativas_especiales',
-            'benef_gobierno_local',
-            'benef_gobierno_regional',
-            'benef_gobierno_nacional',
-            'benef_asociaciones',
-            'benef_organizaciones_comunales',
-            'benef_sector_empresarial',
-            'benef_sectores_laborales',
-            'benef_centros_penitenciarios',
-            'benef_otro', 'benef_otro_detalle',
+            'beneficiarios', 'beneficiarios_info', 'benef_otro_detalle',
 
             # 1.10 Eje RSU
             'eje_rsu', 'eje_rsu_nombre',
-            'eje_rsu_subitems',
+            'ejes_subitems',
             'eje_detalle',
             'linea_estrategica', 'linea_estrategica_nombre',
             'objetivo_institucional', 'objetivo_institucional_nombre',
@@ -298,6 +304,9 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
         ]
 
+    def get_beneficiarios_info(self, obj):
+        return [{'id': b.id, 'codigo': b.codigo, 'label': b.label} for b in obj.beneficiarios.all()]
+
     def get_ods_info(self, obj):
         return [{'id': o.id, 'numero': o.numero, 'nombre': o.nombre} for o in obj.ods.all()]
 
@@ -341,52 +350,64 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 )
         return value
 
-    def validate(self, attrs):
-        """Valida coherencia entre facultad, escuela, departamento y eje RSU."""
-        facultad = attrs.get('facultad', getattr(self.instance, 'facultad', None))
-        escuela = attrs.get('escuela', getattr(self.instance, 'escuela', None))
-        departamento = attrs.get('departamento', getattr(self.instance, 'departamento', None))
+    def _get(self, attrs, field):
+        return attrs.get(field, getattr(self.instance, field, None))
 
+    def _validate_facultad_relations(self, attrs):
+        facultad = self._get(attrs, 'facultad')
+        escuela = self._get(attrs, 'escuela')
+        departamento = self._get(attrs, 'departamento')
         if facultad and escuela and escuela.facultad_id != facultad.pk:
-            raise serializers.ValidationError({
-                'escuela': 'La escuela profesional no pertenece a la facultad seleccionada.'
-            })
+            raise serializers.ValidationError(
+                {'escuela': 'La escuela profesional no pertenece a la facultad seleccionada.'})
         if facultad and departamento and departamento.facultad_id != facultad.pk:
-            raise serializers.ValidationError({
-                'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'
-            })
+            raise serializers.ValidationError(
+                {'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'})
 
-        eje_rsu = attrs.get('eje_rsu', getattr(self.instance, 'eje_rsu', None))
-        eje_detalle = attrs.get(
-            'eje_detalle',
-            getattr(self.instance, 'eje_detalle', None),
-        )
+    def _validate_benef_otro(self, attrs):
+        beneficiarios = self._get(attrs, 'beneficiarios')
+        if beneficiarios is None:
+            return
+        codigos = [b.codigo for b in beneficiarios]
+        if 'otro' in codigos:
+            detalle = attrs.get('benef_otro_detalle', getattr(self.instance, 'benef_otro_detalle', ''))
+            if not (detalle or '').strip():
+                raise serializers.ValidationError(
+                    {'benef_otro_detalle': 'Debe especificar el detalle cuando selecciona "Otro" como beneficiario.'})
+
+    def _validate_eje_rsu(self, attrs):
+        eje_rsu = self._get(attrs, 'eje_rsu')
+        eje_detalle = self._get(attrs, 'eje_detalle')
         if eje_rsu and eje_rsu.nombre == 'Otros' and not (eje_detalle or '').strip():
+            raise serializers.ValidationError(
+                {'eje_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'})
+
+    def _validate_unicidad(self, attrs):
+        if self.instance is not None:
+            return
+        escuela = attrs.get('escuela')
+        periodo = attrs.get('periodo')
+        anio_carrera = attrs.get('anio_carrera')
+        if not (escuela and periodo and anio_carrera):
+            return
+        existe = ProyectoRSU.objects.filter(
+            escuela=escuela, periodo=periodo, anio_carrera=anio_carrera,
+            es_continuacion=False,
+        ).exclude(estado='rechazado').exists()
+        if existe:
+            label = dict(ProyectoRSU.ANIOS).get(anio_carrera, str(anio_carrera))
             raise serializers.ValidationError({
-                'eje_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'
+                'anio_carrera': (
+                    f'Ya existe un proyecto para {label} en la escuela y periodo seleccionados. '
+                    f'Solo se permite uno por año académico por semestre.'
+                )
             })
 
-        # Unicidad: 1 proyecto no-continuación por (escuela, periodo, anio_carrera)
-        if self.instance is None:
-            escuela = attrs.get('escuela')
-            periodo = attrs.get('periodo')
-            anio_carrera = attrs.get('anio_carrera')
-            if escuela and periodo and anio_carrera:
-                existe = ProyectoRSU.objects.filter(
-                    escuela=escuela,
-                    periodo=periodo,
-                    anio_carrera=anio_carrera,
-                    es_continuacion=False,
-                ).exclude(estado='rechazado').exists()
-                if existe:
-                    label = dict(ProyectoRSU.ANIOS).get(anio_carrera, str(anio_carrera))
-                    raise serializers.ValidationError({
-                        'anio_carrera': (
-                            f'Ya existe un proyecto para {label} en la escuela y periodo seleccionados. '
-                            f'Solo se permite uno por año académico por semestre.'
-                        )
-                    })
-
+    def validate(self, attrs):
+        self._validate_facultad_relations(attrs)
+        self._validate_benef_otro(attrs)
+        self._validate_eje_rsu(attrs)
+        self._validate_unicidad(attrs)
         return attrs
 
     def _save_nested_flat(self, proyecto, data_map, replace=False):
@@ -407,13 +428,23 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             for item in items:
                 model.objects.create(proyecto=proyecto, **item)
 
+    def _save_ejes_subitems(self, proyecto, subitems_data, replace=False):
+        if subitems_data is None:
+            return
+        if replace:
+            proyecto.ejes_subitems.all().delete()
+        for item in subitems_data:
+            ProyectoEjeSubitem.objects.create(proyecto=proyecto, **item)
+
     def create(self, validated_data):
-        asignaturas_data = validated_data.pop('asignaturas', [])
-        docentes_data    = validated_data.pop('docentes_adicionales', [])
-        actividades_data = validated_data.pop('actividades', [])
-        cronograma_data  = validated_data.pop('cronograma', [])
-        documentos_data  = validated_data.pop('documentos_sustento', [])
-        ods_data         = validated_data.pop('ods', [])
+        asignaturas_data   = validated_data.pop('asignaturas', [])
+        docentes_data      = validated_data.pop('docentes_adicionales', [])
+        actividades_data   = validated_data.pop('actividades', [])
+        cronograma_data    = validated_data.pop('cronograma', [])
+        documentos_data    = validated_data.pop('documentos_sustento', [])
+        ods_data           = validated_data.pop('ods', [])
+        beneficiarios_data = validated_data.pop('beneficiarios', [])
+        subitems_data      = validated_data.pop('ejes_subitems', [])
 
         validated_data['docente_responsable'] = self.context['request'].user
         validated_data['estado'] = 'borrador'
@@ -424,6 +455,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             proyecto.save(update_fields=['codigo'])
 
             proyecto.ods.set(ods_data)
+            proyecto.beneficiarios.set(beneficiarios_data)
             self._save_nested_flat(proyecto, {
                 'asignaturas':           asignaturas_data,
                 'docentes_adicionales':  docentes_data,
@@ -431,6 +463,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
             }, replace=False)
+            self._save_ejes_subitems(proyecto, subitems_data, replace=False)
 
         return proyecto
 
@@ -439,12 +472,14 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "No se puede editar un proyecto que está en revisión o ya aprobado.")
 
-        asignaturas_data = validated_data.pop('asignaturas', None)
-        docentes_data    = validated_data.pop('docentes_adicionales', None)
-        actividades_data = validated_data.pop('actividades', None)
-        cronograma_data  = validated_data.pop('cronograma', None)
-        documentos_data  = validated_data.pop('documentos_sustento', None)
-        ods_data         = validated_data.pop('ods', None)
+        asignaturas_data   = validated_data.pop('asignaturas', None)
+        docentes_data      = validated_data.pop('docentes_adicionales', None)
+        actividades_data   = validated_data.pop('actividades', None)
+        cronograma_data    = validated_data.pop('cronograma', None)
+        documentos_data    = validated_data.pop('documentos_sustento', None)
+        ods_data           = validated_data.pop('ods', None)
+        beneficiarios_data = validated_data.pop('beneficiarios', None)
+        subitems_data      = validated_data.pop('ejes_subitems', None)
 
         with transaction.atomic():
             changed_fields = list(validated_data.keys())
@@ -454,6 +489,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             if ods_data is not None:
                 instance.ods.set(ods_data)
+            if beneficiarios_data is not None:
+                instance.beneficiarios.set(beneficiarios_data)
 
             self._save_nested_flat(instance, {
                 'asignaturas':           asignaturas_data,
@@ -462,5 +499,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
             }, replace=True)
+            self._save_ejes_subitems(instance, subitems_data, replace=True)
 
         return instance
