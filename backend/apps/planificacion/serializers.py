@@ -2,12 +2,13 @@ from rest_framework import serializers
 from .models import (
     PeriodoAcademico,
     EjeRSU,
+    EjeRSUSubitem,
     ODS,
     LineaEstrategica,
     MatrizOperativa,
     ObjetivoInstitucional,
     IndicadorInstitucional,
-    ActividadSugerida
+    ActividadSugerida,
 )
 
 class PeriodoAcademicoSerializer(serializers.ModelSerializer):
@@ -16,10 +17,18 @@ class PeriodoAcademicoSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre', 'anio', 'semestre', 'fecha_inicio', 'fecha_fin', 'activo', 'created_at']
 
 
+class EjeRSUSubitemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EjeRSUSubitem
+        fields = ['id', 'clave', 'nombre', 'requiere_detalle', 'label_detalle', 'orden']
+
+
 class EjeRSUSerializer(serializers.ModelSerializer):
+    subitems = EjeRSUSubitemSerializer(many=True, read_only=True)
+
     class Meta:
         model = EjeRSU
-        fields = ['id', 'nombre', 'descripcion', 'created_at']
+        fields = ['id', 'nombre', 'descripcion', 'subitems', 'created_at']
 
 
 class ODSSerializer(serializers.ModelSerializer):

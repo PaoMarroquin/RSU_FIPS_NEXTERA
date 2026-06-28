@@ -61,6 +61,25 @@ class ODS(models.Model):
         return f'ODS {self.numero}: {self.nombre}'
 
 
+class EjeRSUSubitem(models.Model):
+    eje_rsu = models.ForeignKey(EjeRSU, on_delete=models.CASCADE, related_name='subitems')
+    clave = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=500)
+    requiere_detalle = models.BooleanField(default=False)
+    label_detalle = models.CharField(max_length=200, blank=True, default='')
+    orden = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'ejes_rsu_subitems'
+        verbose_name = 'Sub-ítem de Eje RSU'
+        verbose_name_plural = 'Sub-ítems de Ejes RSU'
+        unique_together = [('eje_rsu', 'clave')]
+        ordering = ['orden']
+
+    def __str__(self):
+        return f'{self.eje_rsu.nombre} → {self.nombre}'
+
+
 class LineaEstrategica(models.Model):
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True, null=True)

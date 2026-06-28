@@ -2,7 +2,22 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
-from apps.planificacion.models import PeriodoAcademico, EjeRSU, LineaEstrategica, ObjetivoInstitucional, ODS
+from apps.planificacion.models import PeriodoAcademico, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, ODS
+
+
+class TipoBeneficiario(models.Model):
+    codigo = models.CharField(max_length=50, unique=True)
+    label = models.CharField(max_length=200)
+    orden = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'tipo_beneficiario'
+        verbose_name = 'Tipo de Beneficiario'
+        verbose_name_plural = 'Tipos de Beneficiario'
+        ordering = ['orden']
+
+    def __str__(self):
+        return self.label
 
 
 class ProyectoRSU(models.Model):
@@ -102,33 +117,14 @@ class ProyectoRSU(models.Model):
         null=True, blank=True, default=0,
         help_text="1.8 Nro. de estudiantes universitarios que participaron")
 
-    # 1.9 Beneficiarios / Destinatarios (checkboxes, only one text field for benef_otro)
-    benef_comunidad_universitaria = models.BooleanField(
-        default=False, help_text="1.9a Comunidad universitaria - interna")
-    benef_inst_educativas_basicas = models.BooleanField(
-        default=False, help_text="1.9b Instituciones Educativas Básico Regulares")
-    benef_inst_educativas_especiales = models.BooleanField(
-        default=False, help_text="1.9c Instituciones Educativas Especiales")
-    benef_gobierno_local = models.BooleanField(
-        default=False, help_text="1.9d Gobierno Local")
-    benef_gobierno_regional = models.BooleanField(
-        default=False, help_text="1.9d Gobierno Regional")
-    benef_gobierno_nacional = models.BooleanField(
-        default=False, help_text="1.9d Gobierno Nacional")
-    benef_asociaciones = models.BooleanField(
-        default=False, help_text="1.9e Asociaciones")
-    benef_organizaciones_comunales = models.BooleanField(
-        default=False, help_text="1.9f Organizaciones comunales")
-    benef_sector_empresarial = models.BooleanField(
-        default=False, help_text="1.9g Sector empresarial")
-    benef_sectores_laborales = models.BooleanField(
-        default=False, help_text="1.9h Sectores laborales")
-    benef_centros_penitenciarios = models.BooleanField(
-        default=False, help_text="1.9i Centros Penitenciarios")
-    benef_otro = models.BooleanField(
-        default=False, help_text="1.9j Otro")
+    # 1.9 Beneficiarios / Destinatarios
+    beneficiarios = models.ManyToManyField(
+        TipoBeneficiario, blank=True,
+        related_name='proyectos', db_table='proyecto_beneficiarios',
+        help_text="1.9 Beneficiarios / Destinatarios del proyecto")
     benef_otro_detalle = models.CharField(
-        max_length=500, blank=True, null=True)
+        max_length=500, blank=True,
+        help_text="1.9j Detalle cuando se selecciona 'Otro'")
 
     # 1.10 Tipo de eje RSU (FK principal) + sub-ítems como JSON estructurado
     # Estructura del JSON eje_rsu_subitems:
@@ -145,9 +141,6 @@ class ProyectoRSU(models.Model):
     eje_rsu = models.ForeignKey(
         EjeRSU, on_delete=models.PROTECT, related_name='proyectos',
         help_text="1.10 Eje RSU principal del proyecto (selección excluyente)")
-    eje_rsu_subitems = models.JSONField(
-        default=dict, blank=True,
-        help_text="1.10 Sub-ítems seleccionados por eje RSU (Gestión, Formación, Investigación, Extensión)")
     eje_detalle = models.TextField(
         blank=True, null=True,
         help_text="1.10 Descripción obligatoria cuando el eje RSU seleccionado es 'Otros'")
@@ -611,4 +604,27 @@ class MetaIndicadorProyecto(models.Model):
 
     def __str__(self):
         return f'{self.meta_descripcion[:60]} - proyecto#{self.proyecto_id}'
+
+
+class ProyectoEjeSubitem(models.Model):
+    """
+    1.10 Sub-ítem del eje RSU seleccionado para el proyecto.
+    Reemplaza el antiguo JSONField eje_rsu_subitems con integridad referencial.
+    """
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='ejes_subitems')
+    sub_eje = models.ForeignKey(
+        EjeRSUSubitem, on_delete=models.PROTECT, related_name='selecciones')
+    detalle = models.TextField(
+        blank=True, default='',
+        help_text="Texto adicional requerido cuando sub_eje.requiere_detalle es True")
+
+    class Meta:
+        db_table = 'proyecto_ejes_subitems'
+        verbose_name = 'Sub-ítem de Eje RSU del Proyecto'
+        verbose_name_plural = 'Sub-ítems de Eje RSU del Proyecto'
+        unique_together = [('proyecto', 'sub_eje')]
+
+    def __str__(self):
+        return f'{self.sub_eje} — proyecto#{self.proyecto_id}'
 
