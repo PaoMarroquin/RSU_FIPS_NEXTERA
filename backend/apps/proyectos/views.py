@@ -12,6 +12,7 @@ from apps.planificacion.models import PeriodoAcademico
 from .models import (
     ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento,
+    ProyectoEjeSubitem,
 )
 from .serializers import (
     ProyectoRSUSerializer,
@@ -32,6 +33,7 @@ def _proyecto_qs_base():
     ).prefetch_related(
         'ods', 'asignaturas', 'docentes_adicionales',
         'actividades', 'cronograma',
+        'ejes_subitems__sub_eje',
     )
 
 
@@ -574,7 +576,6 @@ class ProyectoContinuarView(APIView):
                 escuela=original.escuela,
                 departamento=original.departamento,
                 eje_rsu=original.eje_rsu,
-                eje_rsu_subitems=original.eje_rsu_subitems,
                 eje_detalle=original.eje_detalle,
                 linea_estrategica=original.linea_estrategica,
                 objetivo_institucional=original.objetivo_institucional,
@@ -599,6 +600,11 @@ class ProyectoContinuarView(APIView):
             nuevo.save(update_fields=['codigo'])
 
             nuevo.ods.set(original.ods.all())
+
+            for es in original.ejes_subitems.all():
+                ProyectoEjeSubitem.objects.create(
+                    proyecto=nuevo, sub_eje=es.sub_eje, detalle=es.detalle,
+                )
 
             # Docentes originales (responsable ya está en docente_responsable, copiar adicionales)
             for pd in original.docentes_adicionales.all():
