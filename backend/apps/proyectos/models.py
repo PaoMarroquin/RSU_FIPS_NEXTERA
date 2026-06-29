@@ -434,9 +434,8 @@ class CronogramaAccion(models.Model):
         ProyectoRSU, on_delete=models.CASCADE, related_name='cronograma')
     descripcion = models.CharField(
         max_length=400, help_text="Descripción de la acción")
-    mes_semana = models.CharField(
-        max_length=100, blank=True, null=True,
-        help_text="Periodo de ejecución (ej: Mes 1, Sem 2)")
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
     responsable = models.CharField(
         max_length=200, blank=True, null=True)
     estado_avance = models.CharField(
