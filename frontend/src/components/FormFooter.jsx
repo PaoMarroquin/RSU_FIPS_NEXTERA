@@ -1,7 +1,7 @@
 import React from 'react';
-import { FiChevronLeft, FiChevronRight, FiSave } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiSave, FiCheck } from 'react-icons/fi';
 
-export default function FormFooter({ step, nextStep, prevStep, handleBorrador }) {
+export default function FormFooter({ step, nextStep, prevStep, enviarProyectoBackend }) {
   return (
     <div className="fixed bottom-0 left-[230px] right-0 bg-white border-t border-slate-200 px-8 py-4 flex justify-between items-center z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <div>
@@ -19,18 +19,33 @@ export default function FormFooter({ step, nextStep, prevStep, handleBorrador })
       </div>
 
       <div className="flex gap-3">
-        <button 
-          className="flex items-center gap-2 px-4 py-2 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
-          onClick={handleBorrador}
-        >
-          <FiSave className="w-4 h-4" /> Guardar Borrador
-        </button>
-        <button 
-          className="flex items-center gap-2 px-6 py-2 bg-[#b1122b] text-white rounded-md text-sm font-semibold hover:bg-[#8e0e22] transition-colors"
-          onClick={nextStep}
-        >
-          Siguiente <FiChevronRight className="w-4 h-4" />
-        </button>
+        {/* Mostramos el botón de Guardar Borrador solo si NO estamos en el paso 9 
+        {step !== 9 && (
+          <button 
+            className="flex items-center gap-2 px-4 py-2 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
+            onClick={enviarProyectoBackend}
+          >
+            <FiSave className="w-4 h-4" /> Guardar Borrador
+          </button>
+        )}
+        */}
+        
+        {/* Lógica condicional para el botón principal */}
+        {step === 9 ? (
+          <button 
+            className="flex items-center gap-2 px-6 py-2 bg-[#b1122b] text-white rounded-md text-sm font-semibold hover:bg-[#8e0e22] transition-colors"
+            onClick={enviarProyectoBackend}
+          >
+            <FiCheck className="w-4 h-4" /> Finalizar y Guardar
+          </button>
+        ) : (
+          <button 
+            className="flex items-center gap-2 px-6 py-2 bg-[#b1122b] text-white rounded-md text-sm font-semibold hover:bg-[#8e0e22] transition-colors"
+            onClick={nextStep}
+          >
+            Siguiente <FiChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -20,16 +20,17 @@ import { useNavigate } from 'react-router-dom';
 
 export default function NuevoProyecto() {
   // Extraemos las nuevas funciones y variables del hook
-  const { 
-    step, 
-    highestStep, 
-    formData, 
+  const {
+    step,
+    highestStep,
+    formData,
     pasosCompletados,
-    updateData, 
-    nextStep, 
-    prevStep, 
-    goToStep, 
-    handleBorrador 
+    updateData,
+    nextStep,
+    prevStep,
+    goToStep,
+    handleCancelar,
+    enviarProyectoBackend
   } = useFormRSU();
   const navigate = useNavigate();
 
@@ -46,15 +47,16 @@ export default function NuevoProyecto() {
               <h1 className="text-2xl font-bold text-slate-800 m-0">Nuevo Proyecto RSU</h1>
               <p className="text-slate-500 text-sm m-0 mt-1">Formato Oficial OURS - Universidad Nacional de San Agustín</p>
             </div>
-            <button 
-            className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
-            onClick={() => navigate('/proyectos')}>
+            <button
+              className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
+              onClick={handleCancelar}
+            >
               Cancelar
             </button>
           </div>
-     
+
           <Stepper currentStep={step} pasosCompletados={pasosCompletados} goToStep={goToStep} />
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]"> 
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]">
             <div className="mt-6">
               {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}
               {step === 2 && <Fundamentacion data={formData} updateData={updateData} />}
@@ -72,11 +74,11 @@ export default function NuevoProyecto() {
           </div>
         </div>
 
-        <FormFooter 
-          step={step} 
-          nextStep={nextStep} 
-          prevStep={prevStep} 
-          handleBorrador={handleBorrador}
+        <FormFooter
+          step={step}
+          nextStep={nextStep}
+          prevStep={prevStep}
+          enviarProyectoBackend={enviarProyectoBackend}
         />
       </div>
     </div>

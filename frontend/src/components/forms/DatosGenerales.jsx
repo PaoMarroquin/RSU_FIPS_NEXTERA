@@ -89,6 +89,19 @@ export default function DatosGenerales({ data, updateData }) {
             dependencia={data.facultad}
           />
 
+          <PaginatedSelect 
+            label="Periodo Académico"
+            name="periodo"
+            value={data.periodo}
+            selectedName={data.periodo_nombre}
+            onChange={(e, nombre) => {
+              handleChange(e);
+              updateData('periodo_nombre', nombre);
+            }}
+            endpoint="/api/v1/periodos/"
+            placeholder="Seleccione el periodo"
+          />
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">
               Semestre Académico <span className="text-red-500">*</span>
