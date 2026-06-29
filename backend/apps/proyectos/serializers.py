@@ -54,7 +54,7 @@ class ActividadProyectoSerializer(serializers.ModelSerializer):
 class CronogramaAccionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CronogramaAccion
-        fields = ['id', 'descripcion', 'mes_semana', 'responsable', 'estado_avance', 'orden']
+        fields = ['id', 'descripcion', 'fecha_inicio', 'fecha_fin', 'responsable', 'estado_avance', 'orden']
 
 
 class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):

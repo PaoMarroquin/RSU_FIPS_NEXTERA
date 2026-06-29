@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib import admin
 
-from apps.planificacion.models import EjeRSUSubitem
 from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
     ActividadProyecto, CronogramaAccion,
@@ -67,31 +66,10 @@ class ProyectoDocenteInline(admin.TabularInline):
 
 class EjesSubitemsInline(admin.TabularInline):
     model = ProyectoEjeSubitem
-    extra = 0
+    extra = 1
     fields = ('sub_eje', 'detalle')
     verbose_name = "Sub-ítem de Eje RSU"
     verbose_name_plural = "── I. (1.10) Sub-ítems del Eje RSU seleccionado"
-
-    def get_extra(self, request, obj=None, **kwargs):
-        return 0 if obj is None else 1
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == 'sub_eje':
-            object_id = request.resolver_match.kwargs.get('object_id')
-            if object_id:
-                eje_rsu_id = ProyectoRSU.objects.filter(pk=object_id).values_list(
-                    'eje_rsu_id', flat=True
-                ).first()
-                if eje_rsu_id:
-                    kwargs['queryset'] = EjeRSUSubitem.objects.filter(
-                        eje_rsu_id=eje_rsu_id
-                    ).order_by('orden')
-                    return super().formfield_for_foreignkey(db_field, request, **kwargs)
-            # CREATE page o proyecto sin eje: muestra todos agrupados por eje
-            kwargs['queryset'] = EjeRSUSubitem.objects.select_related('eje_rsu').order_by(
-                'eje_rsu__nombre', 'orden'
-            )
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class ActividadProyectoInline(admin.TabularInline):
@@ -106,7 +84,7 @@ class ActividadProyectoInline(admin.TabularInline):
 class CronogramaAccionInline(admin.TabularInline):
     model = CronogramaAccion
     extra = 1
-    fields = ('orden', 'descripcion', 'mes_semana', 'responsable', 'estado_avance')
+    fields = ('orden', 'descripcion', 'fecha_inicio', 'fecha_fin', 'responsable', 'estado_avance')
     ordering = ['orden']
     verbose_name = "Acción"
     verbose_name_plural = "── VII. Cronograma de acciones"
@@ -246,7 +224,7 @@ class ActividadProyectoAdmin(admin.ModelAdmin):
 
 @admin.register(CronogramaAccion)
 class CronogramaAccionAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'descripcion', 'mes_semana', 'estado_avance')
+    list_display = ('proyecto', 'orden', 'descripcion', 'fecha_inicio', 'fecha_fin', 'estado_avance')
     list_filter = ('estado_avance',)
     ordering = ['proyecto', 'orden']
 
