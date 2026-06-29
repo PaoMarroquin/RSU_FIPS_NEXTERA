@@ -7,6 +7,8 @@ import Actividades from "./pages/Actividades";
 import NuevoProyecto from "./pages/NuevoProyecto";
 import Informes from "./pages/Informes";
 import Repositorio from "./pages/Repositorio";
+import Configuracion from "./pages/Configuracion";
+
 
 
 function App() {
@@ -20,6 +22,8 @@ function App() {
         <Route path="/actividades" element={<Actividades />} />
         <Route path="/informes" element={<Informes />} />
         <Route path="/repositorio" element={<Repositorio />} />
+        <Route path="/configuracion" element={<Configuracion />} />
+
 
       </Routes>
     </BrowserRouter>

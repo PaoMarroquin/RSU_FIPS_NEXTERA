@@ -1,119 +1,225 @@
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
+import React, { useState } from 'react';
 import ActivityCard from "../components/ActivityCard";
 
-const Actividades = () => {
+export default function Actividades({ data, updateData }) {
+  // Aseguramos que data.actividades sea siempre un arreglo para que no rompa el código
+  const listaActividades = data.actividades || [];
+
+  // Estado local para controlar los campos del formulario de la "Nueva Actividad"
+  const [nuevaActividad, setNuevaActividad] = useState({
+    nombre: '',
+    descripcion: '',
+    curso_vinculado: '',
+    responsable: '',
+    fecha: '',
+    evidencia_esperada: '',
+    orden: 1 // 1: Pendiente, 2: En Proceso, 3: Finalizado
+  });
+
+  // Manejador para el formulario de la actividad que estamos escribiendo
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNuevaActividad(prev => ({
+      ...prev,
+      [name]: name === 'orden' ? parseInt(value, 10) : value
+    }));
+  };
+
+  // Función para agregar la actividad al estado global del proyecto (formData)
+  const handleAgregarActividad = (e) => {
+    e.preventDefault();
+    if (!nuevaActividad.nombre.trim()) return;
+
+    // Generamos un id temporal en el frontend por si necesitas borrarlas o editarlas luego
+    const actividadConId = {
+      ...nuevaActividad,
+      id: Date.now() 
+    };
+
+    const nuevasActividades = [...listaActividades, actividadConId];
+    
+    // Guardamos en el estado del padre (al igual que haces en DatosGenerales)
+    updateData('actividades', nuevasActividades);
+
+    // Limpiamos el formulario para meter la siguiente actividad
+    setNuevaActividad({
+      nombre: '',
+      descripcion: '',
+      curso_vinculado: '',
+      responsable: '',
+      fecha: '',
+      evidencia_esperada: '',
+      orden: 1
+    });
+  };
+
+  // Función opcional por si el usuario quiere eliminar una actividad de la lista
+  const handleEliminarActividad = (id) => {
+    const filtradas = listaActividades.filter(act => act.id !== id);
+    updateData('actividades', filtradas);
+  };
+
+  // Clasificación en caliente para el tablero Kanban visual
+  const pendientes = listaActividades.filter(act => act.orden === 1);
+  const enProceso = listaActividades.filter(act => act.orden === 2);
+  const finalizadas = listaActividades.filter(act => act.orden === 3);
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="space-y-6 transition-all duration-300">
       
-      {/* 1. Sidebar Fijo a la izquierda */}
-      <Sidebar />
+      {/* CABECERA (Estilo igual a tus otros pasos) */}
+      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+        <span className="text-2xl font-bold text-[#b1122b]">VI.</span>
+        <div>
+          <h2 className="text-xl font-semibold text-slate-800 m-0">Actividades y Cronograma</h2>
+          <span className="text-xs text-slate-500 block mt-0.5">Sección 6 de 9</span>
+        </div>
+      </div>
 
-      {/* 2. Contenido principal desplazado 230px a la derecha */}
-      <div className="ml-[230px] flex flex-col min-h-screen overflow-hidden">
-        
-        <Topbar />
+      {/* FORMULARIO PARA AGREGAR UNA ACTIVIDAD */}
+      <form onSubmit={handleAgregarActividad} className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+        <h3 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 m-0">
+          Añadir Nueva Actividad al Proyecto
+        </h3>
 
-        {/* 3. Área de trabajo (ocupa el resto del alto de la pantalla) */}
-        <div className="p-6 md:p-8 flex-1 flex flex-col">
-
-          {/* HEADER */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 shrink-0">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800 m-0">Actividades y Cronograma</h2>
-              <p className="text-sm text-slate-500 mt-1">Gestión de tareas de los proyectos en ejecución</p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-              
-              {/* Toggles de vista */}
-              <div className="flex items-center gap-1 bg-slate-200/50 p-1 rounded-lg border border-slate-200 w-full sm:w-auto justify-center">
-                <button className="px-3 py-1.5 bg-white shadow-sm text-slate-800 rounded-md text-sm font-semibold transition-all">Kanban</button>
-                <button className="px-3 py-1.5 text-slate-500 hover:text-slate-700 rounded-md text-sm font-medium transition-all">Gantt</button>
-                <button className="px-3 py-1.5 text-slate-500 hover:text-slate-700 rounded-md text-sm font-medium transition-all">Calendario</button>
-              </div>
-
-              {/* Botón Nueva Actividad */}
-              <button className="w-full sm:w-auto px-4 py-2 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8e0e22] transition-colors shadow-sm">
-                + Nueva Actividad
-              </button>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600">Nombre de la Actividad *</label>
+            <input 
+              type="text" name="nombre" value={nuevaActividad.nombre} onChange={handleInputChange} required
+              placeholder="Ej. Taller de capacitación inicial"
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all"
+            />
           </div>
 
-          {/* TABLERO KANBAN */}
-          <div className="flex-1 flex items-start gap-6 overflow-x-auto pb-4">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600">Curso Vinculado</label>
+            <input 
+              type="text" name="curso_vinculado" value={nuevaActividad.curso_vinculado} onChange={handleInputChange}
+              placeholder="Ej. RSU II, Desarrollo Web"
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all"
+            />
+          </div>
 
-            {/* COLUMNA: Pendiente */}
-            <div className="flex-none w-80 bg-slate-100 rounded-xl p-4 flex flex-col gap-3 border border-slate-200">
-              <div className="flex justify-between items-center mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-                  <span className="font-bold text-slate-700 text-sm">Pendiente</span>
-                </div>
-                <span className="bg-slate-200 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">1</span>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600">Responsable *</label>
+            <input 
+              type="text" name="responsable" value={nuevaActividad.responsable} onChange={handleInputChange} required
+              placeholder="Nombre del docente o alumno líder"
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600">Fecha Tentativa *</label>
+            <input 
+              type="date" name="fecha" value={nuevaActividad.fecha} onChange={handleInputChange} required
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="text-xs font-semibold text-slate-600">Evidencia Esperada *</label>
+            <input 
+              type="text" name="evidencia_esperada" value={nuevaActividad.evidencia_esperada} onChange={handleInputChange} required
+              placeholder="Ej. Lista de asistencia firmada, fotografías del evento, informe técnico"
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1 md:col-span-2">
+            <label className="text-xs font-semibold text-slate-600">Descripción de la Actividad</label>
+            <textarea 
+              name="descripcion" value={nuevaActividad.descripcion} onChange={handleInputChange}
+              placeholder="Breve detalle de lo que se realizará..."
+              className="min-h-[60px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all resize-y"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600">Estado Inicial de la Tarea</label>
+            <select 
+              name="orden" value={nuevaActividad.orden} onChange={handleInputChange}
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#b1122b] transition-all"
+            >
+              <option value={1}>Pendiente</option>
+              <option value={2}>En Proceso</option>
+              <option value={3}>Finalizado</option>
+            </select>
+          </div>
+
+          <div className="flex items-end justify-end">
+            <button 
+              type="submit"
+              className="h-10 px-5 bg-[#b1122b] text-white rounded-md text-sm font-semibold hover:bg-[#8e0e22] transition-colors shadow-sm"
+            >
+              + Agregar Actividad
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* VISTA PREVIA EN TABLERO KANBAN */}
+      <div>
+        <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
+          Vista Previa del Tablero de Actividades ({listaActividades.length})
+        </h3>
+
+        <div className="flex items-start gap-4 overflow-x-auto pb-4">
+          {/* COLUMNA: Pendiente */}
+          <div className="flex-none w-72 bg-slate-100 rounded-xl p-3 flex flex-col gap-2.5 border border-slate-200">
+            <span className="font-bold text-slate-700 text-xs px-1">Pendiente ({pendientes.length})</span>
+            {pendientes.map(act => (
+              <div key={act.id} className="relative group">
+                <ActivityCard
+                  title={act.nombre}
+                  project={act.curso_vinculado || "Sin curso"}
+                  date={act.fecha}
+                  user={act.responsable ? act.responsable.charAt(0).toUpperCase() : "?"}
+                  color="red"
+                />
+                <button type="button" onClick={() => handleEliminarActividad(act.id)} className="absolute top-2 right-2 hidden group-hover:block bg-red-100 text-red-700 rounded p-1 text-2xs font-bold">✕</button>
               </div>
+            ))}
+          </div>
 
-              <ActivityCard
-                title="Primera sesión de capacitación"
-                project="Alfabetización Digital"
-                date="25 Oct"
-                user="P"
-                color="red"
-              />
-            </div>
-
-            {/* COLUMNA: En Proceso */}
-            <div className="flex-none w-80 bg-blue-50/50 rounded-xl p-4 flex flex-col gap-3 border border-blue-100">
-              <div className="flex justify-between items-center mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                  <span className="font-bold text-slate-700 text-sm">En Proceso</span>
-                </div>
-                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">2</span>
+          {/* COLUMNA: En Proceso */}
+          <div className="flex-none w-72 bg-blue-50/50 rounded-xl p-3 flex flex-col gap-2.5 border border-blue-100">
+            <span className="font-bold text-slate-700 text-xs px-1">En Proceso ({enProceso.length})</span>
+            {enProceso.map(act => (
+              <div key={act.id} className="relative group">
+                <ActivityCard
+                  title={act.nombre}
+                  project={act.curso_vinculado || "Sin curso"}
+                  date={act.fecha}
+                  user={act.responsable ? act.responsable.charAt(0).toUpperCase() : "?"}
+                  color="blue"
+                />
+                <button type="button" onClick={() => handleEliminarActividad(act.id)} className="absolute top-2 right-2 hidden group-hover:block bg-red-100 text-red-700 rounded p-1 text-2xs font-bold">✕</button>
               </div>
+            ))}
+          </div>
 
-              <ActivityCard
-                title="Convocatoria de voluntarios"
-                project="Alfabetización Digital"
-                date="16 Oct - 20 Oct"
-                user="A"
-                color="blue"
-              />
-
-              <ActivityCard
-                title="Evaluación inicial"
-                project="Campaña de Salud"
-                date="18 Oct - 22 Oct"
-                user="C"
-                color="blue"
-              />
-            </div>
-
-            {/* COLUMNA: Finalizado */}
-            <div className="flex-none w-80 bg-emerald-50/50 rounded-xl p-4 flex flex-col gap-3 border border-emerald-100">
-              <div className="flex justify-between items-center mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  <span className="font-bold text-slate-700 text-sm">Finalizado</span>
-                </div>
-                <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full">1</span>
+          {/* COLUMNA: Finalizado */}
+          <div className="flex-none w-72 bg-emerald-50/50 rounded-xl p-3 flex flex-col gap-2.5 border border-emerald-100">
+            <span className="font-bold text-slate-700 text-xs px-1">Finalizado ({finalizadas.length})</span>
+            {finalizadas.map(act => (
+              <div key={act.id} className="relative group">
+                <ActivityCard
+                  title={act.nombre}
+                  project={act.curso_vinculado || "Sin curso"}
+                  date={act.fecha}
+                  user={act.responsable ? act.responsable.charAt(0).toUpperCase() : "?"}
+                  color="green"
+                  done
+                />
+                <button type="button" onClick={() => handleEliminarActividad(act.id)} className="absolute top-2 right-2 hidden group-hover:block bg-red-100 text-red-700 rounded p-1 text-2xs font-bold">✕</button>
               </div>
-
-              <ActivityCard
-                title="Diseño del material didáctico"
-                project="Alfabetización Digital"
-                date="10 Oct - 15 Oct"
-                user="P"
-                color="green"
-                done
-              />
-            </div>
-
+            ))}
           </div>
         </div>
       </div>
+
     </div>
   );
-};
-
-export default Actividades;
+}

@@ -14,5 +14,23 @@ export const authService = {
   loginWithGoogle: async (id_token) => {
     const response = await api.post('/api/v1/auth/google/', { id_token });
     return response.data;
-  }
+  },
+
+  getMiPerfil: async () => {
+    const response = await api.get('/api/v1/usuarios/me/');
+    return response.data;
+  },
+
+  updateMiPerfil: async (formDataPayload) => {
+    const response = await api.patch('/api/v1/usuarios/me/', formDataPayload, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+    return response.data;
+  },
+
 };
+
+
+

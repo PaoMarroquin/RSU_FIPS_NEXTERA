@@ -32,7 +32,7 @@ export default function Sidebar() {
         <Link className={getLinkClass("/avances")} to="#"><FiTrendingUp className="text-lg" /> Avances</Link>
         <Link className={getLinkClass("/informes")} to="/informes"><FiFileText className="text-lg" /> Informes</Link>
         <Link className={getLinkClass("/repositorio")} to="/repositorio"><FiBook className="text-lg" /> Repositorio</Link>
-        <Link className={getLinkClass("/configuracion")} to="#"><FiSettings className="text-lg" /> Configuración</Link>
+        <Link className={getLinkClass("/configuracion")} to="/configuracion"><FiSettings className="text-lg" /> Configuración</Link>
       </nav>
       
     </aside>

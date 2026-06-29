@@ -33,31 +33,14 @@ const mockInitialData = {
   ods: [],
 
   // Paso 5: Resultados
-  res_beneficiario: '',
-  res_curricular: '',
+  resultado_en_beneficiarios: '',
+  resultado_en_curriculo: '',
 
   // Paso 6: Actividades
-  actividades: [
-    {
-      actividad: '',
-      descripcion: '',
-      curso: '',
-      responsable: '',
-      fecha: '',
-      evidencia: '',
-    }
-  ],
+  actividades: [],
 
   //Paso 7: Cronograma
-  cronograma: [
-    {
-      accion: "",
-      fechaInicio: "",
-      fechaFin: "",
-      responsable: "",
-      estado: "Pendiente",
-    }
-  ],
+  cronogramas: [],
 
   // Paso 8: Recursos
   recursos: {
@@ -67,7 +50,6 @@ const mockInitialData = {
     rec_hum_egresados: 0,
     rec_hum_voluntarios: 0,
     rec_hum_otros: 0,
-
     rec_mat_material_didactico: "",
     rec_mat_afiches: "",
     rec_mat_equipos: "",
@@ -76,13 +58,7 @@ const mockInitialData = {
   },
 
   // Paso 9: Financiamiento
-  financiamiento: {
-    monto_financiamiento: "",
-    fuente_financiamiento: "",
-    descripcion_gastos: "",
-    observaciones_financiamiento: "",
-  },
-
+  fuentes_financiamiento: [],
 };
 
 const isTextValid = (value) => typeof value === 'string' && value.trim() !== '';
@@ -123,11 +99,41 @@ const VALIDACIONES = {
     obj_mejorarCurricular: (data) => isTextValid(data.obj_mejorarCurricular),
     ods: (data) => Array.isArray(data.ods) && data.ods.length > 0,
   },
-  5: {},
-  6: {},
-  7: {},
-  8: {},
-  9: {},
+  5: {
+      resultado_en_beneficiarios: (data) => isTextValid(data.resultado_en_beneficiarios),
+      resultado_en_curriculo: (data) => isTextValid(data.resultado_en_curriculo),
+    },
+    6: {
+      actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0,
+    },
+    7: {
+      cronogramas: (data) => 
+        Array.isArray(data.cronogramas) && 
+        data.cronogramas.length > 0 && 
+        data.cronogramas.every(item => 
+          item.descripcion?.trim() !== "" && 
+          item.fecha_inicio !== "" && 
+          item.fecha_fin !== "" &&
+          item.fecha_fin >= item.fecha_inicio
+        ),
+    },
+  8: {
+      recursos: (data) => {
+        if (!data.recursos) return false;
+        const r = data.recursos;
+        const totalEquipo = (parseInt(r.rec_hum_docentes, 10) || 0) + 
+                            (parseInt(r.rec_hum_administrativos, 10) || 0) + 
+                            (parseInt(r.rec_hum_estudiantes, 10) || 0) + 
+                            (parseInt(r.rec_hum_egresados, 10) || 0) + 
+                            (parseInt(r.rec_hum_voluntarios, 10) || 0) + 
+                            (parseInt(r.rec_hum_otros, 10) || 0);
+        const sinNegativos = [r.rec_hum_docentes, r.rec_hum_administrativos, r.rec_hum_estudiantes, r.rec_hum_egresados, r.rec_hum_voluntarios, r.rec_hum_otros].every(n => (parseInt(n, 10) || 0) >= 0);
+        return sinNegativos && totalEquipo > 0;
+      }
+    },
+    9: {
+      // Validación básica opcional para el paso de Financiamiento si lo deseas
+    fuentes_financiamiento: (data) => Array.isArray(data.fuentes_financiamiento) && data.fuentes_financiamiento.length > 0    },
 };
 
 export const useFormRSU = () => {
@@ -295,11 +301,6 @@ export const useFormRSU = () => {
       rec_mat_utiles: formData.recursos.rec_mat_utiles || "",
       rec_mat_otros: formData.recursos.rec_mat_otros || "",
 
-      monto_financiamiento: formData.financiamiento.monto_financiamiento || "",
-      fuente_financiamiento: formData.financiamiento.fuente_financiamiento || "",
-      descripcion_gastos: formData.financiamiento.descripcion_gastos || "",
-      observaciones_financiamiento: formData.financiamiento.observaciones_financiamiento || "",
-
       periodo: parseInt(formData.periodo, 10),
       anio_carrera: 5,
       es_tesis_quinto_anio: true,
@@ -324,6 +325,73 @@ export const useFormRSU = () => {
         response = await api.put(`/api/v1/proyectos/${formData.id}/`, payload);
       } else {
         response = await api.post('/api/v1/proyectos/', payload);
+      }
+
+    const proyectoId = response.data.id;
+
+      // ── GUARDADO SECUENCIAL DE FUENTES Y PARTIDAS ANIDADAS ──
+      if (formData.fuentes_financiamiento && formData.fuentes_financiamiento.length > 0) {
+        
+        for (const fuente of formData.fuentes_financiamiento) {
+          if (!fuente.fuente_financiamiento) continue; 
+
+          const fuentePayload = {
+            fuente: fuente.fuente_financiamiento,
+            monto: parseFloat(fuente.monto_financiamiento) || 0,
+            descripcion: fuente.descripcion_fuente || ""
+          };
+
+          let fuenteResponse;
+          if (fuente.id) {
+            fuenteResponse = await api.patch(
+              `/api/v1/proyectos/${proyectoId}/financiamiento/${fuente.id}/`, 
+              fuentePayload
+            );
+          } else {
+            fuenteResponse = await api.post(
+              `/api/v1/proyectos/${proyectoId}/financiamiento/`, 
+              fuentePayload
+            );
+          }
+
+          const fuenteIdAsignado = fuenteResponse.data.id; 
+
+          if (fuente.partidas && fuente.partidas.length > 0) {
+            for (const [index, partida] of fuente.partidas.entries()) {
+              if (!partida.categoria || !partida.descripcion) continue; 
+
+              const partidaPayload = {
+                categoria: partida.categoria,
+                tipo_recurso: partida.tipo_recurso || "material",
+                descripcion: partida.descripcion,
+                unidad: partida.unidad || "Unidad",
+                cantidad: parseInt(partida.cantidad, 10) || 1,
+                costo_unitario: parseFloat(partida.costo_unitario) || 0,
+                fuente: fuenteIdAsignado, 
+                orden: index + 1
+              };
+
+              if (partida.id) {
+                await api.patch(
+                  `/api/v1/proyectos/${proyectoId}/presupuesto/${partida.id}/`, 
+                  partidaPayload
+                );
+              } else {
+                await api.post(
+                  `/api/v1/proyectos/${proyectoId}/presupuesto/`, 
+                  partidaPayload
+                );
+              }
+            }
+          }
+        }
+
+        try {
+          await api.post(`/api/v1/proyectos/${proyectoId}/presupuesto/confirmar/`);
+          console.log("Presupuesto confirmado con éxito.");
+        } catch (errorConfirmacion) {
+          console.warn("Endpoint opcional de confirmación no ejecutado:", errorConfirmacion);
+        }
       }
 
       console.log("Proyecto guardado exitosamente:", response.data);
