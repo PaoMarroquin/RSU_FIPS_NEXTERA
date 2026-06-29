@@ -1,62 +1,46 @@
 import React, { useState, useEffect } from "react";
 
 export default function Recursos({ data, updateData }) {
-  const recursos = data.recursos || {};
-
+  // Ahora leemos los campos directamente desde la raíz del objeto 'data'
   // --- ESTADOS LOCALES PARA "OTROS RECURSOS HUMANOS" (Debe ser un Entero) ---
-  const [hasHumOtros, setHasHumOtros] = useState(() => (recursos.rec_hum_otros ?? 0) > 0);
+  const [hasHumOtros, setHasHumOtros] = useState(() => (data.rec_hum_otros ?? 0) > 0);
   const [listaHumOtros, setListaHumOtros] = useState(() => {
-    const cantidadActual = recursos.rec_hum_otros ?? 0;
+    const cantidadActual = data.rec_hum_otros ?? 0;
     return cantidadActual > 0 ? Array(cantidadActual).fill("") : [""];
   });
 
   // --- ESTADOS LOCALES PARA "OTROS MATERIALES" (Debe ser un String) ---
-  const [hasMatOtros, setHasMatOtros] = useState(() => typeof recursos.rec_mat_otros === "string" && recursos.rec_mat_otros.trim() !== "");
+  const [hasMatOtros, setHasMatOtros] = useState(() => typeof data.rec_mat_otros === "string" && data.rec_mat_otros.trim() !== "");
   const [listaMatOtros, setListaMatOtros] = useState(() => {
-    const dataActual = recursos.rec_mat_otros;
+    const dataActual = data.rec_mat_otros;
     if (dataActual && dataActual.trim() !== "") {
-      return dataActual.split(", "); // Si ya hay datos, los separamos por comas en el input dinámico
+      return dataActual.split(", ");
     }
     return [""];
   });
 
-  // --- EFECTO: Sincronizar "Otros Recursos Humanos" al Estado Global (Integer) ---
+  // --- EFECTO: Sincronizar "Otros Recursos Humanos" directamente a la raíz ---
   useEffect(() => {
     if (hasHumOtros) {
-      updateData("recursos", {
-        ...recursos,
-        rec_hum_otros: listaHumOtros.length,
-      });
+      updateData("rec_hum_otros", listaHumOtros.length);
     } else {
-      updateData("recursos", {
-        ...recursos,
-        rec_hum_otros: 0,
-      });
+      updateData("rec_hum_otros", 0);
     }
   }, [listaHumOtros, hasHumOtros]);
 
-  // --- EFECTO: Sincronizar "Otros Materiales" al Estado Global (String o null) ---
+  // --- EFECTO: Sincronizar "Otros Materiales" directamente a la raíz ---
   useEffect(() => {
     if (hasMatOtros) {
-      // Filtramos textos vacíos y los unimos en una sola cadena de texto separada por comas
       const textoUnificado = listaMatOtros.filter(t => t.trim() !== "").join(", ");
-      updateData("recursos", {
-        ...recursos,
-        rec_mat_otros: textoUnificado || null,
-      });
+      updateData("rec_mat_otros", textoUnificado || null);
     } else {
-      updateData("recursos", {
-        ...recursos,
-        rec_mat_otros: null,
-      });
+      updateData("rec_mat_otros", null);
     }
   }, [listaMatOtros, hasMatOtros]);
 
   const handleChange = (field, value) => {
-    updateData("recursos", {
-      ...recursos,
-      [field]: value,
-    });
+    // Almacena el valor directamente en el campo de la raíz
+    updateData(field, value);
   };
 
   // --- FUNCIONES DINÁMICAS: RECURSOS HUMANOS ---
@@ -115,8 +99,8 @@ export default function Recursos({ data, updateData }) {
             <input
               type="number"
               min="0"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={recursos.rec_hum_docentes ?? 0}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
+              value={data.rec_hum_docentes ?? 0}
               onChange={(e) => handleChange("rec_hum_docentes", Number(e.target.value))}
             />
           </div>
@@ -126,8 +110,8 @@ export default function Recursos({ data, updateData }) {
             <input
               type="number"
               min="0"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={recursos.rec_hum_administrativos ?? 0}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
+              value={data.rec_hum_administrativos ?? 0}
               onChange={(e) => handleChange("rec_hum_administrativos", Number(e.target.value))}
             />
           </div>
@@ -137,8 +121,8 @@ export default function Recursos({ data, updateData }) {
             <input
               type="number"
               min="0"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={recursos.rec_hum_estudiantes ?? 0}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
+              value={data.rec_hum_estudiantes ?? 0}
               onChange={(e) => handleChange("rec_hum_estudiantes", Number(e.target.value))}
             />
           </div>
@@ -148,8 +132,8 @@ export default function Recursos({ data, updateData }) {
             <input
               type="number"
               min="0"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={recursos.rec_hum_egresados ?? 0}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
+              value={data.rec_hum_egresados ?? 0}
               onChange={(e) => handleChange("rec_hum_egresados", Number(e.target.value))}
             />
           </div>
@@ -159,8 +143,8 @@ export default function Recursos({ data, updateData }) {
             <input
               type="number"
               min="0"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              value={recursos.rec_hum_voluntarios ?? 0}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
+              value={data.rec_hum_voluntarios ?? 0}
               onChange={(e) => handleChange("rec_hum_voluntarios", Number(e.target.value))}
             />
           </div>
@@ -200,7 +184,7 @@ export default function Recursos({ data, updateData }) {
                 <div key={index} className="flex gap-2 items-center">
                   <input
                     type="text"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white text-slate-700 outline-none"
                     placeholder={`Descripción del rol u otro recurso #${index + 1}...`}
                     value={valor}
                     onChange={(e) => handleInputChangeHumOtros(index, e.target.value)}
@@ -223,9 +207,9 @@ export default function Recursos({ data, updateData }) {
           <div>
             <label className="text-xs text-slate-600 block mb-1">Material Didáctico</label>
             <input
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
               placeholder="Detalle del material didáctico..."
-              value={recursos.rec_mat_material_didactico ?? ""}
+              value={data.rec_mat_material_didactico ?? ""}
               onChange={(e) => handleChange("rec_mat_material_didactico", e.target.value)}
             />
           </div>
@@ -233,9 +217,9 @@ export default function Recursos({ data, updateData }) {
           <div>
             <label className="text-xs text-slate-600 block mb-1">Afiches</label>
             <input
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
               placeholder="Detalle de afiches..."
-              value={recursos.rec_mat_afiches ?? ""}
+              value={data.rec_mat_afiches ?? ""}
               onChange={(e) => handleChange("rec_mat_afiches", e.target.value)}
             />
           </div>
@@ -243,9 +227,9 @@ export default function Recursos({ data, updateData }) {
           <div>
             <label className="text-xs text-slate-600 block mb-1">Equipos</label>
             <input
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
               placeholder="Detalle de equipos..."
-              value={recursos.rec_mat_equipos ?? ""}
+              value={data.rec_mat_equipos ?? ""}
               onChange={(e) => handleChange("rec_mat_equipos", e.target.value)}
             />
           </div>
@@ -253,9 +237,9 @@ export default function Recursos({ data, updateData }) {
           <div>
             <label className="text-xs text-slate-600 block mb-1">Útiles</label>
             <input
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b]"
               placeholder="Detalle de útiles..."
-              value={recursos.rec_mat_utiles ?? ""}
+              value={data.rec_mat_utiles ?? ""}
               onChange={(e) => handleChange("rec_mat_utiles", e.target.value)}
             />
           </div>
@@ -295,7 +279,7 @@ export default function Recursos({ data, updateData }) {
                 <div key={index} className="flex gap-2 items-center">
                   <input
                     type="text"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white"
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white text-slate-700 outline-none"
                     placeholder={`Nombre del material adicional #${index + 1}...`}
                     value={valor}
                     onChange={(e) => handleInputChangeMatOtros(index, e.target.value)}

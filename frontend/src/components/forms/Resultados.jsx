@@ -2,14 +2,14 @@ import React from 'react';
 
 export default function Resultados({ data, updateData }) {
   
-  // Manejador para primera pregunta (texto simple)
+  // Manejador para primera pregunta (campo exacto del backend: resultado_beneficiario)
   const handleChangeResultadoBeneficiario = (e) => {
-    updateData('res_beneficiario', e.target.value);
+    updateData('resultado_beneficiario', e.target.value);
   };
 
-  // Manejador para primera segunda p (texto simple)
+  // Manejador para segunda pregunta (campo exacto del backend: resultado_curricular)
   const handleChangeResultadoCurricular = (e) => {
-    updateData('res_curricular', e.target.value);
+    updateData('resultado_curricular', e.target.value);
   };
 
   return (
@@ -28,30 +28,30 @@ export default function Resultados({ data, updateData }) {
 
       {/* 1. RESULTADOS EN EL GRUPO BENEFICIARIO */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-slate-700">
+        <label className="text-sm font-semibold text-slate-700 leading-relaxed">
           ¿Tras la aplicación de los cambios efectuados con las sugerencias y/o propuestas realizadas dentro del proceso enseñanza-aprendizaje, qué logros o cambios se espera obtener en el grupo beneficiario? <span className="text-red-500">*</span>
         </label>
 
         <textarea
-          className="min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all resize-y"
-          name="res_beneficiario"
-          placeholder="Describa los logros o cambios esperados en el grupo beneficiario..."
-          value={data.res_beneficiario || ''}
+          className="min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b] transition-all resize-y"
+          name="resultado_beneficiario"
+          placeholder="Describa de forma detallada los logros o cambios esperados en el grupo beneficiario..."
+          value={data.resultado_beneficiario || ''}
           onChange={handleChangeResultadoBeneficiario}
         />
       </div>
 
       {/* 2. RESULTADOS EN EL DESARROLLO CURRICULAR */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-semibold text-slate-700">
+        <label className="text-sm font-semibold text-slate-700 leading-relaxed">
           ¿Tras la aplicación de los cambios efectuados con las sugerencias y/o propuestas realizadas dentro del proceso enseñanza-aprendizaje, qué logros o cambios se espera obtener en el desarrollo curricular? <span className="text-red-500">*</span>
         </label>
 
         <textarea
-          className="min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all resize-y"
-          name="res_curricular"
-          placeholder="Describa los logros o cambios en el desarrollo curricular..."
-          value={data.res_curricular || ''}
+          className="min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-[#b1122b] transition-all resize-y"
+          name="resultado_curricular"
+          placeholder="Describa de forma detallada los logros o cambios en el desarrollo curricular..."
+          value={data.resultado_curricular || ''}
           onChange={handleChangeResultadoCurricular}
         />
       </div>
