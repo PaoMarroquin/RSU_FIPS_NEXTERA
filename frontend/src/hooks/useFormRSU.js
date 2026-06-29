@@ -6,7 +6,7 @@ const mockInitialData = {
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
   beneficiarios: '', 
-  ejeRsuSeccion: '',   ejeRsuDetalle: '',
+  eje_rsu: null, ejes_subitems: [], eje_detalle: "",
   tipoActividad: '',
   meta: '', indicador: '',
   fechaInicio: '', fechaEvaluacion: '', fechaTermino: '',
@@ -95,8 +95,7 @@ const VALIDACIONES = {
     beneficiarios: (data) => isTextValid(data.beneficiarios),
     numDocentes: (data) => isNumberValid(data.numDocentes),
     numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
-    ejeRsuSeccion: (data) => isTextValid(data.ejeRsuSeccion),
-    ejeRsuDetalle: (data) => isTextValid(data.ejeRsuDetalle),
+    eje_rsu: (data) => isIdValid(data.eje_rsu),
     meta: (data) => isTextValid(data.meta),
     indicador: (data) => isTextValid(data.indicador),
     fechaInicio: (data) => isTextValid(data.fechaInicio),

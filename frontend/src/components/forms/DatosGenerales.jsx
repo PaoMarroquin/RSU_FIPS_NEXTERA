@@ -150,11 +150,11 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Tipo de Eje RSU
         </h3>
-
-        <EjeRSUSelector
-          valueSeccion={data.ejeRsuSeccion}
-          valueDetalle={data.ejeRsuDetalle}
-          onChange={handleChange}
+        
+        {/* Le pasamos data completo para que gestione toda la estructura JSON */}
+        <EjeRSUSelector 
+          data={data}
+          updateData={updateData}
         />
       </div>
 
