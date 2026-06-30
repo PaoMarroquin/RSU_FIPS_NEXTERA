@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import ProjectCard from "../components/ProjectCard";
-import api from '../api/axiosConfig'; // Importamos tu instancia de axios
+import api from '../api/axiosConfig';
 
 import {
   FiSearch,
@@ -31,43 +31,65 @@ export default function Proyectos() {
   const [tagFilter, setTagFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // 1. Efecto Debounce: Espera 500ms después de que el usuario deja de escribir para actualizar la búsqueda real
+  // 1. Efecto Debounce
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setPage(1); // Resetea a la página 1 al buscar
+      setPage(1); 
     }, 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // 2. Fetch a la API cuando cambia la página o la búsqueda debounced
+  // 2. Fetch a la API
+  const fetchProjects = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/api/v1/proyectos/', {
+        params: {
+          page: page,
+          search: debouncedSearch
+        }
+      });
+      
+      setProjectsDb(response.data.results);
+      setTotalPages(Math.ceil(response.data.count / 10)); 
+    } catch (error) {
+      console.error("Error cargando proyectos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProjects = async () => {
-      setLoading(true);
-      try {
-        const response = await api.get('/api/v1/proyectos/', {
-          params: {
-            page: page,
-            search: debouncedSearch
-          }
-        });
-        
-        setProjectsDb(response.data.results);
-        // Asumiendo que tu backend devuelve 10 resultados por página (ajusta el 10 si tu paginación es distinta)
-        setTotalPages(Math.ceil(response.data.count / 10)); 
-      } catch (error) {
-        console.error("Error cargando proyectos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, debouncedSearch]);
 
-  // 3. Mapeo de datos del Backend -> Formato que requiere tu ProjectCard
+  // EDITAR Y ELIMINAR
+  const handleEdit = (id) => {
+    // Redirige a una ruta de edición pasando el ID del proyecto
+    navigate(`/proyectos/editar/${id}`); 
+  };
+
+  const handleDelete = async (id) => {
+    // Confirmación nativa del navegador antes de borrar
+    const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.");
+    
+    if (confirmar) {
+      try {
+        await api.delete(`/api/v1/proyectos/${id}/`);
+        // Actualizamos el estado local filtrando el proyecto eliminado para no recargar toda la página
+        setProjectsDb(prevProjects => prevProjects.filter(p => p.id !== id));
+        alert("Proyecto eliminado con éxito.");
+      } catch (error) {
+        console.error("Error al eliminar el proyecto:", error);
+        alert("Hubo un problema al intentar eliminar el proyecto.");
+      }
+    }
+  };
+
+  // 3. Mapeo de datos
   const mappedProjects = projectsDb.map(p => {
-    // Lógica rápida para simular un porcentaje de progreso según el estado
     let progresoSimulado = 0;
     if (p.estado === 'borrador') progresoSimulado = 10;
     if (p.estado === 'en revision') progresoSimulado = 30;
@@ -87,11 +109,10 @@ export default function Proyectos() {
     };
   });
 
-  // 4. Filtros Locales (Facultad, Eje, Estado)
+  // 4. Filtros Locales
   const filteredProjects = mappedProjects.filter(project => {
     const matchesFaculty = facultyFilter ? project.faculty === facultyFilter : true;
     const matchesTag = tagFilter ? project.tag === tagFilter : true;
-    // Comparamos los estados en minúsculas para evitar problemas (Borrador === borrador)
     const matchesStatus = statusFilter ? project.status.toLowerCase() === statusFilter.toLowerCase() : true;
 
     return matchesFaculty && matchesTag && matchesStatus;
@@ -100,15 +121,12 @@ export default function Proyectos() {
   return (
     <div className="min-h-screen bg-slate-50">
       
-      {/* 1. Sidebar Fijo a la izquierda */}
       <Sidebar />
 
-      {/* 2. Contenido principal desplazado 230px a la derecha */}
       <div className="ml-[230px] flex flex-col min-h-screen overflow-hidden">
         
         <Topbar />
 
-        {/* CONTENEDOR PRINCIPAL */}
         <section className="p-6 md:p-8 flex-1 flex flex-col">
           
           {/* HEADER */}
@@ -129,10 +147,9 @@ export default function Proyectos() {
             </button>
           </div>
 
-          {/* FILTROS */}
+          {/* FILTROS (Se mantiene igual tu código original) */}
           <div className="flex flex-col lg:flex-row items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6">
             
-            {/* Buscador (Se envía a la API mediante debouncedSearch) */}
             <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white w-full lg:w-80 focus-within:ring-2 focus-within:ring-[#b1122b]/10 focus-within:border-[#b1122b] transition-all">
               <FiSearch className="text-slate-400" />
               <input
@@ -144,7 +161,6 @@ export default function Proyectos() {
               />
             </div>
 
-            {/* Select de Facultad */}
             <select 
               className="w-full lg:w-auto h-[42px] px-3 border border-slate-300 rounded-lg text-sm text-slate-600 outline-none focus:border-[#b1122b] focus:ring-1 focus:ring-[#b1122b] bg-white cursor-pointer"
               value={facultyFilter}
@@ -154,10 +170,8 @@ export default function Proyectos() {
               <option value="Medicina">Medicina</option>
               <option value="Arquitectura y Urbanismo">Arquitectura y Urbanismo</option>
               <option value="Ingeniería de Producción y Servicios">Ingeniería de Prod. y Servicios</option>
-              {/* Añade más facultades según lo necesites */}
             </select>
 
-            {/* Select de Eje RSU */}
             <select 
               className="w-full lg:w-auto h-[42px] px-3 border border-slate-300 rounded-lg text-sm text-slate-600 outline-none focus:border-[#b1122b] focus:ring-1 focus:ring-[#b1122b] bg-white cursor-pointer"
               value={tagFilter}
@@ -171,7 +185,6 @@ export default function Proyectos() {
               <option value="Formación">Formación</option>
             </select>
 
-            {/* Select de Estado */}
             <select 
               className="w-full lg:w-auto h-[42px] px-3 border border-slate-300 rounded-lg text-sm text-slate-600 outline-none focus:border-[#b1122b] focus:ring-1 focus:ring-[#b1122b] bg-white cursor-pointer"
               value={statusFilter}
@@ -186,7 +199,6 @@ export default function Proyectos() {
               <option value="finalizado">Finalizado</option>
             </select>
 
-            {/* Alternar Vistas */}
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg ml-auto border border-slate-200">
               <button className="p-1.5 bg-white shadow-sm text-[#b1122b] rounded-md transition-all">
                 <FiGrid className="w-4 h-4" />
@@ -211,7 +223,9 @@ export default function Proyectos() {
                   {filteredProjects.map((project) => (
                     <ProjectCard
                       key={project.dbId}
-                      {...project} // Le pasamos todas las propiedades mapeadas
+                      {...project} 
+                      onEdit={() => handleEdit(project.dbId)}    // Pasamos la función de editar
+                      onDelete={() => handleDelete(project.dbId)} // Pasamos la función de eliminar
                     />
                   ))}
                 </div>
@@ -222,7 +236,7 @@ export default function Proyectos() {
                 </div>
               )}
 
-              {/* PAGINACIÓN (Solo se muestra si hay más de 1 página en la BD) */}
+              {/* PAGINACIÓN */}
               {totalPages > 1 && (
                 <div className="mt-auto pt-6 flex items-center justify-between border-t border-slate-200">
                   <span className="text-sm text-slate-500">
