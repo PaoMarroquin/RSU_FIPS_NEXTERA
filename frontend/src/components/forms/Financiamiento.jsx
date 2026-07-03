@@ -238,16 +238,22 @@ export default function Financiamiento({ data, updateData }) {
                 {fuente.partidas.map((partida, pIndex) => (
                   <div key={pIndex} className="bg-white p-3 rounded-md border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                     
+
                     {/* Categoría */}
                     <div className="md:col-span-3">
                       <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Categoría</label>
-                      <input
-                        type="text"
-                        placeholder="Categoría (Ej: Servicios)"
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 focus:border-[#b1122b] outline-none"
+                      <select
+                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 bg-white text-slate-600 focus:border-[#b1122b] outline-none"
                         value={partida.categoria}
                         onChange={(e) => handlePartidaChange(fIndex, pIndex, "categoria", e.target.value)}
-                      />
+                      >
+                        <option value="">Seleccione Categoría</option>
+                        <option value="bienes">Bienes</option>
+                        <option value="servicios">Servicios</option>
+                        <option value="materiales">Materiales</option>
+                        <option value="equipos">Equipos</option>
+                        <option value="otros">Otros</option>
+                      </select>
                     </div>
 
                     {/* Tipo Recurso */}

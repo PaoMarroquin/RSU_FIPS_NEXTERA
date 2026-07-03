@@ -262,8 +262,8 @@ export const useFormRSU = () => {
       obj_logro_intervencion: formData.obj_lograrBeneficiario || "",
       obj_mejora_curricular: formData.obj_mejorarCurricular || "",
       
-      resultado_en_beneficiarios: formData.res_beneficiario || "",
-      resultado_en_curriculo: formData.res_curricular || "",
+      resultado_en_beneficiarios: formData.resultado_en_beneficiarios || "",
+      resultado_en_curriculo: formData.resultado_en_curriculo || "",
       impacto_esperado: "",
 
       actividades: formData.actividades
@@ -278,16 +278,34 @@ export const useFormRSU = () => {
           orden: i + 1
         })),
 
-      cronograma: formData.cronograma
-        .filter(crono => crono.accion && crono.accion.trim() !== "")
-        .map((crono, i) => ({
-          descripcion: crono.accion,
-          fecha_inicio: crono.fechaInicio || null,
-          fecha_fin: crono.fechaFin || null,
-          responsable: crono.responsable || "",
-          estado_avance: (crono.estado || "pendiente").toLowerCase(), // "Pendiente" -> "pendiente"
-          orden: i + 1
-        })),
+      cronograma: (formData.cronogramas || [])
+        .filter(crono => crono && crono.descripcion?.trim() !== "")
+        .map((crono, i) => {
+          // Diccionario local para traducir lo que venga del Formulario a lo que acepta Django
+          const mapeoEstadosBackend = {
+            "no iniciado": "pendiente",
+            "pendiente": "pendiente",
+            "en proceso": "en_proceso",
+            "en_proceso": "en_proceso",
+            "terminado": "finalizado",
+            "finalizado": "finalizado"
+          };
+
+          // Sanitizamos el valor que viene de la interfaz para buscarlo sin problemas
+          const estadoLimpio = (crono.estado_avance || "pendiente").toLowerCase().trim();
+          
+          // Si por alguna razón el texto no coincide, Django usará 'pendiente' por defecto
+          const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "pendiente";
+
+          return {
+            descripcion: crono.descripcion, 
+            fecha_inicio: crono.fecha_inicio || null,
+            fecha_fin: crono.fecha_fin || null,
+            responsable: crono.responsable || "",
+            estado_avance: estadoValidoParaDjango, // ✅ Envía: 'pendiente', 'en_proceso' o 'finalizado'
+            orden: i + 1
+          };
+        }),
 
       rec_hum_docentes: parseInt(formData.recursos.rec_hum_docentes, 10) || 0,
       rec_hum_administrativos: parseInt(formData.recursos.rec_hum_administrativos, 10) || 0,
@@ -359,9 +377,14 @@ export const useFormRSU = () => {
           if (fuente.partidas && fuente.partidas.length > 0) {
             for (const [index, partida] of fuente.partidas.entries()) {
               if (!partida.categoria || !partida.descripcion) continue; 
+              
+              const opcionesPermitidas = ["bienes", "servicios", "materiales", "equipos", "otros"];
+              const catLimpia = (partida.categoria || "bienes").toLowerCase().trim();
+              const categoriaDefinitiva = opcionesPermitidas.includes(catLimpia) ? catLimpia : "bienes";
+            
 
               const partidaPayload = {
-                categoria: partida.categoria,
+                categoria: categoriaDefinitiva,
                 tipo_recurso: partida.tipo_recurso || "material",
                 descripcion: partida.descripcion,
                 unidad: partida.unidad || "Unidad",
@@ -407,8 +430,18 @@ export const useFormRSU = () => {
       
       // Capturamos la respuesta del backend para ver validaciones específicas si falla
       if (error.response) {
-        console.error("Respuesta del servidor:", error.response.data);
-        alert(`Error al guardar: Revisa la consola para más detalles sobre los datos enviados.`);
+        console.error("Respuesta detallada del servidor:", JSON.stringify(error.response.data, null, 2));
+
+        if (error.response.status === 403) {
+          alert("Error 403 (Permiso Denegado): Tu usuario actual no tiene permisos de docente o administrador en el backend.");
+        } else if (backendErrors.non_field_errors) {
+          alert(`Restricción del sistema:\n${backendErrors.non_field_errors.join("\n")}`);
+        } else if (backendErrors.detail) {
+          alert(`Detalle del Servidor: ${backendErrors.detail}`);
+        } else {
+          alert(`Error ${error.response.status}: Revisa la consola para identificar el campo exacto que Django rechazó.`);
+        }
+
       } else {
         alert("Hubo un error al intentar conectarse al servidor.");
       }
