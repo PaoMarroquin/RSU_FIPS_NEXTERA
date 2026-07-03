@@ -65,20 +65,30 @@ export default function Proyectos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, debouncedSearch]);
 
+  // MANDAR A CREAR DESDE CERO COMPLETAMENTE VACÍO
+  const handleNuevoProyecto = () => {
+    // 1. Limpiamos cualquier rastro que dejes guardado temporalmente en la sesión local
+    localStorage.removeItem('proyecto_form_data'); 
+    localStorage.removeItem('current_project_id'); // Por si guardas el ID para saber si editas o creas
+
+    // 2. Opcional: Si manejas un estado global (como un Context o Zustand), asegúrate de invocar su reset aquí.
+    // resetFormGlobal();
+
+    // 3. Navegamos al formulario limpio
+    navigate('/proyectos/nuevo');
+  };
+
   // EDITAR Y ELIMINAR
   const handleEdit = (id) => {
-    // Redirige a una ruta de edición pasando el ID del proyecto
     navigate(`/proyectos/editar/${id}`); 
   };
 
   const handleDelete = async (id) => {
-    // Confirmación nativa del navegador antes de borrar
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.");
     
     if (confirmar) {
       try {
         await api.delete(`/api/v1/proyectos/${id}/`);
-        // Actualizamos el estado local filtrando el proyecto eliminado para no recargar toda la página
         setProjectsDb(prevProjects => prevProjects.filter(p => p.id !== id));
         alert("Proyecto eliminado con éxito.");
       } catch (error) {
@@ -138,16 +148,17 @@ export default function Proyectos() {
               </p>
             </div>
 
+            {/* Cambiado para invocar la función de limpieza y reseteo */}
             <button
               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8e0e22] transition-colors shadow-sm"
-              onClick={() => navigate('/proyectos/nuevo')}
+              onClick={handleNuevoProyecto}
             >
               <FiPlus className="w-4 h-4" />
               Nuevo Proyecto
             </button>
           </div>
 
-          {/* FILTROS (Se mantiene igual tu código original) */}
+          {/* FILTROS */}
           <div className="flex flex-col lg:flex-row items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6">
             
             <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white w-full lg:w-80 focus-within:ring-2 focus-within:ring-[#b1122b]/10 focus-within:border-[#b1122b] transition-all">
@@ -224,8 +235,8 @@ export default function Proyectos() {
                     <ProjectCard
                       key={project.dbId}
                       {...project} 
-                      onEdit={() => handleEdit(project.dbId)}    // Pasamos la función de editar
-                      onDelete={() => handleDelete(project.dbId)} // Pasamos la función de eliminar
+                      onEdit={() => handleEdit(project.dbId)}
+                      onDelete={() => handleDelete(project.dbId)}
                     />
                   ))}
                 </div>

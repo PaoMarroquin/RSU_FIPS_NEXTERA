@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react"; // 1. Importamos useEffect
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import Stepper from "../components/Stepper";
@@ -13,13 +13,11 @@ import Cronograma from "../components/forms/Cronograma";
 import Recursos from "../components/forms/Recursos";
 import Financiamiento from "../components/forms/Financiamiento";
 
-
 import { useFormRSU } from "../hooks/useFormRSU";
 import { useNavigate } from 'react-router-dom';
 
-
 export default function NuevoProyecto() {
-  // Extraemos las nuevas funciones y variables del hook
+  // Extraemos las funciones del hook (añadimos 'resetForm' o la función equivalente de tu hook si existe)
   const {
     step,
     highestStep,
@@ -30,9 +28,46 @@ export default function NuevoProyecto() {
     prevStep,
     goToStep,
     handleCancelar,
-    enviarProyectoBackend
+    enviarProyectoBackend,
+    resetForm // 2. Extrae la función de resetear del hook si la tiene
   } = useFormRSU();
+  
   const navigate = useNavigate();
+
+  // 3. EFECTO CRÍTICO: Al entrar a "Nuevo Proyecto", limpiamos todo rastro local y de estado
+  useEffect(() => {
+    // Limpiamos la caché física del formulario por si acaso
+    localStorage.removeItem('proyecto_form_data');
+    localStorage.removeItem('current_project_id');
+    
+    // Si tu hook useFormRSU exporta un método para volver al estado inicial, lo ejecutas aquí:
+    if (resetForm) {
+      resetForm();
+    } else {
+      // Si tu hook no tiene un resetForm explícito, limpiamos manualmente los bloques conflictivos
+      updateData('actividades', []);
+      updateData('cronogramas', []);
+      updateData('presupuestos', []); // o 'recursos' / 'financiamiento' según tus claves
+    }
+  }, []); // El arreglo vacío [] asegura que SOLO se ejecute UNA VEZ cuando entras a la pantalla
+
+  // ACCIÓN BOTÓN CANCELAR: Guarda el avance actual como 'BORRADOR' en Django y redirige
+  const handleCancelarYGuardarBorrador = async () => {
+    if (!window.confirm("¿Deseas salir? Tu progreso se guardará automáticamente en el servidor como BORRADOR.")) return;
+    
+    const exito = await enviarProyectoBackend('BORRADOR');
+    if (exito) {
+      navigate('/proyectos'); 
+    }
+  };
+
+  // ACCIÓN BOTÓN FINALIZAR: Guarda todo el proyecto como 'EN_REVISION' en Django y redirige
+  const handleFinalizarYEnviar = async () => {
+    const exito = await enviarProyectoBackend('EN_REVISION');
+    if (exito) {
+      navigate('/proyectos'); 
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -49,13 +84,14 @@ export default function NuevoProyecto() {
             </div>
             <button
               className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
-              onClick={handleCancelar}
+              onClick={handleCancelarYGuardarBorrador}
             >
               Cancelar
             </button>
           </div>
 
           <Stepper currentStep={step} pasosCompletados={pasosCompletados} goToStep={goToStep} />
+          
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]">
             <div className="mt-6">
               {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}
@@ -67,9 +103,6 @@ export default function NuevoProyecto() {
               {step === 7 && <Cronograma data={formData} updateData={updateData} />}
               {step === 8 && <Recursos data={formData} updateData={updateData} />}
               {step === 9 && <Financiamiento data={formData} updateData={updateData} />}
-
-
-              {/* {step === 2 && <Fundamentacion ... />}  ACA MAS PASOS*/}
             </div>
           </div>
         </div>
@@ -78,7 +111,8 @@ export default function NuevoProyecto() {
           step={step}
           nextStep={nextStep}
           prevStep={prevStep}
-          enviarProyectoBackend={enviarProyectoBackend}
+          enviarProyectoBackend={handleFinalizarYEnviar} 
+          guardarBorrador={handleCancelarYGuardarBorrador}
         />
       </div>
     </div>

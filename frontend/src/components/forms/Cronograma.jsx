@@ -3,9 +3,19 @@ import React, { useEffect } from "react";
 export default function Cronograma({ data, updateData }) {
   const cronogramas = data.cronogramas || [];
 
+  // Asegura que al menos exista una acción vacía inicializada correctamente
   useEffect(() => {
-    if (!data.cronogramas) {
-      updateData("cronogramas", []);
+    if (!data.cronogramas || data.cronogramas.length === 0) {
+      updateData("cronogramas", [
+        {
+          descripcion: "",
+          fecha_inicio: "",
+          fecha_fin: "",
+          responsable: "",
+          estado_avance: "pendiente", // Valor técnico nativo para Django
+          orden: 1
+        }
+      ]);
     }
   }, []);
 
@@ -24,7 +34,7 @@ export default function Cronograma({ data, updateData }) {
         fecha_inicio: "",
         fecha_fin: "",
         responsable: "",
-        estado_avance: "No iniciado",
+        estado_avance: "pendiente",
         orden: cronogramas.length + 1
       },
     ]);
@@ -40,7 +50,7 @@ export default function Cronograma({ data, updateData }) {
     updateData("cronogramas", cronogramaReordenado);
   };
 
-  // 1. FUNCIÓN DE DIAGNÓSTICO DE ERRORES EN TIEMPO REAL
+  // Función de diagnóstico local en tiempo real
   const obtenerErrorFila = (item) => {
     if (!item.descripcion?.trim() || !item.fecha_inicio || !item.fecha_fin) {
       return "Faltan completar campos obligatorios.";
@@ -51,7 +61,6 @@ export default function Cronograma({ data, updateData }) {
     return null;
   };
 
-  // Detectamos si hay algún error global en el cronograma para mostrar un aviso general
   const tieneErroresFecha = cronogramas.some(item => item.fecha_inicio && item.fecha_fin && item.fecha_fin < item.fecha_inicio);
   const tieneCamposVacios = cronogramas.some(item => !item.descripcion?.trim() || !item.fecha_inicio || !item.fecha_fin);
 
@@ -73,17 +82,27 @@ export default function Cronograma({ data, updateData }) {
           type="button"
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b1122b] text-white rounded-md text-xs font-semibold hover:bg-[#8f0e22] transition-colors shadow-sm"
         >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2.5}
+            stroke="currentColor"
+            className="w-3.5 h-3.5"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
           Agregar Acción
         </button>
       </div>
 
-      {/* 2. REPORTES DE ERROR GLOBAL (ALERTAS VISUALES) */}
+      {/* ALERTAS VISUALES LOCALES */}
       {cronogramas.length > 0 && (tieneCamposVacios || tieneErroresFecha) && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1 text-xs text-red-700 animate-in fade-in slide-in-from-top-2">
-          <p className="font-bold">⚠️ Por favor, corrige los siguientes problemas para poder avanzar:</p>
+          <p className="font-bold">⚠️ Por favor, corrige los siguientes problemas para asegurar el guardado en el servidor:</p>
           <ul className="list-disc list-inside ml-1 space-y-0.5 opacity-90">
-            {tieneCamposVacios && <li>Hay filas con campos obligatorios vacíos (Descripción, Fecha Inicio y Fin).</li>}
-            {tieneErroresFecha && <li>Hay acciones donde la <b>Fecha Fin</b> es menor que la <b>Fecha Inicio</b>.</li>}
+            {tieneCamposVacios && <li>Hay filas con campos obligatorios vacíos (Descripción, Fecha Inicio o Fin).</li>}
+            {tieneErroresFecha && <li>La <b>Fecha Fin</b> no puede ser menor que la <b>Fecha Inicio</b>.</li>}
           </ul>
         </div>
       )}
@@ -98,7 +117,7 @@ export default function Cronograma({ data, updateData }) {
               <th className="p-3 w-2/12">Fecha Inicio *</th>
               <th className="p-3 w-2/12">Fecha Fin *</th>
               <th className="p-3 w-2/12">Responsable</th>
-              <th className="p-3 w-2/12">Estado Avance</th>
+              <th className="p-3 w-2/12">Estado Avance *</th>
               <th className="p-3 w-1/12 text-center"></th>
             </tr>
           </thead>
@@ -107,10 +126,12 @@ export default function Cronograma({ data, updateData }) {
             {cronogramas.map((item, index) => {
               const errorFila = obtenerErrorFila(item);
               const esFechaInvalida = item.fecha_inicio && item.fecha_fin && item.fecha_fin < item.fecha_inicio;
+              const esDescInvalida = !item.descripcion?.trim();
 
               return (
-                <tr key={index} className={`transition-colors ${errorFila ? 'bg-red-50/20' : 'hover:bg-slate-50/50'}`}>
+                <tr key={index} className={`transition-colors ${errorFila ? 'bg-red-50/10' : 'hover:bg-slate-50/50'}`}>
                   
+                  {/* Número de orden */}
                   <td className="p-2 text-center text-xs font-bold text-slate-400">
                     {item.orden || index + 1}
                   </td>
@@ -120,7 +141,7 @@ export default function Cronograma({ data, updateData }) {
                     <input
                       type="text"
                       className={`w-full border rounded-md px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${
-                        !item.descripcion?.trim() && cronogramas.length > 0 ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
+                        esDescInvalida ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
                       }`}
                       placeholder="Descripción de la acción..."
                       value={item.descripcion || ""}
@@ -150,9 +171,8 @@ export default function Cronograma({ data, updateData }) {
                       value={item.fecha_fin || ""}
                       onChange={(e) => handleChangeCronograma(index, "fecha_fin", e.target.value)}
                     />
-                    {/* Alerta pequeña debajo de los inputs de fecha en caso de error específico */}
                     {esFechaInvalida && (
-                      <span className="text-[10px] text-red-600 block mt-0.5 font-medium"> Fin menor a Inicio</span>
+                      <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Fin menor a Inicio</span>
                     )}
                   </td>
 
@@ -171,12 +191,12 @@ export default function Cronograma({ data, updateData }) {
                   <td className="p-2">
                     <select
                       className="w-full border border-slate-300 bg-white rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-[#b1122b]"
-                      value={item.estado_avance || "No iniciado"}
+                      value={item.estado_avance || "pendiente"}
                       onChange={(e) => handleChangeCronograma(index, "estado_avance", e.target.value)}
                     >
-                      <option value="No iniciado">No iniciado</option>
-                      <option value="En proceso">En proceso</option>
-                      <option value="Terminado">Terminado</option>
+                      <option value="pendiente">No iniciado</option>
+                      <option value="en_progreso">En proceso</option>
+                      <option value="completado">Terminado</option>
                     </select>
                   </td>
 
@@ -186,6 +206,7 @@ export default function Cronograma({ data, updateData }) {
                       type="button"
                       onClick={() => removeAccion(index)}
                       className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors focus:outline-none"
+                      title="Eliminar acción"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
