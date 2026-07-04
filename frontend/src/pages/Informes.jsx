@@ -313,9 +313,9 @@ const Informes = () => {
                       </table>
                     </div>
 
-                    {/* PASO 8 Y 9: RECURSOS Y FINANCIAMIENTO */}
+                    {/* PASO 8: RECURSOS */}
                     <div className="space-y-2 mb-6">
-                      <h4 className="text-[11px] font-bold text-white bg-slate-800 px-2 py-1 uppercase font-sans tracking-wider">8. Recursos Humanos y Financiamiento Autorizado</h4>
+                      <h4 className="text-[11px] font-bold text-white bg-slate-800 px-2 py-1 uppercase font-sans tracking-wider">8. Recursos Humanos y Materiales Autorizados</h4>
                       <table className="w-full text-xs border border-slate-300 border-collapse">
                         <tbody>
                           <tr className="border-b border-slate-300 bg-slate-50">
@@ -338,25 +338,81 @@ const Informes = () => {
                       </table>
                     </div>
 
+                    {/* PASO 9: FINANCIAMIENTO */}
+                    <div className="space-y-2 mb-6">
+                      <h4 className="text-[11px] font-bold text-white bg-slate-800 px-2 py-1 uppercase font-sans tracking-wider">9. Presupuesto y Fuentes de Financiamiento</h4>
+                      
+                      {matrizSeleccionada.fuentes_financiamiento && matrizSeleccionada.fuentes_financiamiento.length > 0 ? matrizSeleccionada.fuentes_financiamiento.map((fuente, idx) => (
+                        <div key={fuente.id || idx} className="mb-4 border border-slate-300 rounded overflow-hidden">
+                          <div className="bg-slate-100 p-2 border-b border-slate-300 flex justify-between items-center text-[11px]">
+                            <span className="font-bold text-slate-800">Fuente {idx + 1}: {fuente.fuente_display}</span>
+                            <span className="font-bold text-[#b1122b]">Monto Asignado: S/ {fuente.monto}</span>
+                          </div>
+                          {fuente.descripcion && (
+                            <div className="p-2 text-[10px] text-slate-600 border-b border-slate-300 italic bg-white">
+                              Detalle: {fuente.descripcion}
+                            </div>
+                          )}
+                          <table className="w-full text-[10px] border-collapse bg-white">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-300 text-slate-600">
+                                <th className="p-1.5 text-left border-r border-slate-300 w-2/12">Categoría</th>
+                                <th className="p-1.5 text-left border-r border-slate-300 w-4/12">Descripción / Rubro</th>
+                                <th className="p-1.5 text-center border-r border-slate-300 w-1/12">Und</th>
+                                <th className="p-1.5 text-center border-r border-slate-300 w-1/12">Cant</th>
+                                <th className="p-1.5 text-right border-r border-slate-300 w-2/12">Costo U.</th>
+                                <th className="p-1.5 text-right w-2/12">Total (S/)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                              {fuente.partidas && fuente.partidas.length > 0 ? fuente.partidas.map((partida, pIdx) => (
+                                <tr key={partida.id || pIdx} className="hover:bg-slate-50">
+                                  <td className="p-1.5 border-r border-slate-300 font-medium">{partida.categoria_display || partida.categoria}</td>
+                                  <td className="p-1.5 border-r border-slate-300">{partida.descripcion}</td>
+                                  <td className="p-1.5 text-center border-r border-slate-300">{partida.unidad}</td>
+                                  <td className="p-1.5 text-center border-r border-slate-300">{partida.cantidad}</td>
+                                  <td className="p-1.5 text-right border-r border-slate-300">{partida.costo_unitario}</td>
+                                  <td className="p-1.5 text-right font-semibold">{partida.monto_presupuestado}</td>
+                                </tr>
+                              )) : (
+                                <tr><td colSpan="6" className="p-2 text-center text-slate-400">No hay partidas registradas para esta fuente.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )) : (
+                        <div className="text-center p-4 border border-slate-300 bg-slate-50 text-slate-500 text-[10px] rounded">Sin fuentes de financiamiento registradas.</div>
+                      )}
+                    </div>
+
                     {/* CONTROL DE CONTROL INTERNO Y FIRMA DIGITAL DE AUTORIZACIÓN */}
                     <div className="mt-12 pt-6 border-t-2 border-slate-800 font-sans">
                       <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">Sección IX: Validación de Firmas y Trazabilidad del Servidor</h5>
                       
                       <div className="grid grid-cols-2 gap-8 text-center text-xs">
                         <div className="flex flex-col items-center justify-end h-28 border border-slate-200 bg-slate-50/50 p-4 rounded-xl relative overflow-hidden">
-                          {/* Marca de agua simulando firma del docente */}
-                          <div className="absolute top-2 text-[8px] font-mono text-slate-300 select-none rotate-12">AUTENTICADO POR INSTANCIA API</div>
-                          <div className="w-36 border-b border-slate-400 mb-1"></div>
-                          <span className="font-bold text-slate-800 text-[11px] block">Coordinador Docente RSU</span>
-                          <span className="text-[9px] text-slate-400 font-mono">Usuario Autenticado: Vinc-Back</span>
+                          {matrizSeleccionada.docente_responsable_detalle?.firma_digital ? (
+                            <img src={matrizSeleccionada.docente_responsable_detalle.firma_digital} alt="Firma del Docente" className="absolute top-2 max-h-16 object-contain opacity-90" />
+                          ) : (
+                            <div className="absolute top-2 text-[8px] font-mono text-slate-300 select-none rotate-12">SIN FIRMA DIGITAL</div>
+                          )}
+                          <div className="w-48 border-b border-slate-400 mb-1 z-10"></div>
+                          <span className="font-bold text-slate-800 text-[11px] block z-10">
+                            {matrizSeleccionada.docente_responsable_detalle ? 
+                              `${matrizSeleccionada.docente_responsable_detalle.nombres} ${matrizSeleccionada.docente_responsable_detalle.apellidos}` 
+                              : 'Coordinador Docente RSU'}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-mono z-10">
+                            Usuario: {matrizSeleccionada.docente_responsable_detalle?.correo_institucional || 'Vinc-Back'}
+                          </span>
                         </div>
                         
                         <div className="flex flex-col items-center justify-end h-28 border border-slate-200 bg-slate-50/50 p-4 rounded-xl relative overflow-hidden">
                           {/* Sello digital de la oficina */}
                           <div className="absolute top-2 text-[9px] font-bold text-emerald-600/20 border-2 border-emerald-600/20 px-2 py-0.5 rounded rotate-12">OFICINA OURS - VERIFICADO</div>
-                          <div className="w-36 border-b border-slate-400 mb-1 border-dashed"></div>
-                          <span className="font-bold text-slate-800 text-[11px] block">Jefatura de Oficina OURS</span>
-                          <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-100 px-1 rounded">Sello Digital UNSA</span>
+                          <div className="w-36 border-b border-slate-400 mb-1 border-dashed z-10"></div>
+                          <span className="font-bold text-slate-800 text-[11px] block z-10">Jefatura de Oficina OURS</span>
+                          <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-100 px-1 rounded z-10">Sello Digital UNSA</span>
                         </div>
                       </div>
                     </div>

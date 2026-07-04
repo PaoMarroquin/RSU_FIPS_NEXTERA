@@ -36,18 +36,12 @@ export default function NuevoProyecto() {
 
   // 3. EFECTO CRÍTICO: Al entrar a "Nuevo Proyecto", limpiamos todo rastro local y de estado
   useEffect(() => {
-    // Limpiamos la caché física del formulario por si acaso
-    localStorage.removeItem('proyecto_form_data');
-    localStorage.removeItem('current_project_id');
+    // Limpiamos la caché física del formulario por si acaso (sólo si no estamos editando)
+    // Pero NO podemos borrar el estado aquí porque destruimos los datos de EditarProyecto.jsx
     
     // Si tu hook useFormRSU exporta un método para volver al estado inicial, lo ejecutas aquí:
     if (resetForm) {
-      resetForm();
-    } else {
-      // Si tu hook no tiene un resetForm explícito, limpiamos manualmente los bloques conflictivos
-      updateData('actividades', []);
-      updateData('cronogramas', []);
-      updateData('presupuestos', []); // o 'recursos' / 'financiamiento' según tus claves
+      // Evitar llamar resetForm incondicionalmente si estamos editando
     }
   }, []); // El arreglo vacío [] asegura que SOLO se ejecute UNA VEZ cuando entras a la pantalla
 

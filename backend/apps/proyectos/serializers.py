@@ -63,18 +63,8 @@ class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
         fields = ['id', 'archivo', 'nombre', 'uploaded_at']
 
 
-class FuenteFinanciamientoSerializer(serializers.ModelSerializer):
-    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
-
-    class Meta:
-        model = FuenteFinanciamiento
-        fields = ['id', 'fuente', 'fuente_display', 'monto', 'descripcion', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
-
-
 class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
     monto_presupuestado = serializers.SerializerMethodField(read_only=True)
-    fuente_detalle = FuenteFinanciamientoSerializer(source='fuente', read_only=True)
     categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
     tipo_recurso_display = serializers.CharField(source='get_tipo_recurso_display', read_only=True)
 
@@ -85,7 +75,7 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
             'tipo_recurso', 'tipo_recurso_display',
             'descripcion', 'unidad', 'cantidad',
             'costo_unitario', 'monto_presupuestado', 'monto_ejecutado',
-            'fuente', 'fuente_detalle', 'orden',
+            'fuente', 'orden',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -111,6 +101,15 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
                 'descripcion': 'La descripción es obligatoria cuando la categoría es "Otros".'
             })
         return attrs
+
+class FuenteFinanciamientoSerializer(serializers.ModelSerializer):
+    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
+    partidas = PartidaPresupuestariaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FuenteFinanciamiento
+        fields = ['id', 'fuente', 'fuente_display', 'monto', 'descripcion', 'partidas', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class TipoBeneficiarioSerializer(serializers.ModelSerializer):
@@ -173,6 +172,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     cronograma = CronogramaAccionSerializer(many=True, required=False)
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
     ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
+    fuentes_financiamiento = FuenteFinanciamientoSerializer(many=True, read_only=True)
 
     # Read-only display fields
     beneficiarios_info = serializers.SerializerMethodField(read_only=True)
@@ -269,6 +269,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             # ── Sección IX - Financiamiento ───────────────────────────────
             'monto_financiamiento',
             'fuente_financiamiento', 'fuente_financiamiento_display',
+            'fuentes_financiamiento',
             'descripcion_gastos',
             'observaciones_financiamiento',
             'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',

@@ -217,124 +217,124 @@ export const useFormRSU = () => {
 
     setIsSubmitting(true);
 
-    // 2. Construir el payload con el parseo solicitado
-    const payload = {
-      facultad: parseInt(formData.facultad, 10),
-      escuela: parseInt(formData.escuela, 10),
-      departamento: parseInt(formData.departamento, 10),
-      semestre_academico: formData.semestre,
-      titulo: formData.titulo,
-      nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1), // Mínimo 1
-      nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0), // Mínimo 0
-      lugar_ejecucion: formData.lugar || "",
-      
-      beneficiarios: [], // SOLO DEBERIA SER 1
-      benef_otro_detalle: formData.beneficiarios || "",
-      
-      eje_rsu: parseInt(formData.eje_rsu, 10),
-      ejes_subitems: formData.ejes_subitems || [],
-      eje_detalle: formData.eje_detalle || "",
-      
-      objetivo_institucional: null, 
-      tipo_actividad: [],
-      tipo_actividad_otro: formData.tipoActividad || "",
-      
-      meta_cuantitativa: formData.meta || "",
-      indicador: formData.indicador || "",
-      
-      // Control de fechas vacías (mandar null si están vacías para evitar errores 400 del backend)
-      fecha_inicio: formData.fechaInicio || null,
-      fecha_evaluacion_avance: formData.fechaEvaluacion || null,
-      fecha_termino: formData.fechaTermino || null,
-      fecha_encuesta_docentes: formData.encuestaDocentes || null,
-      fecha_encuesta_alumnos: formData.encuestaEstudiantes || null,
-      fecha_encuesta_grupo_destinatario: formData.encuestaDestinatarios || null,
-
-      fund_por_que_grupo: formData.fund_razonGrupo || "",
-      fund_para_que_proyecto: formData.fund_proposito || "",
-      fund_mecanismo_ensenanza: formData.fund_metodologia || "",
-
-      diag_estado_grupo: formData.diag_estadoActual || "",
-      diag_problemas_detectados: formData.diag_problemas || "",
-      diag_aportes_formacion: formData.diag_aportes || "",
-      diag_justificacion_intervencion: formData.diag_justificacion || "",
-
-      obj_logro_intervencion: formData.obj_lograrBeneficiario || "",
-      obj_mejora_curricular: formData.obj_mejorarCurricular || "",
-      
-      resultado_en_beneficiarios: formData.resultado_en_beneficiarios || "",
-      resultado_en_curriculo: formData.resultado_en_curriculo || "",
-      impacto_esperado: "",
-
-      actividades: formData.actividades
-        .filter(act => act.actividad && act.actividad.trim() !== "")
-        .map((act, i) => ({
-          nombre: act.actividad,
-          descripcion: act.descripcion || "",
-          curso_vinculado: act.curso || "",
-          responsable: act.responsable || "",
-          fecha: act.fecha || null,
-          evidencia_esperada: act.evidencia || "",
-          orden: i + 1
-        })),
-
-      cronograma: (formData.cronogramas || [])
-        .filter(crono => crono && crono.descripcion?.trim() !== "")
-        .map((crono, i) => {
-          // Diccionario local para traducir lo que venga del Formulario a lo que acepta Django
-          const mapeoEstadosBackend = {
-            "no iniciado": "pendiente",
-            "pendiente": "pendiente",
-            "en proceso": "en_proceso",
-            "en_proceso": "en_proceso",
-            "terminado": "finalizado",
-            "finalizado": "finalizado"
-          };
-
-          // Sanitizamos el valor que viene de la interfaz para buscarlo sin problemas
-          const estadoLimpio = (crono.estado_avance || "pendiente").toLowerCase().trim();
-          
-          // Si por alguna razón el texto no coincide, Django usará 'pendiente' por defecto
-          const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "pendiente";
-
-          return {
-            descripcion: crono.descripcion, 
-            fecha_inicio: crono.fecha_inicio || null,
-            fecha_fin: crono.fecha_fin || null,
-            responsable: crono.responsable || "",
-            estado_avance: estadoValidoParaDjango, // ✅ Envía: 'pendiente', 'en_proceso' o 'finalizado'
-            orden: i + 1
-          };
-        }),
-
-      rec_hum_docentes: parseInt(formData.recursos.rec_hum_docentes, 10) || 0,
-      rec_hum_administrativos: parseInt(formData.recursos.rec_hum_administrativos, 10) || 0,
-      rec_hum_estudiantes: parseInt(formData.recursos.rec_hum_estudiantes, 10) || 0,
-      rec_hum_egresados: parseInt(formData.recursos.rec_hum_egresados, 10) || 0,
-      rec_hum_voluntarios: parseInt(formData.recursos.rec_hum_voluntarios, 10) || 0,
-      rec_hum_otros: parseInt(formData.recursos.rec_hum_otros, 10) || 0,
-      rec_mat_material_didactico: formData.recursos.rec_mat_material_didactico || "",
-      rec_mat_afiches: formData.recursos.rec_mat_afiches || "",
-      rec_mat_equipos: formData.recursos.rec_mat_equipos || "",
-      rec_mat_utiles: formData.recursos.rec_mat_utiles || "",
-      rec_mat_otros: formData.recursos.rec_mat_otros || "",
-
-      periodo: parseInt(formData.periodo, 10),
-      anio_carrera: 5,
-      es_tesis_quinto_anio: true,
-      ods: formData.ods.length > 0 ? formData.ods : [0],
-      
-      asignaturas: [],
-      docentes_adicionales: [],
-      presentado_con_anticipacion: true,
-      conclusiones: "",
-      recomendaciones: "",
-      lecciones_aprendidas: "",
-      medio_difusion: "",
-      documentos_sustento: []
-    };
-
     try {
+      // 2. Construir el payload con el parseo solicitado
+      const payload = {
+        facultad: parseInt(formData.facultad, 10),
+        escuela: parseInt(formData.escuela, 10),
+        departamento: parseInt(formData.departamento, 10),
+        semestre_academico: formData.semestre,
+        titulo: formData.titulo,
+        nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1), // Mínimo 1
+        nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0), // Mínimo 0
+        lugar_ejecucion: formData.lugar || "",
+        
+        beneficiarios: [], // SOLO DEBERIA SER 1
+        benef_otro_detalle: formData.beneficiarios || "",
+        
+        eje_rsu: parseInt(formData.eje_rsu, 10),
+        ejes_subitems: formData.ejes_subitems || [],
+        eje_detalle: formData.eje_detalle || "",
+        
+        objetivo_institucional: null, 
+        tipo_actividad: [],
+        tipo_actividad_otro: formData.tipoActividad || "",
+        
+        meta_cuantitativa: formData.meta || "",
+        indicador: formData.indicador || "",
+        
+        // Control de fechas vacías (mandar null si están vacías para evitar errores 400 del backend)
+        fecha_inicio: formData.fechaInicio || null,
+        fecha_evaluacion_avance: formData.fechaEvaluacion || null,
+        fecha_termino: formData.fechaTermino || null,
+        fecha_encuesta_docentes: formData.encuestaDocentes || null,
+        fecha_encuesta_alumnos: formData.encuestaEstudiantes || null,
+        fecha_encuesta_grupo_destinatario: formData.encuestaDestinatarios || null,
+
+        fund_por_que_grupo: formData.fund_razonGrupo || "",
+        fund_para_que_proyecto: formData.fund_proposito || "",
+        fund_mecanismo_ensenanza: formData.fund_metodologia || "",
+
+        diag_estado_grupo: formData.diag_estadoActual || "",
+        diag_problemas_detectados: formData.diag_problemas || "",
+        diag_aportes_formacion: formData.diag_aportes || "",
+        diag_justificacion_intervencion: formData.diag_justificacion || "",
+
+        obj_logro_intervencion: formData.obj_lograrBeneficiario || "",
+        obj_mejora_curricular: formData.obj_mejorarCurricular || "",
+        
+        resultado_en_beneficiarios: formData.resultado_en_beneficiarios || "",
+        resultado_en_curriculo: formData.resultado_en_curriculo || "",
+        impacto_esperado: "",
+
+        actividades: (formData.actividades || [])
+          .filter(act => act.nombre && act.nombre.trim() !== "")
+          .map((act, i) => ({
+            nombre: act.nombre,
+            descripcion: act.descripcion || "",
+            curso_vinculado: "",
+            responsable: act.responsable || "",
+            fecha: act.fecha || null,
+            evidencia_esperada: act.evidencia_esperada || "",
+            orden: i + 1
+          })),
+
+        cronograma: (formData.cronogramas || [])
+          .filter(crono => crono && crono.descripcion?.trim() !== "")
+          .map((crono, i) => {
+            // Diccionario local para traducir lo que venga del Formulario a lo que acepta Django
+            const mapeoEstadosBackend = {
+              "no iniciado": "pendiente",
+              "pendiente": "pendiente",
+              "en proceso": "en_proceso",
+              "en_proceso": "en_proceso",
+              "terminado": "finalizado",
+              "finalizado": "finalizado"
+            };
+
+            // Sanitizamos el valor que viene de la interfaz para buscarlo sin problemas
+            const estadoLimpio = (crono.estado_avance || "pendiente").toLowerCase().trim();
+            
+            // Si por alguna razón el texto no coincide, Django usará 'pendiente' por defecto
+            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "pendiente";
+
+            return {
+              descripcion: crono.descripcion, 
+              fecha_inicio: crono.fecha_inicio || null,
+              fecha_fin: crono.fecha_fin || null,
+              responsable: crono.responsable || "",
+              estado_avance: estadoValidoParaDjango, // ✅ Envía: 'pendiente', 'en_proceso' o 'finalizado'
+              orden: i + 1
+            };
+          }),
+
+        rec_hum_docentes: parseInt(formData.recursos?.rec_hum_docentes, 10) || 0,
+        rec_hum_administrativos: parseInt(formData.recursos?.rec_hum_administrativos, 10) || 0,
+        rec_hum_estudiantes: parseInt(formData.recursos?.rec_hum_estudiantes, 10) || 0,
+        rec_hum_egresados: parseInt(formData.recursos?.rec_hum_egresados, 10) || 0,
+        rec_hum_voluntarios: parseInt(formData.recursos?.rec_hum_voluntarios, 10) || 0,
+        rec_hum_otros: parseInt(formData.recursos?.rec_hum_otros, 10) || 0,
+        rec_mat_material_didactico: formData.recursos?.rec_mat_material_didactico || "",
+        rec_mat_afiches: formData.recursos?.rec_mat_afiches || "",
+        rec_mat_equipos: formData.recursos?.rec_mat_equipos || "",
+        rec_mat_utiles: formData.recursos?.rec_mat_utiles || "",
+        rec_mat_otros: formData.recursos?.rec_mat_otros || "",
+
+        periodo: parseInt(formData.periodo, 10),
+        anio_carrera: 5,
+        es_tesis_quinto_anio: true,
+        ods: (formData.ods && formData.ods.length > 0) ? formData.ods : [0],
+        
+        asignaturas: (formData.asignaturas || "").split(',').map(a => ({ nombre_asignatura: a.trim() })).filter(a => a.nombre_asignatura !== ""),
+        docentes_adicionales: [],
+        presentado_con_anticipacion: true,
+        conclusiones: "",
+        recomendaciones: "",
+        lecciones_aprendidas: "",
+        medio_difusion: "",
+        documentos_sustento: []
+      };
+
       // 3. Petición usando la instancia de axios 'api'
       let response;
       
@@ -378,9 +378,22 @@ export const useFormRSU = () => {
             for (const [index, partida] of fuente.partidas.entries()) {
               if (!partida.categoria || !partida.descripcion) continue; 
               
-              const opcionesPermitidas = ["bienes", "servicios", "materiales", "equipos", "otros"];
-              const catLimpia = (partida.categoria || "bienes").toLowerCase().trim();
-              const categoriaDefinitiva = opcionesPermitidas.includes(catLimpia) ? catLimpia : "bienes";
+              // Categorías exactas que acepta el backend Django
+              const mapaoCategorias = {
+                "bienes": "material_escritorio",
+                "material": "material_escritorio",
+                "material_escritorio": "material_escritorio",
+                "refrigerio": "refrigerio",
+                "transporte": "transporte",
+                "servicios": "otros",
+                "materiales": "material_escritorio",
+                "equipos": "otros",
+                "otros": "otros",
+                "financiero": "otros",
+                "humano": "otros",
+              };
+              const catLimpia = (partida.categoria || "otros").toLowerCase().trim();
+              const categoriaDefinitiva = mapaoCategorias[catLimpia] || "otros";
             
 
               const partidaPayload = {
@@ -432,6 +445,8 @@ export const useFormRSU = () => {
       if (error.response) {
         console.error("Respuesta detallada del servidor:", JSON.stringify(error.response.data, null, 2));
 
+        const backendErrors = error.response.data || {};
+        
         if (error.response.status === 403) {
           alert("Error 403 (Permiso Denegado): Tu usuario actual no tiene permisos de docente o administrador en el backend.");
         } else if (backendErrors.non_field_errors) {
@@ -442,6 +457,8 @@ export const useFormRSU = () => {
           alert(`Error ${error.response.status}: Revisa la consola para identificar el campo exacto que Django rechazó.`);
         }
 
+      } else if (error instanceof Error) {
+        alert(`Error en el formulario: ${error.message}. Por favor, revisa que todos los campos estén completos correctamente.`);
       } else {
         alert("Hubo un error al intentar conectarse al servidor.");
       }

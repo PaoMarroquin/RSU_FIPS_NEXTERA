@@ -6,7 +6,7 @@ from django.db.models import Count, Sum, Q
 from django.shortcuts import get_object_or_404
 
 from apps.usuarios.models import Rol, Facultad
-from apps.utils.permissions import IsAdministrador, IsCoordinadorRSU
+from apps.utils.permissions import IsAdministrador, IsJefaturaRSU
 from .models import ProyectoRSU
 
 

@@ -108,15 +108,17 @@ def _validar_campos_obligatorios(proyecto):
 
 
 def _filter_proyectos_por_rol(qs, user):
-    """Visibilidad por rol: Admin/Coordinador/Comité ve todo; Docente ve los suyos; Autoridad/Estudiante ven aprobados."""
-    if user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.COORDINADOR, Rol.COMITE]):
+    """Visibilidad por rol: Admin ve todo; Jefatura ve su facultad; Departamento ve su departamento; Docente ve los suyos."""
+    if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
         return qs
+    if user.rol and user.rol.nombre == Rol.JEFATURA:
+        return qs.filter(facultad=user.facultad) if user.facultad else qs.none()
+    if user.rol and user.rol.nombre == Rol.DEPARTAMENTO:
+        return qs.filter(departamento=user.departamento) if user.departamento else qs.none()
     if user.rol and user.rol.nombre == Rol.DOCENTE:
         return qs.filter(
             Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
         ).distinct()
-    if user.rol and user.rol.nombre in [Rol.AUTORIDAD, Rol.ESTUDIANTE]:
-        return qs.filter(estado__in=['aprobado', 'en_ejecucion', 'finalizado'])
     return qs.none()
 
 
@@ -131,8 +133,8 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user).order_by('-created_at')
 
-        # ?facultad solo respetado para Admin/Coordinador (los demás roles tienen su scope fijado)
-        if user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.COORDINADOR]):
+        # ?facultad solo respetado para Admin (los demás roles tienen su scope fijado)
+        if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
             facultad_id = self.request.query_params.get('facultad')
             if facultad_id:
                 qs = qs.filter(facultad_id=facultad_id)
@@ -149,7 +151,8 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), IsDocente()]
+            from apps.utils.permissions import IsDocenteOrAdmin
+            return [IsAuthenticated(), IsDocenteOrAdmin()]
         return [IsAuthenticated()]
 
 

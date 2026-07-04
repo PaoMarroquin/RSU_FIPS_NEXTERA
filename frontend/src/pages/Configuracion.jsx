@@ -96,9 +96,9 @@ export default function MiPerfil() {
       dataPayload.append("nombres", formData.nombres);
       dataPayload.append("apellidos", formData.apellidos);
       dataPayload.append("celular", formData.celular);
-      dataPayload.append("facultad", formData.facultad ? parseInt(formData.facultad, 10) : "");
-      dataPayload.append("escuela", formData.escuela ? parseInt(formData.escuela, 10) : "");
-      dataPayload.append("departamento", formData.departamento ? parseInt(formData.departamento, 10) : "");
+      if (formData.facultad) dataPayload.append("facultad", parseInt(formData.facultad, 10));
+      if (formData.escuela) dataPayload.append("escuela", parseInt(formData.escuela, 10));
+      if (formData.departamento) dataPayload.append("departamento", parseInt(formData.departamento, 10));
 
       if (formData.firma_digital instanceof File) {
         dataPayload.append("firma_digital", formData.firma_digital);

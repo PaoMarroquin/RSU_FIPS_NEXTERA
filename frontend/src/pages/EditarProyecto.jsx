@@ -21,9 +21,15 @@ export default function EditarProyecto() {
           id: data.id,
           // Paso 1
           facultad: data.facultad || '',
+          facultad_nombre: data.facultad_nombre || '',
           escuela: data.escuela || '',
+          escuela_nombre: data.escuela_nombre || '',
           departamento: data.departamento || '',
+          departamento_nombre: data.departamento_nombre || '',
+          periodo: data.periodo || '',
+          periodo_nombre: data.periodo_nombre || '',
           semestre: data.semestre_academico || '',
+          asignaturas: data.asignaturas?.length > 0 ? data.asignaturas.map(a => a.nombre_asignatura).join(', ') : '',
           titulo: data.titulo || '',
           numDocentes: data.nro_docentes || 0,
           numEstudiantes: data.nro_estudiantes || 0,
@@ -59,27 +65,27 @@ export default function EditarProyecto() {
           ods: data.ods || [],
 
           // Paso 5
-          res_beneficiario: data.resultado_en_beneficiarios || '',
-          res_curricular: data.resultado_en_curriculo || '',
+          resultado_en_beneficiarios: data.resultado_en_beneficiarios || '',
+          resultado_en_curriculo: data.resultado_en_curriculo || '',
 
           // Paso 6: Actividades
           actividades: data.actividades?.length > 0 ? data.actividades.map(act => ({
-            actividad: act.nombre || '',
+            nombre: act.nombre || '',
             descripcion: act.descripcion || '',
-            curso: act.curso_vinculado || '',
+            curso_vinculado: act.curso_vinculado || '',
             responsable: act.responsable || '',
             fecha: act.fecha || '',
-            evidencia: act.evidencia_esperada || ''
-          })) : [{ actividad: '', descripcion: '', curso: '', responsable: '', fecha: '', evidencia: '' }],
+            evidencia_esperada: act.evidencia_esperada || ''
+          })) : [{ nombre: '', descripcion: '', curso_vinculado: '', responsable: '', fecha: '', evidencia_esperada: '' }],
 
           // Paso 7: Cronograma
-          cronograma: data.cronograma?.length > 0 ? data.cronograma.map(cro => ({
-            accion: cro.descripcion || '',
-            fechaInicio: cro.fecha_inicio || '',
-            fechaFin: cro.fecha_fin || '',
+          cronogramas: data.cronograma?.length > 0 ? data.cronograma.map(cro => ({
+            descripcion: cro.descripcion || '',
+            fecha_inicio: cro.fecha_inicio || '',
+            fecha_fin: cro.fecha_fin || '',
             responsable: cro.responsable || '',
-            estado: cro.estado_avance || 'Pendiente'
-          })) : [{ accion: '', fechaInicio: '', fechaFin: '', responsable: '', estado: 'Pendiente' }],
+            estado_avance: cro.estado_avance || 'pendiente'
+          })) : [{ descripcion: '', fecha_inicio: '', fecha_fin: '', responsable: '', estado_avance: 'pendiente' }],
 
           // Paso 8: Recursos
           recursos: {
@@ -97,12 +103,21 @@ export default function EditarProyecto() {
           },
 
           // Paso 9: Financiamiento
-          financiamiento: {
-            monto_financiamiento: data.monto_financiamiento || '',
-            fuente_financiamiento: data.fuente_financiamiento || '',
-            descripcion_gastos: data.descripcion_gastos || '',
-            observaciones_financiamiento: data.observaciones_financiamiento || ''
-          }
+          fuentes_financiamiento: data.fuentes_financiamiento?.length > 0 ? data.fuentes_financiamiento.map(fuente => ({
+            id: fuente.id,
+            fuente_financiamiento: fuente.fuente || '',
+            monto_financiamiento: fuente.monto || '',
+            descripcion_fuente: fuente.descripcion || '',
+            partidas: fuente.partidas?.length > 0 ? fuente.partidas.map(part => ({
+              id: part.id,
+              categoria: part.categoria || '',
+              tipo_recurso: part.tipo_recurso || 'material',
+              descripcion: part.descripcion || '',
+              unidad: part.unidad || 'Unidad',
+              cantidad: part.cantidad || 1,
+              costo_unitario: part.costo_unitario || ''
+            })) : []
+          })) : []
         };
 
         // 2. LO GUARDAMOS EN EL LOCALSTORAGE
