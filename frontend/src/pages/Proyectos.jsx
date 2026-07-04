@@ -12,7 +12,9 @@ import {
   FiPlus,
   FiLoader,
   FiChevronLeft,
-  FiChevronRight
+  FiChevronRight,
+  FiEdit2,
+  FiTrash2
 } from "react-icons/fi";
 
 export default function Proyectos() {
@@ -23,6 +25,7 @@ export default function Proyectos() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [viewMode, setViewMode] = useState("grid");
 
   // HOOKS DE ESTADO PARA FILTROS LOCALES Y BÚSQUEDA
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +38,7 @@ export default function Proyectos() {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setPage(1); 
+      setPage(1);
     }, 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -50,9 +53,9 @@ export default function Proyectos() {
           search: debouncedSearch
         }
       });
-      
+
       setProjectsDb(response.data.results);
-      setTotalPages(Math.ceil(response.data.count / 10)); 
+      setTotalPages(Math.ceil(response.data.count / 10));
     } catch (error) {
       console.error("Error cargando proyectos:", error);
     } finally {
@@ -68,7 +71,7 @@ export default function Proyectos() {
   // MANDAR A CREAR DESDE CERO COMPLETAMENTE VACÍO
   const handleNuevoProyecto = () => {
     // 1. Limpiamos cualquier rastro que dejes guardado temporalmente en la sesión local
-    localStorage.removeItem('proyecto_form_data'); 
+    localStorage.removeItem('proyecto_form_data');
     localStorage.removeItem('current_project_id'); // Por si guardas el ID para saber si editas o creas
 
     // 2. Opcional: Si manejas un estado global (como un Context o Zustand), asegúrate de invocar su reset aquí.
@@ -80,12 +83,12 @@ export default function Proyectos() {
 
   // EDITAR Y ELIMINAR
   const handleEdit = (id) => {
-    navigate(`/proyectos/editar/${id}`); 
+    navigate(`/proyectos/editar/${id}`);
   };
 
   const handleDelete = async (id) => {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.");
-    
+
     if (confirmar) {
       try {
         await api.delete(`/api/v1/proyectos/${id}/`);
@@ -130,15 +133,15 @@ export default function Proyectos() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      
+
       <Sidebar />
 
       <div className="ml-[230px] flex flex-col min-h-screen overflow-hidden">
-        
+
         <Topbar />
 
         <section className="p-6 md:p-8 flex-1 flex flex-col">
-          
+
           {/* HEADER */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
@@ -160,7 +163,7 @@ export default function Proyectos() {
 
           {/* FILTROS */}
           <div className="flex flex-col lg:flex-row items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6">
-            
+
             <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white w-full lg:w-80 focus-within:ring-2 focus-within:ring-[#b1122b]/10 focus-within:border-[#b1122b] transition-all">
               <FiSearch className="text-slate-400" />
               <input
@@ -172,7 +175,7 @@ export default function Proyectos() {
               />
             </div>
 
-            <select 
+            <select
               className="w-full lg:w-auto h-[42px] px-3 border border-slate-300 rounded-lg text-sm text-slate-600 outline-none focus:border-[#b1122b] focus:ring-1 focus:ring-[#b1122b] bg-white cursor-pointer"
               value={facultyFilter}
               onChange={(e) => setFacultyFilter(e.target.value)}
@@ -183,7 +186,7 @@ export default function Proyectos() {
               <option value="Ingeniería de Producción y Servicios">Ingeniería de Prod. y Servicios</option>
             </select>
 
-            <select 
+            <select
               className="w-full lg:w-auto h-[42px] px-3 border border-slate-300 rounded-lg text-sm text-slate-600 outline-none focus:border-[#b1122b] focus:ring-1 focus:ring-[#b1122b] bg-white cursor-pointer"
               value={tagFilter}
               onChange={(e) => setTagFilter(e.target.value)}
@@ -196,7 +199,7 @@ export default function Proyectos() {
               <option value="Formación">Formación</option>
             </select>
 
-            <select 
+            <select
               className="w-full lg:w-auto h-[42px] px-3 border border-slate-300 rounded-lg text-sm text-slate-600 outline-none focus:border-[#b1122b] focus:ring-1 focus:ring-[#b1122b] bg-white cursor-pointer"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -211,12 +214,27 @@ export default function Proyectos() {
             </select>
 
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg ml-auto border border-slate-200">
-              <button className="p-1.5 bg-white shadow-sm text-[#b1122b] rounded-md transition-all">
+
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-1.5 rounded-md transition-all ${viewMode === "grid"
+                  ? "bg-white shadow-sm text-[#b1122b]"
+                  : "text-slate-500 hover:bg-white hover:text-slate-700"
+                  }`}
+              >
                 <FiGrid className="w-4 h-4" />
               </button>
-              <button className="p-1.5 text-slate-500 hover:bg-white hover:text-slate-700 rounded-md transition-all">
+
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded-md transition-all ${viewMode === "list"
+                  ? "bg-white shadow-sm text-[#b1122b]"
+                  : "text-slate-500 hover:bg-white hover:text-slate-700"
+                  }`}
+              >
                 <FiList className="w-4 h-4" />
               </button>
+
             </div>
           </div>
 
@@ -228,41 +246,116 @@ export default function Proyectos() {
             </div>
           ) : (
             <>
-              {/* GRILLA DE PROYECTOS */}
+              {/* PROYECTOS */}
               {filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-                  {filteredProjects.map((project) => (
-                    <ProjectCard
-                      key={project.dbId}
-                      {...project} 
-                      onEdit={() => handleEdit(project.dbId)}
-                      onDelete={() => handleDelete(project.dbId)}
-                    />
-                  ))}
-                </div>
+                viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+                    {filteredProjects.map((project) => (
+                      <ProjectCard
+                        key={project.dbId}
+                        {...project}
+                        onEdit={() => handleEdit(project.dbId)}
+                        onDelete={() => handleDelete(project.dbId)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="divide-y divide-slate-200">
+                      {filteredProjects.map((project) => (
+                        <div
+                          key={project.dbId}
+                          className="flex items-center justify-between px-6 py-5 hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md">
+                                {project.id}
+                              </span>
+
+                              <span
+                                className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${project.status === "aprobado"
+                                    ? "bg-green-100 text-green-700"
+                                    : project.status === "en ejecucion"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : project.status === "observado"
+                                        ? "bg-red-100 text-red-700"
+                                        : project.status === "en revision"
+                                          ? "bg-yellow-100 text-yellow-700"
+                                          : "bg-slate-100 text-slate-700"
+                                  }`}
+                              >
+                                {project.status}
+                              </span>
+                            </div>
+
+                            <h3 className="text-lg font-bold text-slate-800">{project.title}</h3>
+
+                            <div className="flex flex-wrap gap-6 mt-2 text-sm text-slate-500">
+                              <span>👤 {project.author}</span>
+                              <span>🎓 {project.faculty}</span>
+                              <span>📌 {project.tag}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-6">
+                            <div className="w-44">
+                              <div className="flex justify-between text-xs mb-1 text-slate-600">
+                                <span>Avance</span>
+                                <span>{project.progress}%</span>
+                              </div>
+
+                              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-[#b1122b] rounded-full"
+                                  style={{ width: `${project.progress}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEdit(project.dbId)}
+                                className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition"
+                              >
+                                <FiEdit2 />
+                              </button>
+
+                              <button
+                                onClick={() => handleDelete(project.dbId)}
+                                className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
               ) : (
                 <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl border border-slate-200 border-dashed flex-1">
                   <span className="text-slate-400 text-lg font-medium">No se encontraron proyectos</span>
                   <span className="text-slate-400 text-sm mt-1">Intenta ajustando los filtros de búsqueda</span>
                 </div>
               )}
-
               {/* PAGINACIÓN */}
               {totalPages > 1 && (
                 <div className="mt-auto pt-6 flex items-center justify-between border-t border-slate-200">
                   <span className="text-sm text-slate-500">
                     Página <span className="font-semibold text-slate-800">{page}</span> de <span className="font-semibold text-slate-800">{totalPages}</span>
                   </span>
-                  
+
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       disabled={page === 1}
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       className="flex items-center justify-center w-9 h-9 rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-[#b1122b] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <FiChevronLeft className="w-5 h-5" />
                     </button>
-                    <button 
+                    <button
                       disabled={page === totalPages}
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                       className="flex items-center justify-center w-9 h-9 rounded-md border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:text-[#b1122b] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

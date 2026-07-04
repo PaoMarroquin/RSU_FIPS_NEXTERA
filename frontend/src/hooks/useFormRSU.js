@@ -195,9 +195,26 @@ export const useFormRSU = () => {
     localStorage.removeItem('rsu_draft');
     navigate('/proyectos');
   };
+  
+  const enviarARevision = async (proyectoId) => {
+    try {
+      await api.post(`/api/v1/proyectos/${proyectoId}/revisar/`);
+      return true;
+    } catch (error) {
+      console.error("Error al enviar a revisión:", error);
+
+      if (error.response?.data?.detail) {
+        alert(error.response.data.detail);
+      } else {
+        alert("No se pudo enviar el proyecto a revisión.");
+      }
+
+      return false;
+    }
+  };
 
   // FUNCIÓN PARA ENVIAR AL ENDPOINT CON AXIOS
-  const enviarProyectoBackend = async () => {
+  const enviarProyectoBackend = async (accion = "borrador") => {
     // 1. Validar campos estrictamente obligatorios requeridos por el backend
     const camposObligatorios = [
       formData.facultad, formData.escuela, formData.departamento, 
@@ -431,7 +448,9 @@ export const useFormRSU = () => {
       }
 
       console.log("Proyecto guardado exitosamente:", response.data);
-      
+      /*if (accion === "EN_REVISION") {
+        await api.post(`/api/v1/proyectos/${proyectoId}/revisar/`);
+      }*/
       // Limpiamos el localStorage ya que se guardó en el servidor
       localStorage.removeItem('rsu_draft');
       
