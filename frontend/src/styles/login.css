@@ -33,7 +33,7 @@ body{
   background:
     radial-gradient(circle at 20% 20%, rgba(255,255,255,.15), transparent 25%),
     radial-gradient(circle at 80% 80%, rgba(255,255,255,.1), transparent 25%),
-    linear-gradient(135deg,#7a1022,#a6192e,#d02b45);
+    linear-gradient(135deg, #561226, #7B1E3A, #9c2b4c);
 }
 
 .grid-overlay{
@@ -214,7 +214,7 @@ body{
 
   background:#fee2e2;
 
-  color:#a6192e;
+  color:#7B1E3A;
 
   font-size:.85rem;
 
