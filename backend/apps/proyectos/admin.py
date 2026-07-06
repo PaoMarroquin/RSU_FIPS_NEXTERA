@@ -6,6 +6,8 @@ from .models import (
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, TipoBeneficiario,
     ProyectoEjeSubitem,
+    RevisionProyecto, Notificacion, HistorialEstadoProyecto,
+    FuenteFinanciamiento, MetaIndicadorProyecto,
 )
 
 TIPO_ACTIVIDAD_CHOICES = [
@@ -246,3 +248,40 @@ class DocumentoSustentoProyectoAdmin(admin.ModelAdmin):
 class TipoBeneficiarioAdmin(admin.ModelAdmin):
     list_display = ('orden', 'codigo', 'label')
     ordering = ['orden']
+
+
+@admin.register(RevisionProyecto)
+class RevisionProyectoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'proyecto', 'revisor', 'tipo_revision', 'estado_resultado', 'fecha_revision')
+    list_filter = ('tipo_revision', 'estado_resultado')
+    search_fields = ('proyecto__titulo', 'revisor__nombres', 'revisor__apellidos')
+    readonly_fields = ('fecha_revision',)
+
+
+@admin.register(Notificacion)
+class NotificacionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'usuario', 'titulo', 'tipo', 'leida', 'created_at')
+    list_filter = ('tipo', 'leida')
+    search_fields = ('usuario__nombres', 'usuario__apellidos', 'titulo')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(HistorialEstadoProyecto)
+class HistorialEstadoProyectoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'proyecto', 'estado_anterior', 'estado_nuevo', 'usuario', 'fecha_cambio')
+    list_filter = ('estado_nuevo', 'estado_anterior')
+    search_fields = ('proyecto__titulo', 'usuario__nombres')
+    readonly_fields = ('fecha_cambio',)
+
+
+@admin.register(FuenteFinanciamiento)
+class FuenteFinanciamientoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'proyecto', 'fuente', 'monto')
+    list_filter = ('fuente',)
+    search_fields = ('proyecto__titulo',)
+
+
+@admin.register(MetaIndicadorProyecto)
+class MetaIndicadorProyectoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'proyecto', 'orden', 'meta_descripcion', 'indicador_nombre')
+    ordering = ['proyecto', 'orden']
