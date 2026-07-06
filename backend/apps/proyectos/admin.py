@@ -252,26 +252,26 @@ class TipoBeneficiarioAdmin(admin.ModelAdmin):
 
 @admin.register(RevisionProyecto)
 class RevisionProyectoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'proyecto', 'revisor', 'tipo_revision', 'estado_resultado', 'fecha_revision')
-    list_filter = ('tipo_revision', 'estado_resultado')
+    list_display = ('id', 'proyecto', 'revisor', 'decision', 'estado_nuevo', 'created_at')
+    list_filter = ('decision', 'estado_nuevo')
     search_fields = ('proyecto__titulo', 'revisor__nombres', 'revisor__apellidos')
-    readonly_fields = ('fecha_revision',)
+    readonly_fields = ('created_at',)
 
 
 @admin.register(Notificacion)
 class NotificacionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'usuario', 'titulo', 'tipo', 'leida', 'created_at')
+    list_display = ('id', 'destinatario', 'titulo', 'tipo', 'leida', 'created_at')
     list_filter = ('tipo', 'leida')
-    search_fields = ('usuario__nombres', 'usuario__apellidos', 'titulo')
+    search_fields = ('destinatario__nombres', 'destinatario__apellidos', 'titulo')
     readonly_fields = ('created_at',)
 
 
 @admin.register(HistorialEstadoProyecto)
 class HistorialEstadoProyectoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'proyecto', 'estado_anterior', 'estado_nuevo', 'usuario', 'fecha_cambio')
+    list_display = ('id', 'proyecto', 'estado_anterior', 'estado_nuevo', 'usuario', 'created_at')
     list_filter = ('estado_nuevo', 'estado_anterior')
     search_fields = ('proyecto__titulo', 'usuario__nombres')
-    readonly_fields = ('fecha_cambio',)
+    readonly_fields = ('created_at',)
 
 
 @admin.register(FuenteFinanciamiento)
