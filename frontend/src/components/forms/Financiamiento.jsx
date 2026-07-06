@@ -248,10 +248,9 @@ export default function Financiamiento({ data, updateData }) {
                         onChange={(e) => handlePartidaChange(fIndex, pIndex, "categoria", e.target.value)}
                       >
                         <option value="">Seleccione Categoría</option>
-                        <option value="bienes">Bienes</option>
-                        <option value="servicios">Servicios</option>
-                        <option value="materiales">Materiales</option>
-                        <option value="equipos">Equipos</option>
+                        <option value="material_escritorio">Material de escritorio</option>
+                        <option value="refrigerio">Refrigerio</option>
+                        <option value="transporte">Transporte</option>
                         <option value="otros">Otros</option>
                       </select>
                     </div>

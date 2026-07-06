@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { FiGrid, FiFolder, FiCalendar, FiDollarSign, FiTrendingUp, FiFileText, FiBook, FiSettings } from "react-icons/fi";
+import { FiGrid, FiFolder, FiCalendar, FiDollarSign, FiTrendingUp, FiFileText, FiBook, FiSettings, FiBell } from "react-icons/fi";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -27,11 +27,17 @@ export default function Sidebar() {
       <nav className="flex-1 py-4 px-3 flex flex-col gap-1 overflow-y-auto">
         <Link className={getLinkClass("/dashboard")} to="/dashboard"><FiGrid className="text-lg" /> Dashboard</Link>
         <Link className={getLinkClass("/proyectos")} to="/proyectos"><FiFolder className="text-lg" /> Proyectos</Link>
+        
+        {localStorage.getItem('user_role') === 'Departamento' && (
+          <Link className={getLinkClass("/evaluacion")} to="/evaluacion"><FiFileText className="text-lg text-[#b1122b]" /> Evaluación (Dept)</Link>
+        )}
+
         <Link className={getLinkClass("/actividades")} to="/actividades"><FiCalendar className="text-lg" /> Actividades</Link>
         <Link className={getLinkClass("/presupuesto")} to="#"><FiDollarSign className="text-lg" /> Presupuesto</Link>
         <Link className={getLinkClass("/avances")} to="#"><FiTrendingUp className="text-lg" /> Avances</Link>
         <Link className={getLinkClass("/informes")} to="/informes"><FiFileText className="text-lg" /> Informes</Link>
         <Link className={getLinkClass("/repositorio")} to="/repositorio"><FiBook className="text-lg" /> Repositorio</Link>
+        <Link className={getLinkClass("/notificaciones")} to="/notificaciones"><FiBell className="text-lg" /> Notificaciones</Link>
         <Link className={getLinkClass("/configuracion")} to="/configuracion"><FiSettings className="text-lg" /> Configuración</Link>
       </nav>
       

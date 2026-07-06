@@ -11,7 +11,8 @@ const mockInitialData = {
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
   beneficiarios: '', 
   eje_rsu: null, ejes_subitems: [], eje_detalle: "",
-  tipoActividad: '',
+  tiposActividad: [],
+  tipoActividadOtro: '',
   meta: '', indicador: '',
   fechaInicio: '', fechaEvaluacion: '', fechaTermino: '',
   encuestaDocentes: '', encuestaEstudiantes: '', encuestaDestinatarios: '',
@@ -147,6 +148,22 @@ export const useFormRSU = () => {
       const draft = localStorage.getItem('rsu_draft');
       if (draft) {
         const parsedDraft = JSON.parse(draft);
+        // ── Migración de formato antiguo ──────────────────────────────────
+        // Si el borrador tiene el campo viejo 'tipoActividad' (string), lo convertimos
+        if (parsedDraft.tipoActividad !== undefined && parsedDraft.tiposActividad === undefined) {
+          const MAPA_VIEJO = {
+            "Programas formativos": "programas_formativos",
+            "Acompañamiento a sectores identificados": "acompanamiento",
+            "Asesoría": "asesoria",
+            "Iniciativas de acercamiento a la comunidad": "acercamiento_comunidad",
+          };
+          const viejo = parsedDraft.tipoActividad;
+          const codigoBackend = MAPA_VIEJO[viejo];
+          parsedDraft.tiposActividad = codigoBackend ? [codigoBackend] : (viejo && viejo !== '__OTROS__' ? ['otro'] : []);
+          parsedDraft.tipoActividadOtro = codigoBackend ? '' : (viejo && viejo !== '__OTROS__' ? viejo : '');
+          delete parsedDraft.tipoActividad;
+        }
+        // ─────────────────────────────────────────────────────────────────
         return { ...mockInitialData, ...parsedDraft };
       }
     } catch (error) {
@@ -197,7 +214,8 @@ export const useFormRSU = () => {
   };
 
   // FUNCIÓN PARA ENVIAR AL ENDPOINT CON AXIOS
-  const enviarProyectoBackend = async () => {
+  // modo: 'BORRADOR' (solo guarda) | 'EN_REVISION' (guarda y luego llama /enviar-revision/)
+  const enviarProyectoBackend = async (modo = 'BORRADOR') => {
     // 1. Validar campos estrictamente obligatorios requeridos por el backend
     const camposObligatorios = [
       formData.facultad, formData.escuela, formData.departamento, 
@@ -237,8 +255,9 @@ export const useFormRSU = () => {
         eje_detalle: formData.eje_detalle || "",
         
         objetivo_institucional: null, 
-        tipo_actividad: [],
-        tipo_actividad_otro: formData.tipoActividad || "",
+        
+        tipo_actividad: formData.tiposActividad || [],
+        tipo_actividad_otro: formData.tipoActividadOtro || "",
         
         meta_cuantitativa: formData.meta || "",
         indicador: formData.indicador || "",
@@ -349,8 +368,10 @@ export const useFormRSU = () => {
 
       // ── GUARDADO SECUENCIAL DE FUENTES Y PARTIDAS ANIDADAS ──
       if (formData.fuentes_financiamiento && formData.fuentes_financiamiento.length > 0) {
+        const erroresFinanciamiento = [];
         
-        for (const fuente of formData.fuentes_financiamiento) {
+        for (const [fIdx, fuente] of formData.fuentes_financiamiento.entries()) {
+          // Solo omitir si no tiene ni fuente seleccionada
           if (!fuente.fuente_financiamiento) continue; 
 
           const fuentePayload = {
@@ -359,42 +380,37 @@ export const useFormRSU = () => {
             descripcion: fuente.descripcion_fuente || ""
           };
 
-          let fuenteResponse;
-          if (fuente.id) {
-            fuenteResponse = await api.patch(
-              `/api/v1/proyectos/${proyectoId}/financiamiento/${fuente.id}/`, 
-              fuentePayload
-            );
-          } else {
-            fuenteResponse = await api.post(
-              `/api/v1/proyectos/${proyectoId}/financiamiento/`, 
-              fuentePayload
-            );
+          let fuenteIdAsignado;
+          try {
+            let fuenteResponse;
+            if (fuente.id) {
+              fuenteResponse = await api.patch(
+                `/api/v1/proyectos/${proyectoId}/financiamiento/${fuente.id}/`, 
+                fuentePayload
+              );
+            } else {
+              fuenteResponse = await api.post(
+                `/api/v1/proyectos/${proyectoId}/financiamiento/`, 
+                fuentePayload
+              );
+            }
+            fuenteIdAsignado = fuenteResponse.data.id;
+          } catch (fuenteErr) {
+            const errData = fuenteErr.response?.data;
+            const msg = errData?.detail || errData?.errors || JSON.stringify(errData);
+            erroresFinanciamiento.push(`Fuente #${fIdx + 1}: ${msg}`);
+            continue; // Saltamos a la siguiente fuente
           }
 
-          const fuenteIdAsignado = fuenteResponse.data.id; 
-
           if (fuente.partidas && fuente.partidas.length > 0) {
-            for (const [index, partida] of fuente.partidas.entries()) {
-              if (!partida.categoria || !partida.descripcion) continue; 
+            for (const [pIdx, partida] of fuente.partidas.entries()) {
+              // Solo omitir si la descripción está completamente vacía
+              if (!partida.descripcion || !partida.descripcion.trim()) continue; 
               
               // Categorías exactas que acepta el backend Django
-              const mapaoCategorias = {
-                "bienes": "material_escritorio",
-                "material": "material_escritorio",
-                "material_escritorio": "material_escritorio",
-                "refrigerio": "refrigerio",
-                "transporte": "transporte",
-                "servicios": "otros",
-                "materiales": "material_escritorio",
-                "equipos": "otros",
-                "otros": "otros",
-                "financiero": "otros",
-                "humano": "otros",
-              };
-              const catLimpia = (partida.categoria || "otros").toLowerCase().trim();
-              const categoriaDefinitiva = mapaoCategorias[catLimpia] || "otros";
-            
+              // Ahora el selector ya envía los valores correctos directamente
+              const CATEGORIAS_VALIDAS = ["material_escritorio", "refrigerio", "transporte", "otros"];
+              const categoriaDefinitiva = CATEGORIAS_VALIDAS.includes(partida.categoria) ? partida.categoria : "otros";
 
               const partidaPayload = {
                 categoria: categoriaDefinitiva,
@@ -404,22 +420,36 @@ export const useFormRSU = () => {
                 cantidad: parseInt(partida.cantidad, 10) || 1,
                 costo_unitario: parseFloat(partida.costo_unitario) || 0,
                 fuente: fuenteIdAsignado, 
-                orden: index + 1
+                orden: pIdx + 1
               };
 
-              if (partida.id) {
-                await api.patch(
-                  `/api/v1/proyectos/${proyectoId}/presupuesto/${partida.id}/`, 
-                  partidaPayload
-                );
-              } else {
-                await api.post(
-                  `/api/v1/proyectos/${proyectoId}/presupuesto/`, 
-                  partidaPayload
-                );
+              try {
+                if (partida.id) {
+                  await api.patch(
+                    `/api/v1/proyectos/${proyectoId}/presupuesto/${partida.id}/`, 
+                    partidaPayload
+                  );
+                } else {
+                  await api.post(
+                    `/api/v1/proyectos/${proyectoId}/presupuesto/`, 
+                    partidaPayload
+                  );
+                }
+              } catch (partidaErr) {
+                const errData = partidaErr.response?.data;
+                const errMsg = errData?.errors 
+                  ? Object.entries(errData.errors).map(([k,v]) => `${k}: ${v}`).join(', ')
+                  : errData?.detail || JSON.stringify(errData);
+                erroresFinanciamiento.push(`Fuente #${fIdx + 1}, Partida "${partida.descripcion}": ${errMsg}`);
               }
             }
           }
+        }
+
+        // Si hubo errores parciales, mostramos resumen pero NO fallamos el guardado completo
+        if (erroresFinanciamiento.length > 0) {
+          console.warn("Errores parciales en financiamiento:", erroresFinanciamiento);
+          alert(`El proyecto se guardó, pero hubo errores en algunas partidas de financiamiento:\n${erroresFinanciamiento.join('\n')}`);
         }
 
         try {
@@ -430,13 +460,36 @@ export const useFormRSU = () => {
         }
       }
 
+
       console.log("Proyecto guardado exitosamente:", response.data);
+
+      // Si el modo es EN_REVISION, llamar al endpoint que cambia el estado
+      if (modo === 'EN_REVISION') {
+        try {
+          await api.post(`/api/v1/proyectos/${proyectoId}/revisar/`);
+          console.log("Proyecto enviado a revisión exitosamente.");
+          alert('Proyecto enviado a revisión correctamente. El Departamento lo revisará pronto.');
+        } catch (errRevision) {
+          console.error("Error al enviar a revisión:", errRevision);
+          const data = errRevision.response?.data;
+          let msg = data?.detail || errRevision.message;
+          if (data?.errors) {
+            const erroresFormateados = Object.entries(data.errors).map(([campo, err]) => `- ${err}`).join('\n');
+            msg += `\n\nFaltan:\n${erroresFormateados}`;
+          } else if (!data?.detail) {
+            msg = JSON.stringify(data);
+          }
+          alert(`El proyecto se guardó pero no se pudo enviar a revisión:\n${msg}`);
+          return false; // Salimos sin limpiar ni redirigir para que el usuario pueda corregir
+        }
+      }
       
       // Limpiamos el localStorage ya que se guardó en el servidor
       localStorage.removeItem('rsu_draft');
       
       // Redirigimos a la bandeja de proyectos
       navigate('/proyectos');
+      return true;
 
     } catch (error) {
       console.error("Error al guardar el proyecto en el backend:", error);
@@ -452,9 +505,18 @@ export const useFormRSU = () => {
         } else if (backendErrors.non_field_errors) {
           alert(`Restricción del sistema:\n${backendErrors.non_field_errors.join("\n")}`);
         } else if (backendErrors.detail) {
-          alert(`Detalle del Servidor: ${backendErrors.detail}`);
+          let errStr = `Detalle del Servidor: ${backendErrors.detail}`;
+          if (backendErrors.errors) {
+            const errList = Object.entries(backendErrors.errors).map(([k, v]) => `- ${k}: ${v}`).join('\n');
+            errStr += `\n${errList}`;
+          }
+          alert(errStr);
         } else {
-          alert(`Error ${error.response.status}: Revisa la consola para identificar el campo exacto que Django rechazó.`);
+          // If it's a dict of field errors: { campo1: ["error"], campo2: ["error"] }
+          const fieldErrors = Object.entries(backendErrors)
+            .map(([field, errs]) => `- ${field}: ${Array.isArray(errs) ? errs.join(', ') : JSON.stringify(errs)}`)
+            .join('\n');
+          alert(`Error ${error.response.status}: Error de validación al guardar:\n${fieldErrors}`);
         }
 
       } else if (error instanceof Error) {

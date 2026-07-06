@@ -7,12 +7,14 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
-from apps.utils.permissions import IsOwnerOrReadOnly, IsDocente
+from apps.utils.permissions import (
+    IsOwnerOrReadOnly, IsDocente, IsDepartamento, IsAdministrador
+)
 from apps.planificacion.models import PeriodoAcademico
 from .models import (
     ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento,
-    ProyectoEjeSubitem,
+    ProyectoEjeSubitem, RevisionProyecto, HistorialEstadoProyecto, Notificacion,
 )
 from .serializers import (
     ProyectoRSUSerializer,
@@ -21,6 +23,8 @@ from .serializers import (
     PartidaPresupuestariaSerializer,
     MetaIndicadorProyectoSerializer,
     FuenteFinanciamientoSerializer,
+    RevisionProyectoSerializer,
+    NotificacionSerializer,
 )
 from apps.usuarios.models import Rol
 
@@ -34,6 +38,7 @@ def _proyecto_qs_base():
         'ods', 'asignaturas', 'docentes_adicionales',
         'actividades', 'cronograma',
         'ejes_subitems__sub_eje',
+        'fuentes_financiamiento__partidas',
     )
 
 
@@ -44,6 +49,15 @@ def get_proyecto_editable(pk, user):
     if proyecto.estado not in ['borrador', 'observado']:
         raise serializers.ValidationError(
             'Solo se pueden modificar proyectos en estado Borrador u Observado.')
+    return proyecto
+
+
+def get_proyecto_propio(pk, user):
+    """Verifica solo que el usuario sea el dueño del proyecto, sin restricción de estado.
+    Usar para sub-recursos (financiamiento, presupuesto) que deben poder editarse siempre."""
+    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
+    if proyecto.docente_responsable != user:
+        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
     return proyecto
 
 
@@ -67,7 +81,8 @@ def _validar_campos_obligatorios(proyecto):
     req_text('diag_estado_grupo', 'El estado actual del grupo beneficiario')
     req_text('diag_problemas_detectados', 'Los problemas detectados')
     req_text('diag_aportes_formacion', 'Los aportes desde la formación profesional')
-    req_text('objetivo_general', 'El objetivo general')
+    # BUG FIX T-66: campo correcto es obj_logro_intervencion, no objetivo_general
+    req_text('obj_logro_intervencion', 'El objetivo de intervención (IV)')
     req_text('resultado_en_beneficiarios', 'Los resultados esperados en los beneficiarios')
     req_text('resultado_en_curriculo', 'Los resultados esperados en el proceso curricular')
 
@@ -88,23 +103,45 @@ def _validar_campos_obligatorios(proyecto):
         if not getattr(proyecto, campo):
             errores[campo.replace('_id', '')] = f'{label} es obligatorio.'
 
-    campos_benef = [
-        'benef_comunidad_universitaria', 'benef_inst_educativas_basicas',
-        'benef_inst_educativas_especiales', 'benef_gobierno_local',
-        'benef_gobierno_regional', 'benef_gobierno_nacional',
-        'benef_asociaciones', 'benef_organizaciones_comunales',
-        'benef_sector_empresarial', 'benef_sectores_laborales',
-        'benef_centros_penitenciarios', 'benef_otro',
-    ]
-    if not any(getattr(proyecto, c) for c in campos_benef):
+    # BUG FIX T-66: beneficiarios es M2M con TipoBeneficiario, no campos booleanos
+    # También permitimos benef_otro_detalle si no hay beneficiarios relacionados.
+    if not proyecto.beneficiarios.exists() and not getattr(proyecto, 'benef_otro_detalle', None):
         errores['beneficiarios'] = 'Debe seleccionar al menos un tipo de beneficiario (1.9).'
 
-    if not proyecto.ods.all():
+    if not proyecto.ods.exists():
         errores['ods'] = 'Debe seleccionar al menos un ODS.'
-    if not proyecto.asignaturas.all():
+    if not proyecto.asignaturas.exists():
         errores['asignaturas'] = 'Debe registrar al menos una asignatura vinculada (1.5).'
 
     return errores
+
+
+def _registrar_historial(proyecto, usuario, estado_anterior, estado_nuevo,
+                          comentario='', request=None):
+    """Helper T-66/T-70: Crea un HistorialEstadoProyecto de forma centralizada."""
+    ip = None
+    if request:
+        x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip = x_forwarded.split(',')[0] if x_forwarded else request.META.get('REMOTE_ADDR')
+    HistorialEstadoProyecto.objects.create(
+        proyecto=proyecto,
+        usuario=usuario,
+        estado_anterior=estado_anterior,
+        estado_nuevo=estado_nuevo,
+        comentario=comentario,
+        ip_address=ip,
+    )
+
+
+def _crear_notificacion(destinatario, proyecto, tipo, titulo, mensaje):
+    """Helper T-71: Crea una Notificacion interna de forma centralizada."""
+    Notificacion.objects.create(
+        destinatario=destinatario,
+        proyecto=proyecto,
+        tipo=tipo,
+        titulo=titulo,
+        mensaje=mensaje,
+    )
 
 
 def _filter_proyectos_por_rol(qs, user):
@@ -225,9 +262,20 @@ class ProyectoEnviarRevisionView(APIView):
                     'errors': {'anio_carrera': 'Conflicto de unicidad.'},
                 })
 
+        estado_anterior = proyecto.estado
         proyecto.estado = 'en_revision'
         proyecto.fecha_envio_revision = timezone.now()
         proyecto.save(update_fields=['estado', 'fecha_envio_revision'])
+
+        # T-70: Registrar historial de cambio de estado
+        _registrar_historial(
+            proyecto=proyecto,
+            usuario=request.user,
+            estado_anterior=estado_anterior,
+            estado_nuevo='en_revision',
+            comentario='Docente envió el proyecto a revisión.',
+            request=request,
+        )
 
         serializer = ProyectoRSUSerializer(
             _proyecto_qs_base().get(pk=pk),
@@ -318,7 +366,7 @@ class PartidaPresupuestariaListCreateView(generics.ListCreateAPIView):
         ).order_by('orden')
 
     def perform_create(self, serializer):
-        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        proyecto = get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -331,11 +379,11 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
         return PartidaPresupuestaria.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -347,7 +395,7 @@ class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def perform_create(self, serializer):
-        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        proyecto = get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -360,11 +408,11 @@ class FuenteFinanciamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -633,3 +681,157 @@ class ProyectoContinuarView(APIView):
             context={'request': request},
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# ============================================================
+# SPRINT 4: MÓDULO DE REVISIÓN Y APROBACIÓN (HU-04)
+# ============================================================
+
+class ProyectosParaRevisarView(generics.ListAPIView):
+    """
+    T-67: Lista proyectos en revisión correspondientes al departamento
+    del usuario (Administrativo de Departamento).
+    """
+    serializer_class = ProyectoRSUSerializer
+    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = _proyecto_qs_base().filter(estado='en_revision').order_by('fecha_envio_revision')
+        if not user.is_staff and not (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
+            qs = qs.filter(departamento=user.departamento)
+        return qs
+
+
+class ProyectoAprobarView(APIView):
+    """
+    T-68: Aprueba un proyecto en revisión.
+    """
+    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        proyecto = get_object_or_404(ProyectoRSU, pk=pk)
+        
+        # Validación de visibilidad / permisos
+        if not request.user.is_staff and not (request.user.rol and request.user.rol.nombre == Rol.ADMINISTRADOR):
+            if proyecto.departamento != request.user.departamento:
+                raise PermissionDenied('No tienes permisos sobre este proyecto.')
+
+        if proyecto.estado != 'en_revision':
+            raise serializers.ValidationError('El proyecto no está en revisión.')
+
+        estado_anterior = proyecto.estado
+        proyecto.estado = 'aprobado'
+        proyecto.fecha_aprobacion = timezone.now()
+        proyecto.save(update_fields=['estado', 'fecha_aprobacion'])
+
+        # Crear RevisionProyecto (Dictamen)
+        RevisionProyecto.objects.create(
+            proyecto=proyecto,
+            revisor=request.user,
+            decision='aprobado',
+            estado_anterior=estado_anterior,
+            estado_nuevo='aprobado',
+        )
+
+        # Historial (append-only)
+        _registrar_historial(
+            proyecto=proyecto,
+            usuario=request.user,
+            estado_anterior=estado_anterior,
+            estado_nuevo='aprobado',
+            comentario='Proyecto aprobado por el Departamento.',
+            request=request,
+        )
+
+        # Notificación al docente
+        _crear_notificacion(
+            destinatario=proyecto.docente_responsable,
+            proyecto=proyecto,
+            tipo='aprobacion',
+            titulo=f'Proyecto "{proyecto.titulo[:50]}..." Aprobado',
+            mensaje='Tu proyecto ha sido aprobado. Ya puedes proceder con su ejecución.',
+        )
+
+        return Response({'detail': 'Proyecto aprobado exitosamente.'}, status=status.HTTP_200_OK)
+
+
+class ProyectoObservarView(APIView):
+    """
+    T-69: Observa un proyecto en revisión (requiere comentario_tecnico).
+    """
+    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        proyecto = get_object_or_404(ProyectoRSU, pk=pk)
+        
+        if not request.user.is_staff and not (request.user.rol and request.user.rol.nombre == Rol.ADMINISTRADOR):
+            if proyecto.departamento != request.user.departamento:
+                raise PermissionDenied('No tienes permisos sobre este proyecto.')
+
+        if proyecto.estado != 'en_revision':
+            raise serializers.ValidationError('El proyecto no está en revisión.')
+
+        comentario_tecnico = request.data.get('comentario_tecnico', '').strip()
+        if not comentario_tecnico:
+            raise serializers.ValidationError({'comentario_tecnico': 'Este campo es obligatorio al observar un proyecto.'})
+
+        estado_anterior = proyecto.estado
+        proyecto.estado = 'observado'
+        proyecto.save(update_fields=['estado'])
+
+        RevisionProyecto.objects.create(
+            proyecto=proyecto,
+            revisor=request.user,
+            decision='observado',
+            comentario_tecnico=comentario_tecnico,
+            estado_anterior=estado_anterior,
+            estado_nuevo='observado',
+        )
+
+        _registrar_historial(
+            proyecto=proyecto,
+            usuario=request.user,
+            estado_anterior=estado_anterior,
+            estado_nuevo='observado',
+            comentario=comentario_tecnico,
+            request=request,
+        )
+
+        _crear_notificacion(
+            destinatario=proyecto.docente_responsable,
+            proyecto=proyecto,
+            tipo='observacion',
+            titulo=f'Proyecto "{proyecto.titulo[:50]}..." Observado',
+            mensaje=f'Tu proyecto ha sido observado. Por favor revisa y corrige según el siguiente comentario:\n\n{comentario_tecnico}',
+        )
+
+        return Response({'detail': 'Proyecto observado exitosamente.'}, status=status.HTTP_200_OK)
+
+
+class NotificacionListView(generics.ListAPIView):
+    """
+    T-71: Lista las notificaciones del usuario autenticado.
+    """
+    serializer_class = NotificacionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notificacion.objects.filter(destinatario=self.request.user).order_by('-created_at')
+
+
+class NotificacionLeerView(APIView):
+    """
+    T-71: Marca una notificación como leída.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        notificacion = get_object_or_404(Notificacion, pk=pk, destinatario=request.user)
+        if not notificacion.leida:
+            notificacion.leida = True
+            notificacion.leida_en = timezone.now()
+            notificacion.save(update_fields=['leida', 'leida_en'])
+        return Response({'detail': 'Notificación marcada como leída.'}, status=status.HTTP_200_OK)

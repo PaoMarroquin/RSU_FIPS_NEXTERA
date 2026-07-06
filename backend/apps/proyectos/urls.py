@@ -34,4 +34,13 @@ urlpatterns = [
     # ── Reportes ──────────────────────────────────────────────────────────────
     path('reportes/general/', ReporteGeneralView.as_view(), name='reporte-general'),
     path('reportes/facultad/<int:facultad_pk>/', ReporteFacultadView.as_view(), name='reporte-facultad'),
+
+    # ── Módulo 4: Revisión y Aprobación ───────────────────────────────────────
+    path('proyectos/para-revisar/', views.ProyectosParaRevisarView.as_view(), name='proyecto-para-revisar'),
+    path('proyectos/<int:pk>/aprobar/', views.ProyectoAprobarView.as_view(), name='proyecto-aprobar'),
+    path('proyectos/<int:pk>/observar/', views.ProyectoObservarView.as_view(), name='proyecto-observar'),
+
+    # ── Módulo 4: Notificaciones ──────────────────────────────────────────────
+    path('notificaciones/', views.NotificacionListView.as_view(), name='notificacion-list'),
+    path('notificaciones/<int:pk>/leer/', views.NotificacionLeerView.as_view(), name='notificacion-leer'),
 ]

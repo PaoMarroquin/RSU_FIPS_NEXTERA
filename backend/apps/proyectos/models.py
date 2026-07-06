@@ -620,3 +620,141 @@ class ProyectoEjeSubitem(models.Model):
     def __str__(self):
         return f'{self.sub_eje} — proyecto#{self.proyecto_id}'
 
+
+# ============================================================
+# SPRINT 4: MÓDULO DE REVISIÓN Y APROBACIÓN (HU-04)
+# T-65 / T-66: Modelos de dictamen, historial e notificaciones
+# ============================================================
+
+class RevisionProyecto(models.Model):
+    """
+    T-65/T-66/T-68/T-69: Registra cada dictamen emitido por el
+    Administrativo de Departamento (rol Departamento) sobre un proyecto.
+    Un proyecto puede tener múltiples revisiones (una por ciclo).
+    """
+    DECISIONES = [
+        ('aprobado',  'Aprobado'),
+        ('observado', 'Observado'),
+    ]
+
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='revisiones',
+        help_text='Proyecto evaluado')
+    revisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='revisiones_emitidas',
+        help_text='Usuario con rol Departamento que emite el dictamen')
+    decision = models.CharField(
+        max_length=20, choices=DECISIONES,
+        help_text='Resultado del dictamen: aprobado | observado')
+    comentario_tecnico = models.TextField(
+        blank=True, default='',
+        help_text='Obligatorio cuando la decisión es "observado". '
+                  'Describe las correcciones requeridas.')
+    estado_anterior = models.CharField(
+        max_length=30,
+        help_text='Snapshot del estado del proyecto antes del dictamen')
+    estado_nuevo = models.CharField(
+        max_length=30,
+        help_text='Estado asignado al proyecto por este dictamen')
+    created_at = models.DateTimeField(
+        default=timezone.now, editable=False,
+        help_text='Fecha y hora exacta del dictamen — inmutable')
+
+    class Meta:
+        db_table = 'revision_proyecto'
+        verbose_name = 'Revisión de Proyecto'
+        verbose_name_plural = 'Revisiones de Proyectos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Revisión #{self.id} — {self.decision} — proyecto#{self.proyecto_id}'
+
+
+class HistorialEstadoProyecto(models.Model):
+    """
+    T-65/T-66: Registro inmutable (append-only) de todos los cambios
+    de estado de cualquier proyecto. Se escribe en cada transición:
+    envío a revisión, aprobación, observación, corrección, etc.
+    """
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='historial_estados',
+        help_text='Proyecto cuyo estado cambió')
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='cambios_estado_proyecto',
+        help_text='Usuario que realizó el cambio de estado')
+    estado_anterior = models.CharField(
+        max_length=30, blank=True, default='',
+        help_text='Estado previo del proyecto')
+    estado_nuevo = models.CharField(
+        max_length=30,
+        help_text='Nuevo estado asignado')
+    comentario = models.TextField(
+        blank=True, default='',
+        help_text='Motivo del cambio, observación técnica, etc.')
+    ip_address = models.GenericIPAddressField(
+        null=True, blank=True,
+        help_text='IP del cliente que realizó la acción')
+    created_at = models.DateTimeField(
+        default=timezone.now, editable=False,
+        help_text='Timestamp inmutable del cambio de estado')
+
+    class Meta:
+        db_table = 'historial_estado_proyecto'
+        verbose_name = 'Historial de Estado de Proyecto'
+        verbose_name_plural = 'Historial de Estados de Proyectos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return (f'Proyecto#{self.proyecto_id}: '
+                f'{self.estado_anterior} → {self.estado_nuevo} '
+                f'por {self.usuario_id}')
+
+
+class Notificacion(models.Model):
+    """
+    T-71: Notificaciones internas de la plataforma.
+    Se crea automáticamente cuando el Departamento emite un dictamen,
+    notificando al docente responsable del resultado.
+    """
+    TIPOS = [
+        ('aprobacion', 'Aprobación'),
+        ('observacion', 'Observación'),
+        ('envio_revision', 'Enviado a Revisión'),
+        ('correccion', 'Corrección Enviada'),
+    ]
+
+    destinatario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='notificaciones',
+        help_text='Usuario que recibe la notificación (docente responsable)')
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE,
+        null=True, blank=True, related_name='notificaciones',
+        help_text='Proyecto al que hace referencia la notificación')
+    tipo = models.CharField(
+        max_length=50, choices=TIPOS,
+        help_text='Tipo de evento que originó la notificación')
+    titulo = models.CharField(
+        max_length=300,
+        help_text='Título breve de la notificación')
+    mensaje = models.TextField(
+        help_text='Detalle completo: resultado, evaluador, fecha, comentario técnico si aplica')
+    leida = models.BooleanField(
+        default=False,
+        help_text='Si el destinatario ya leyó la notificación')
+    leida_en = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Timestamp cuando fue marcada como leída')
+    created_at = models.DateTimeField(
+        default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = 'notificaciones'
+        verbose_name = 'Notificación'
+        verbose_name_plural = 'Notificaciones'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[{self.tipo}] → {self.destinatario_id}: {self.titulo}'

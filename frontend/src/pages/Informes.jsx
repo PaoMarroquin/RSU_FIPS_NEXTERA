@@ -195,10 +195,42 @@ const Informes = () => {
                           <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Facultad / Escuela / Dept:</td><td className="p-2">Facultad de {matrizSeleccionada.facultad_nombre} / {matrizSeleccionada.escuela_nombre} / {matrizSeleccionada.departamento_nombre}</td></tr>
                           <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Semestre y Periodo:</td><td className="p-2 font-mono">Semestre {matrizSeleccionada.semestre_academico} / Periodo {matrizSeleccionada.periodo_nombre || matrizSeleccionada.periodo}</td></tr>
                           <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Lugar de Ejecución:</td><td className="p-2">{matrizSeleccionada.lugar_ejecucion || 'No especificado'}</td></tr>
-                          <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Beneficiarios Indirectos:</td><td className="p-2">{matrizSeleccionada.benef_otro_detalle || 'Ninguno especificado'}</td></tr>
-                          <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Eje RSU y Detalle:</td><td className="p-2">Eje ID: {matrizSeleccionada.eje_rsu} — {matrizSeleccionada.eje_detalle}</td></tr>
+                          <tr className="border-b border-slate-300">
+                            <td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Eje RSU y Detalles:</td>
+                            <td className="p-2">
+                              <div className="font-semibold text-slate-800 mb-1">{matrizSeleccionada.eje_rsu_nombre || `Eje ID: ${matrizSeleccionada.eje_rsu}`}</div>
+                              {matrizSeleccionada.ejes_subitems && matrizSeleccionada.ejes_subitems.length > 0 ? (
+                                <ul className="list-disc list-inside text-slate-600 pl-2">
+                                  {matrizSeleccionada.ejes_subitems.map((subitem, idx) => (
+                                    <li key={idx}>
+                                      {subitem.sub_eje_nombre}
+                                      {subitem.detalle ? <span className="italic text-slate-500"> — {subitem.detalle}</span> : ""}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="italic text-slate-400">Sin detalles adicionales</span>
+                              )}
+                            </td>
+                          </tr>
                           <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Metas e Indicador:</td><td className="p-2"><b>Indicador:</b> {matrizSeleccionada.indicador} <br/> <b>Meta:</b> {matrizSeleccionada.meta_cuantitativa}</td></tr>
-                          <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Tipo de Actividad (Otro):</td><td className="p-2">{matrizSeleccionada.tipo_actividad_otro || 'No declarado'}</td></tr>
+                          <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Tipo de Actividad:</td><td className="p-2">
+                            {(() => {
+                              const labels = {
+                                'programas_formativos': 'Programas formativos',
+                                'acompanamiento': 'Acompañamiento a sectores identificados',
+                                'asesoria': 'Asesoría',
+                                'acercamiento_comunidad': 'Iniciativas de acercamiento a la comunidad',
+                                'otro': 'Otros',
+                              };
+                              const tipos = matrizSeleccionada.tipo_actividad || [];
+                              if (tipos.length > 0) {
+                                return tipos.map(t => labels[t] || t).join(', ') + 
+                                  (matrizSeleccionada.tipo_actividad_otro ? ` — ${matrizSeleccionada.tipo_actividad_otro}` : '');
+                              }
+                              return matrizSeleccionada.tipo_actividad_otro || 'No declarado';
+                            })()}
+                          </td></tr>
                           <tr>
                             <td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Control de Fechas (Hitos):</td>
                             <td className="p-2 font-mono grid grid-cols-2 gap-1 text-[11px]">

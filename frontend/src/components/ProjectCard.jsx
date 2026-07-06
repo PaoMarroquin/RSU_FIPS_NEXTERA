@@ -81,23 +81,27 @@ export default function ProjectCard({ id, title, author, faculty, progress, stat
           {tag || "Sin Eje"}
         </span>
 
-        {/* ACCIONES (Editar y Eliminar) */}
+        {/* ACCIONES (Editar y Eliminar) — solo si el rol tiene permiso */}
         <div className="flex items-center gap-1">
-          <button 
-            onClick={onEdit}
-            title="Editar proyecto"
-            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-          >
-            <FiEdit2 className="w-4 h-4" />
-          </button>
+          {onEdit && (
+            <button 
+              onClick={onEdit}
+              title="Editar proyecto"
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+            >
+              <FiEdit2 className="w-4 h-4" />
+            </button>
+          )}
           
-          <button 
-            onClick={onDelete}
-            title="Eliminar proyecto"
-            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-          >
-            <FiTrash2 className="w-4 h-4" />
-          </button>
+          {onDelete && (
+            <button 
+              onClick={onDelete}
+              title="Eliminar proyecto"
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+            >
+              <FiTrash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

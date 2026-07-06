@@ -6,6 +6,7 @@ from .models import (
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
     FuenteFinanciamiento, TipoBeneficiario, ProyectoEjeSubitem,
+    RevisionProyecto, Notificacion, HistorialEstadoProyecto
 )
 from apps.planificacion.models import ODS, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
@@ -85,12 +86,12 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
 
     def validate_cantidad(self, value):
         if value < 1:
-            raise serializers.ValidationError('La cantidad debe ser al menos 1.')
+            raise serializers.ValidationError({'cantidad': 'La cantidad debe ser al menos 1.'})
         return value
 
     def validate_costo_unitario(self, value):
-        if value <= 0:
-            raise serializers.ValidationError('El costo unitario debe ser mayor a 0.')
+        if value < 0:
+            raise serializers.ValidationError({'costo_unitario': 'El costo unitario no puede ser negativo.'})
         return value
 
     def validate(self, attrs):
@@ -160,6 +161,43 @@ class ProyectoEjeSubitemSerializer(serializers.ModelSerializer):
         fields = ['id', 'sub_eje', 'sub_eje_clave', 'sub_eje_nombre', 'detalle']
 
 
+class RevisionProyectoSerializer(serializers.ModelSerializer):
+    revisor_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RevisionProyecto
+        fields = [
+            'id', 'decision', 'comentario_tecnico', 'revisor_nombre',
+            'estado_anterior', 'estado_nuevo', 'created_at'
+        ]
+        
+    def get_revisor_nombre(self, obj):
+        return f"{obj.revisor.nombres} {obj.revisor.apellidos}".strip()
+
+
+class HistorialEstadoProyectoSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HistorialEstadoProyecto
+        fields = [
+            'id', 'estado_anterior', 'estado_nuevo', 'comentario',
+            'usuario_nombre', 'created_at'
+        ]
+
+    def get_usuario_nombre(self, obj):
+        return f"{obj.usuario.nombres} {obj.usuario.apellidos}".strip()
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacion
+        fields = [
+            'id', 'proyecto', 'tipo', 'titulo', 'mensaje',
+            'leida', 'leida_en', 'created_at'
+        ]
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Main serializer
 # ──────────────────────────────────────────────────────────────────────────────
@@ -173,6 +211,10 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
     ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
     fuentes_financiamiento = FuenteFinanciamientoSerializer(many=True, read_only=True)
+    
+    # History and Reviews (Read-only)
+    revisiones = RevisionProyectoSerializer(many=True, read_only=True)
+    historial_estados = HistorialEstadoProyectoSerializer(many=True, read_only=True)
 
     # Read-only display fields
     beneficiarios_info = serializers.SerializerMethodField(read_only=True)
@@ -292,17 +334,21 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'conclusiones', 'recomendaciones',
             'lecciones_aprendidas', 'medio_difusion',
             'documentos_sustento',
+
+            # ── Fechas y Estado ───────────────────────────────────────────
             'created_at', 'updated_at',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
+
+            # ── Historial y Revisiones (Módulo 4) ─────────────────────────
+            'revisiones', 'historial_estados',
         ]
         read_only_fields = [
-            'codigo', 'estado', 'docente_responsable',
-            'es_continuacion', 'proyecto_origen',
+            'codigo', 'estado', 'created_at', 'updated_at',
+            'docente_responsable', 'es_continuacion', 'proyecto_origen',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
             'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',
-            'created_at', 'updated_at',
         ]
 
     def get_beneficiarios_info(self, obj):

@@ -18,6 +18,12 @@ import {
 export default function Proyectos() {
   const navigate = useNavigate();
 
+  // Rol del usuario autenticado
+  const userRole = localStorage.getItem('user_role') || '';
+  const canCreate = userRole === 'Docente' || userRole === 'Administrador';
+  const canEdit   = userRole === 'Docente' || userRole === 'Administrador';
+  const canDelete  = userRole === 'Administrador';
+
   // HOOKS DE ESTADO PARA LA API
   const [projectsDb, setProjectsDb] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -148,14 +154,16 @@ export default function Proyectos() {
               </p>
             </div>
 
-            {/* Cambiado para invocar la función de limpieza y reseteo */}
-            <button
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8e0e22] transition-colors shadow-sm"
-              onClick={handleNuevoProyecto}
-            >
-              <FiPlus className="w-4 h-4" />
-              Nuevo Proyecto
-            </button>
+            {/* Solo Docente y Administrador pueden crear proyectos */}
+            {canCreate && (
+              <button
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8e0e22] transition-colors shadow-sm"
+                onClick={handleNuevoProyecto}
+              >
+                <FiPlus className="w-4 h-4" />
+                Nuevo Proyecto
+              </button>
+            )}
           </div>
 
           {/* FILTROS */}
@@ -235,8 +243,8 @@ export default function Proyectos() {
                     <ProjectCard
                       key={project.dbId}
                       {...project} 
-                      onEdit={() => handleEdit(project.dbId)}
-                      onDelete={() => handleDelete(project.dbId)}
+                      onEdit={canEdit ? () => handleEdit(project.dbId) : null}
+                      onDelete={canDelete ? () => handleDelete(project.dbId) : null}
                     />
                   ))}
                 </div>
