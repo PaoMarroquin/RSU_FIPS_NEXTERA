@@ -212,6 +212,23 @@ export const useFormRSU = () => {
     localStorage.removeItem('rsu_draft');
     navigate('/proyectos');
   };
+  
+  const enviarARevision = async (proyectoId) => {
+    try {
+      await api.post(`/api/v1/proyectos/${proyectoId}/revisar/`);
+      return true;
+    } catch (error) {
+      console.error("Error al enviar a revisión:", error);
+
+      if (error.response?.data?.detail) {
+        alert(error.response.data.detail);
+      } else {
+        alert("No se pudo enviar el proyecto a revisión.");
+      }
+
+      return false;
+    }
+  };
 
   // FUNCIÓN PARA ENVIAR AL ENDPOINT CON AXIOS
   // modo: 'BORRADOR' (solo guarda) | 'EN_REVISION' (guarda y luego llama /enviar-revision/)
@@ -539,6 +556,7 @@ export const useFormRSU = () => {
     prevStep, 
     goToStep, 
     handleCancelar,
-    enviarProyectoBackend
+    enviarProyectoBackend,
+    enviarARevision,
   };
 };

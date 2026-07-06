@@ -47,12 +47,8 @@ export default function NuevoProyecto() {
 
   // ACCIÓN BOTÓN CANCELAR: Guarda el avance actual como 'BORRADOR' en Django y redirige
   const handleCancelarYGuardarBorrador = async () => {
-    if (!window.confirm("¿Deseas salir? Tu progreso se guardará automáticamente en el servidor como BORRADOR.")) return;
-    
-    const exito = await enviarProyectoBackend('BORRADOR');
-    if (exito) {
+      localStorage.removeItem('rsu_draft');
       navigate('/proyectos'); 
-    }
   };
 
   // ACCIÓN BOTÓN FINALIZAR: Guarda todo el proyecto como 'EN_REVISION' en Django y redirige
