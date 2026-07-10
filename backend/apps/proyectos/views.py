@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import generics, status, serializers, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from apps.utils.permissions import (
     IsOwnerOrReadOnly, IsDocente, IsDepartamento, IsAdministrador
 )
@@ -113,6 +115,31 @@ def _validar_campos_obligatorios(proyecto):
     if not proyecto.asignaturas.exists():
         errores['asignaturas'] = 'Debe registrar al menos una asignatura vinculada (1.5).'
 
+    errores.update(_validar_indicadores_y_presupuesto(proyecto))
+
+    return errores
+
+
+def _validar_indicadores_y_presupuesto(proyecto):
+    """HU-05 AC#2/AC#3: indicador cuantitativo obligatorio y presupuesto > 0 antes de enviar a revisión."""
+    errores = {}
+
+    if not proyecto.metas_indicadores.filter(valor_meta__isnull=False).exists():
+        errores['metas_indicadores'] = (
+            'Debe definir al menos un indicador de cumplimiento cuantitativo '
+            '(con meta numérica) antes de enviar a revisión.'
+        )
+
+    total_presupuesto = sum(
+        (p.monto_presupuestado for p in proyecto.partidas_presupuesto.all()),
+        Decimal('0'),
+    )
+    if total_presupuesto <= 0:
+        errores['presupuesto'] = (
+            'Debe registrar al menos una partida presupuestaria con monto '
+            'mayor a cero antes de enviar a revisión.'
+        )
+
     return errores
 
 
@@ -157,6 +184,15 @@ def _filter_proyectos_por_rol(qs, user):
             Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
         ).distinct()
     return qs.none()
+
+
+def _verificar_proyecto_visible(pk, user):
+    """Lanza 404 si el proyecto no es visible para el usuario según su rol
+    (mismo criterio que ProyectoListCreateView). Usar en get_queryset() de los
+    sub-recursos (actividades, cronograma, presupuesto, indicadores) para que
+    la lectura respete el mismo scope que ya se aplica a escritura."""
+    if not _filter_proyectos_por_rol(ProyectoRSU.objects.all(), user).filter(pk=pk).exists():
+        raise Http404
 
 
 class ProyectoListCreateView(generics.ListCreateAPIView):
@@ -289,6 +325,7 @@ class ActividadProyectoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return ActividadProyecto.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -304,6 +341,7 @@ class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -320,6 +358,7 @@ class CronogramaAccionListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return CronogramaAccion.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -335,6 +374,7 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return CronogramaAccion.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -361,6 +401,7 @@ class PartidaPresupuestariaListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return PartidaPresupuestaria.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -376,6 +417,7 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return PartidaPresupuestaria.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -392,6 +434,7 @@ class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def perform_create(self, serializer):
@@ -405,6 +448,7 @@ class FuenteFinanciamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -426,7 +470,9 @@ class PresupuestoResumenView(APIView):
 
     def get(self, request, proyecto_pk):
         proyecto = get_object_or_404(
-            ProyectoRSU.objects.select_related('docente_responsable'),
+            _filter_proyectos_por_rol(
+                ProyectoRSU.objects.select_related('docente_responsable'), request.user
+            ),
             pk=proyecto_pk,
         )
         partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
@@ -533,6 +579,7 @@ class MetaIndicadorProyectoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return MetaIndicadorProyecto.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -548,6 +595,7 @@ class MetaIndicadorProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return MetaIndicadorProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):

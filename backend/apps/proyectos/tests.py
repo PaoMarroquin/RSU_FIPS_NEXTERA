@@ -1,9 +1,15 @@
+from decimal import Decimal
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.test import APITestCase
 from apps.usuarios.models import Usuario, Rol, Facultad, EscuelaProfesional, DepartamentoAcademico
 from apps.planificacion.models import PeriodoAcademico, MatrizOperativa, EjeRSU, ODS, LineaEstrategica, ObjetivoInstitucional
-from apps.proyectos.models import ProyectoRSU, ActividadProyecto, CronogramaAccion
+from apps.proyectos.models import (
+    ProyectoRSU, ActividadProyecto, CronogramaAccion,
+    PartidaPresupuestaria, MetaIndicadorProyecto, DocumentoSustentoProyecto,
+)
 
 class ProyectosAPITests(APITestCase):
 
@@ -144,13 +150,16 @@ class ProyectosAPITests(APITestCase):
             estado='borrador'
         )
 
-        # Authenticate with docente_user_2 (not the owner)
+        # Authenticate with docente_user_2 (not the owner). get_queryset() scopes
+        # a Docente to their own projects, so a non-owner's request 404s before
+        # IsOwnerOrReadOnly is ever consulted (same pattern as the list view) -
+        # this also avoids leaking the existence of other teachers' projects.
         self.client.force_authenticate(user=self.docente_user_2)
         url = reverse('proyecto-detail', args=[proyecto.id])
         data = {'titulo': 'Titulo modificado ilegalmente'}
-        
+
         response = self.client.patch(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
         # Authenticate with docente_user (the owner)
         self.client.force_authenticate(user=self.docente_user)
@@ -180,7 +189,10 @@ class ProyectosAPITests(APITestCase):
         
         response = self.client.patch(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("No se puede editar un proyecto que está en revisión", response.data[0])
+        self.assertIn(
+            "No se puede editar un proyecto que está en revisión",
+            response.data['errors']['non_field_errors'][0],
+        )
 
     def test_validation_before_sending_to_review(self):
         """
@@ -200,13 +212,15 @@ class ProyectosAPITests(APITestCase):
         )
 
         self.client.force_authenticate(user=self.docente_user)
-        url = reverse('proyecto-enviar-revision', args=[proyecto.id])
-        
+        url = reverse('proyecto-revisar', args=[proyecto.id])
+
         # Try sending to review - should fail
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('ods', response.data['errors'])
         self.assertIn('asignaturas', response.data['errors'])
+        self.assertIn('metas_indicadores', response.data['errors'])
+        self.assertIn('presupuesto', response.data['errors'])
 
         # 2. Complete all required fields and relationships
         proyecto.fund_por_que_grupo = 'Completado'
@@ -215,7 +229,7 @@ class ProyectosAPITests(APITestCase):
         proyecto.diag_estado_grupo = 'Completado'
         proyecto.diag_problemas_detectados = 'Completado'
         proyecto.diag_aportes_formacion = 'Completado'
-        proyecto.objetivo_general = 'Completado'
+        proyecto.obj_logro_intervencion = 'Completado'
         proyecto.resultado_en_beneficiarios = 'Completado'
         proyecto.resultado_en_curriculo = 'Completado'
         proyecto.linea_estrategica = self.linea
@@ -227,24 +241,36 @@ class ProyectosAPITests(APITestCase):
         proyecto.fecha_inicio = '2026-01-01'
         proyecto.fecha_termino = '2026-12-31'
         proyecto.tipo_actividad = ['asesoria']
-        proyecto.benef_otro = True
+        proyecto.benef_otro_detalle = 'Comunidad universitaria'
         proyecto.save()
-        
+
         proyecto.ods.add(self.ods_1)
-        
-        from apps.proyectos.models import ProyectoAsignatura
+
+        from apps.proyectos.models import ProyectoAsignatura, MetaIndicadorProyecto, PartidaPresupuestaria
         ProyectoAsignatura.objects.create(
             proyecto=proyecto,
             nombre_asignatura='Curso Prueba',
             anio_carrera=1,
             semestre='I'
         )
+        MetaIndicadorProyecto.objects.create(
+            proyecto=proyecto,
+            meta_descripcion='Capacitar a 50 docentes en reciclaje',
+            indicador_nombre='Nro de docentes capacitados',
+            valor_meta=50,
+        )
+        PartidaPresupuestaria.objects.create(
+            proyecto=proyecto,
+            categoria='material_escritorio',
+            cantidad=10,
+            costo_unitario=15,
+        )
 
         # Try sending to review again - should succeed
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['proyecto']['estado'], 'en_revision')
-        self.assertIsNotNone(response.data['proyecto']['fecha_envio_revision'])
+        self.assertEqual(response.data['estado'], 'en_revision')
+        self.assertIsNotNone(response.data['fecha_envio_revision'])
 
     def test_docente_can_delete_draft_project(self):
         """
@@ -408,7 +434,16 @@ class ActividadesAPITests(BaseProyectoTestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data['results']), 2)
+
+    def test_no_propietario_no_puede_listar_actividades(self):
+        ActividadProyecto.objects.create(proyecto=self.proyecto_borrador, nombre='Act 1', orden=1)
+
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('actividad-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_docente_puede_agregar_actividad_a_proyecto_borrador(self):
         self.client.force_authenticate(user=self.docente)
@@ -483,7 +518,7 @@ class CronogramaAPITests(BaseProyectoTestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data['results']), 2)
 
     def test_docente_puede_agregar_accion_cronograma(self):
         self.client.force_authenticate(user=self.docente)
@@ -545,3 +580,155 @@ class CronogramaAPITests(BaseProyectoTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(CronogramaAccion.objects.filter(id=accion.id).exists())
+
+
+class PresupuestoAPITests(BaseProyectoTestCase):
+
+    def test_listar_partidas_del_proyecto(self):
+        PartidaPresupuestaria.objects.create(
+            proyecto=self.proyecto_borrador, categoria='refrigerio', cantidad=2, costo_unitario=10)
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('presupuesto-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+
+    def test_no_propietario_no_puede_listar_partidas(self):
+        PartidaPresupuestaria.objects.create(
+            proyecto=self.proyecto_borrador, categoria='refrigerio', cantidad=2, costo_unitario=10)
+
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('presupuesto-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_docente_puede_agregar_partida_presupuestaria(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('presupuesto-list', args=[self.proyecto_borrador.id])
+        data = {'categoria': 'transporte', 'cantidad': 3, 'costo_unitario': '15.00'}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['monto_presupuestado'], Decimal('45.00'))
+
+    def test_partida_otros_requiere_descripcion(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('presupuesto-list', args=[self.proyecto_borrador.id])
+        data = {'categoria': 'otros', 'cantidad': 1, 'costo_unitario': '10.00'}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_no_propietario_no_puede_agregar_partida(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('presupuesto-list', args=[self.proyecto_borrador.id])
+        data = {'categoria': 'transporte', 'cantidad': 1, 'costo_unitario': '10.00'}
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class MetasIndicadoresAPITests(BaseProyectoTestCase):
+
+    def test_listar_metas_indicadores_del_proyecto(self):
+        MetaIndicadorProyecto.objects.create(
+            proyecto=self.proyecto_borrador,
+            meta_descripcion='Capacitar a 50 docentes',
+            indicador_nombre='Nro de docentes capacitados',
+            valor_meta=50,
+        )
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('meta-indicador-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)
+
+    def test_no_propietario_no_puede_listar_metas_indicadores(self):
+        MetaIndicadorProyecto.objects.create(
+            proyecto=self.proyecto_borrador,
+            meta_descripcion='Capacitar a 50 docentes',
+            indicador_nombre='Nro de docentes capacitados',
+            valor_meta=50,
+        )
+
+        self.client.force_authenticate(user=self.otro_docente)
+        url = reverse('meta-indicador-list', args=[self.proyecto_borrador.id])
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_docente_puede_agregar_meta_indicador(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('meta-indicador-list', args=[self.proyecto_borrador.id])
+        data = {
+            'meta_descripcion': 'Capacitar a 50 docentes',
+            'indicador_nombre': 'Nro de docentes capacitados',
+            'linea_base': 0,
+            'valor_meta': 50,
+        }
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_valor_meta_debe_superar_linea_base(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('meta-indicador-list', args=[self.proyecto_borrador.id])
+        data = {
+            'meta_descripcion': 'Capacitar a 50 docentes',
+            'indicador_nombre': 'Nro de docentes capacitados',
+            'linea_base': 50,
+            'valor_meta': 10,
+        }
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_no_puede_agregar_meta_indicador_a_proyecto_en_revision(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('meta-indicador-list', args=[self.proyecto_en_revision.id])
+        data = {
+            'meta_descripcion': 'Meta bloqueada',
+            'indicador_nombre': 'Indicador bloqueado',
+            'valor_meta': 10,
+        }
+
+        response = self.client.post(url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class DocumentoSustentoValidationTests(BaseProyectoTestCase):
+
+    def test_extension_no_permitida_es_rechazada(self):
+        documento = DocumentoSustentoProyecto(
+            proyecto=self.proyecto_borrador,
+            archivo=SimpleUploadedFile('malware.exe', b'contenido', content_type='application/octet-stream'),
+        )
+        with self.assertRaises(ValidationError):
+            documento.full_clean()
+
+    def test_pdf_es_aceptado(self):
+        documento = DocumentoSustentoProyecto(
+            proyecto=self.proyecto_borrador,
+            archivo=SimpleUploadedFile('sustento.pdf', b'%PDF-1.4 contenido', content_type='application/pdf'),
+        )
+        documento.full_clean()
+
+    def test_archivo_demasiado_grande_es_rechazado(self):
+        contenido_grande = b'0' * (11 * 1024 * 1024)  # 11MB > limite de 10MB
+        documento = DocumentoSustentoProyecto(
+            proyecto=self.proyecto_borrador,
+            archivo=SimpleUploadedFile('sustento.pdf', contenido_grande, content_type='application/pdf'),
+        )
+        with self.assertRaises(ValidationError):
+            documento.full_clean()

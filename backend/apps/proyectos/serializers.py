@@ -412,8 +412,11 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 {'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'})
 
     def _validate_benef_otro(self, attrs):
-        beneficiarios = self._get(attrs, 'beneficiarios')
-        if beneficiarios is None:
+        if 'beneficiarios' in attrs:
+            beneficiarios = attrs['beneficiarios']
+        elif self.instance is not None:
+            beneficiarios = self.instance.beneficiarios.all()
+        else:
             return
         codigos = [b.codigo for b in beneficiarios]
         if 'otro' in codigos:

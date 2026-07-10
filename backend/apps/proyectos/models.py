@@ -1,8 +1,19 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
 from apps.planificacion.models import PeriodoAcademico, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, ODS
+
+DOCUMENTO_SUSTENTO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx']
+DOCUMENTO_SUSTENTO_MAX_SIZE_MB = 10
+
+
+def validate_documento_sustento_size(archivo):
+    if archivo.size > DOCUMENTO_SUSTENTO_MAX_SIZE_MB * 1024 * 1024:
+        raise ValidationError(
+            f'El archivo no puede superar los {DOCUMENTO_SUSTENTO_MAX_SIZE_MB}MB.')
 
 
 class TipoBeneficiario(models.Model):
@@ -452,7 +463,13 @@ class DocumentoSustentoProyecto(models.Model):
     """
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='documentos_sustento')
-    archivo = models.FileField(upload_to='proyectos/sustento/')
+    archivo = models.FileField(
+        upload_to='proyectos/sustento/',
+        validators=[
+            FileExtensionValidator(allowed_extensions=DOCUMENTO_SUSTENTO_EXTENSIONS),
+            validate_documento_sustento_size,
+        ],
+    )
     nombre = models.CharField(max_length=255, blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
