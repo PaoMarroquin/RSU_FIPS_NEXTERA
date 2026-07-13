@@ -74,8 +74,6 @@ def _validar_campos_obligatorios(proyecto):
 
     req_text('titulo', 'El título del proyecto')
     req_text('semestre_academico', 'El semestre académico')
-    req_text('meta_cuantitativa', 'La meta cuantificable (1.12)')
-    req_text('indicador', 'El indicador (1.13)')
     req_text('lugar_ejecucion', 'El lugar de ejecución (1.18)')
     req_text('fund_por_que_grupo', '¿Por qué se eligió el grupo beneficiario?')
     req_text('fund_para_que_proyecto', '¿Para qué servirá el proyecto?')

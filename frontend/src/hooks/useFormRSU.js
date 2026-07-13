@@ -13,7 +13,7 @@ const mockInitialData = {
   eje_rsu: null, ejes_subitems: [], eje_detalle: "",
   tiposActividad: [],
   tipoActividadOtro: '',
-  meta: '', indicador: '',
+  metas_indicadores: [],
   fechaInicio: '', fechaEvaluacion: '', fechaTermino: '',
   encuestaDocentes: '', encuestaEstudiantes: '', encuestaDestinatarios: '',
 
@@ -79,8 +79,7 @@ const VALIDACIONES = {
     numDocentes: (data) => isNumberValid(data.numDocentes),
     numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
     eje_rsu: (data) => isIdValid(data.eje_rsu),
-    meta: (data) => isTextValid(data.meta),
-    indicador: (data) => isTextValid(data.indicador),
+    metas_indicadores: (data) => Array.isArray(data.metas_indicadores) && data.metas_indicadores.some(item => (item.meta_descripcion || '').trim() && (item.indicador_nombre || '').trim()),
     fechaInicio: (data) => isTextValid(data.fechaInicio),
     fechaTermino: (data) => isTextValid(data.fechaTermino),
   },
@@ -276,8 +275,19 @@ export const useFormRSU = () => {
         tipo_actividad: formData.tiposActividad || [],
         tipo_actividad_otro: formData.tipoActividadOtro || "",
         
-        meta_cuantitativa: formData.meta || "",
-        indicador: formData.indicador || "",
+        metas_indicadores: (formData.metas_indicadores || [])
+          .filter(item => (item.meta_descripcion || '').trim() || (item.indicador_nombre || '').trim())
+          .map(item => ({
+            meta_descripcion: item.meta_descripcion || "",
+            indicador_nombre: item.indicador_nombre || "",
+            unidad_medida: item.unidad_medida || "",
+            linea_base: item.linea_base === '' || item.linea_base === null ? null : Number(item.linea_base),
+            valor_meta: item.valor_meta === '' || item.valor_meta === null ? null : Number(item.valor_meta),
+            valor_alcanzado: item.valor_alcanzado === '' || item.valor_alcanzado === null ? null : Number(item.valor_alcanzado),
+            metodo_verificacion: item.metodo_verificacion || "",
+            fuente_verificacion: item.fuente_verificacion || "",
+            orden: item.orden || 0,
+          })),
         
         // Control de fechas vacías (mandar null si están vacías para evitar errores 400 del backend)
         fecha_inicio: formData.fechaInicio || null,

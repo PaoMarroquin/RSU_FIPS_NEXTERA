@@ -130,6 +130,7 @@ class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
             'porcentaje_avance',
             'metodo_verificacion', 'fuente_verificacion', 'orden',
         ]
+        read_only_fields = ['id']
 
     def get_porcentaje_avance(self, obj):
         """Calcula el avance respecto a la meta. Retorna None si no hay datos suficientes."""
@@ -209,6 +210,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     actividades = ActividadProyectoSerializer(many=True, required=False)
     cronograma = CronogramaAccionSerializer(many=True, required=False)
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
+    metas_indicadores = MetaIndicadorProyectoSerializer(many=True, required=False)
     ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
     fuentes_financiamiento = FuenteFinanciamientoSerializer(many=True, read_only=True)
     
@@ -266,8 +268,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             # 1.11 - 1.18
             'tipo_actividad', 'tipo_actividad_display', 'tipo_actividad_otro',
-            'meta_cuantitativa',
-            'indicador',
+            'metas_indicadores',
             'fecha_inicio',
             'fecha_evaluacion_avance',
             'fecha_termino',
@@ -468,6 +469,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'actividades':           ActividadProyecto,
             'cronograma':            CronogramaAccion,
             'documentos_sustento':   DocumentoSustentoProyecto,
+            'metas_indicadores':     MetaIndicadorProyecto,
         }
         for attr, items in data_map.items():
             if items is None:
@@ -492,6 +494,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         actividades_data   = validated_data.pop('actividades', [])
         cronograma_data    = validated_data.pop('cronograma', [])
         documentos_data    = validated_data.pop('documentos_sustento', [])
+        metas_data         = validated_data.pop('metas_indicadores', [])
         ods_data           = validated_data.pop('ods', [])
         beneficiarios_data = validated_data.pop('beneficiarios', [])
         subitems_data      = validated_data.pop('ejes_subitems', [])
@@ -512,6 +515,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'actividades':           actividades_data,
                 'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
+                'metas_indicadores':     metas_data,
             }, replace=False)
             self._save_ejes_subitems(proyecto, subitems_data, replace=False)
 
@@ -527,6 +531,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         actividades_data   = validated_data.pop('actividades', None)
         cronograma_data    = validated_data.pop('cronograma', None)
         documentos_data    = validated_data.pop('documentos_sustento', None)
+        metas_data         = validated_data.pop('metas_indicadores', None)
         ods_data           = validated_data.pop('ods', None)
         beneficiarios_data = validated_data.pop('beneficiarios', None)
         subitems_data      = validated_data.pop('ejes_subitems', None)
@@ -548,6 +553,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'actividades':           actividades_data,
                 'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
+                'metas_indicadores':     metas_data,
             }, replace=True)
             self._save_ejes_subitems(instance, subitems_data, replace=True)
 

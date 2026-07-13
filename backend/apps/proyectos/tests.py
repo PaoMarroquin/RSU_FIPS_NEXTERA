@@ -15,7 +15,7 @@ class ProyectosAPITests(APITestCase):
 
     def setUp(self):
         # Retrieve seeded roles
-        self.rol_coord = Rol.objects.get(nombre='Coordinador')
+        self.rol_coord = Rol.objects.get(nombre='Jefatura RSU')
         self.rol_docente = Rol.objects.get(nombre='Docente')
 
         # Retrieve seeded ejes and ODS
@@ -133,6 +133,40 @@ class ProyectosAPITests(APITestCase):
         self.assertEqual(len(response.data['docentes_adicionales']), 1)
         self.assertEqual(response.data['docentes_adicionales'][0]['docente'], self.docente_user_2.id)
 
+    def test_docente_can_save_project_with_nested_metas_indicadores(self):
+        """
+        Verify that a project can be saved using the new metas_indicadores relationship.
+        """
+        self.client.force_authenticate(user=self.docente_user)
+        url = reverse('proyecto-list')
+
+        data = {
+            'titulo': 'Proyecto con metas anidadas',
+            'eje_rsu': self.eje_gestion.id,
+            'periodo': self.periodo.id,
+            'facultad': self.facultad.id,
+            'escuela': self.escuela.id,
+            'departamento': self.departamento.id,
+            'semestre_academico': '2026-I',
+            'metas_indicadores': [
+                {
+                    'meta_descripcion': 'Capacitar a 50 docentes',
+                    'indicador_nombre': 'Nro. de docentes capacitados',
+                    'linea_base': 10,
+                    'valor_meta': 50,
+                    'valor_alcanzado': 15,
+                }
+            ],
+        }
+
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        proyecto = ProyectoRSU.objects.get(pk=response.data['id'])
+        self.assertEqual(proyecto.metas_indicadores.count(), 1)
+        meta = proyecto.metas_indicadores.first()
+        self.assertEqual(meta.meta_descripcion, 'Capacitar a 50 docentes')
+        self.assertEqual(meta.valor_meta, Decimal('50'))
+
     def test_only_owner_can_modify_project(self):
         """
         Verify that only the responsible teacher can modify a draft project.
@@ -235,9 +269,14 @@ class ProyectosAPITests(APITestCase):
         proyecto.linea_estrategica = self.linea
         proyecto.objetivo_institucional = self.objetivo
         proyecto.anio_carrera = 1
-        proyecto.meta_cuantitativa = '50 beneficiarios'
-        proyecto.indicador = 'Nro de beneficiarios'
         proyecto.lugar_ejecucion = 'Arequipa'
+        MetaIndicadorProyecto.objects.create(
+            proyecto=proyecto,
+            meta_descripcion='Capacitar a 50 beneficiarios',
+            indicador_nombre='Nro de beneficiarios',
+            linea_base=10,
+            valor_meta=50,
+        )
         proyecto.fecha_inicio = '2026-01-01'
         proyecto.fecha_termino = '2026-12-31'
         proyecto.tipo_actividad = ['asesoria']

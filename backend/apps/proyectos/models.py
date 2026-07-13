@@ -173,14 +173,6 @@ class ProyectoRSU(models.Model):
         max_length=300, blank=True, null=True,
         help_text="1.11 Descripción si se seleccionó 'Otro' como tipo de actividad")
 
-    # 1.12 - 1.13  Meta e indicador
-    meta_cuantitativa = models.CharField(
-        max_length=400, blank=True, null=True,
-        help_text="1.12 Meta cuantificable (ej: Capacitar a 50 docentes)")
-    indicador = models.CharField(
-        max_length=400, blank=True, null=True,
-        help_text="1.13 Indicador propuesto en el plan (ej: N° de docentes capacitados)")
-
     # 1.14 - 1.16 Fechas del ciclo del proyecto
     fecha_inicio = models.DateField(
         null=True, blank=True, help_text="1.14 Fecha de inicio")
