@@ -11,7 +11,10 @@ import RevisionProyectos from "./pages/RevisionProyectos";
 import Configuracion from "./pages/Configuracion";
 import EditarProyecto from './pages/EditarProyecto';
 import Notificaciones from './pages/Notificaciones';
-
+import ListaUsuarios from './pages/usuarios/ListaUsuarios';
+import CrearUsuarios from './pages/usuarios/CrearUsuarios';
+import EditarUsuarios from './pages/usuarios/EditarUsuarios';
+import ExportarUsuarios from './pages/usuarios/ExportarUsuarios';
 
 function App() {
   return (
@@ -28,6 +31,10 @@ function App() {
         <Route path="/repositorio" element={<Repositorio />} />
         <Route path="/notificaciones" element={<Notificaciones />} />
         <Route path="/configuracion" element={<Configuracion />} />
+        <Route path="/usuarios" element={<ListaUsuarios />} />
+        <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
+        <Route path="/usuarios/exportar" element={<ExportarUsuarios />} />
+        <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
       </Routes>
     </BrowserRouter>
   );
