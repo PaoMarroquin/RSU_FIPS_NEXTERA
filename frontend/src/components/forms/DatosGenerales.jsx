@@ -322,7 +322,6 @@ export default function DatosGenerales({ data, updateData }) {
 
 
       {/* 5. META E INDICADOR */}
-      {/* 5. META E INDICADOR */}
       <div>
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Meta e Indicador

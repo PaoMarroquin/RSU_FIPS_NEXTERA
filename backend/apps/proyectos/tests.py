@@ -148,6 +148,7 @@ class ProyectosAPITests(APITestCase):
             'escuela': self.escuela.id,
             'departamento': self.departamento.id,
             'semestre_academico': '2026-I',
+            'ods': [self.ods_1.id],
             'metas_indicadores': [
                 {
                     'meta_descripcion': 'Capacitar a 50 docentes',
@@ -285,7 +286,7 @@ class ProyectosAPITests(APITestCase):
 
         proyecto.ods.add(self.ods_1)
 
-        from apps.proyectos.models import ProyectoAsignatura, MetaIndicadorProyecto, PartidaPresupuestaria
+        from apps.proyectos.models import ProyectoAsignatura
         ProyectoAsignatura.objects.create(
             proyecto=proyecto,
             nombre_asignatura='Curso Prueba',

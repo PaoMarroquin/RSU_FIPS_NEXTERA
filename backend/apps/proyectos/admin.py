@@ -5,7 +5,7 @@ from .models import (
     ProyectoRSU, ProyectoAsignatura, ProyectoDocente,
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, TipoBeneficiario,
-    ProyectoEjeSubitem,
+    ProyectoEjeSubitem, MetaIndicadorProyecto,
 )
 
 TIPO_ACTIVIDAD_CHOICES = [
@@ -98,6 +98,19 @@ class DocumentoSustentoProyectoInline(admin.TabularInline):
     verbose_name_plural = "IX. Documentos adjuntos (PDF, Word, Excel — máx. 10MB)"
 
 
+class MetaIndicadorProyectoInline(admin.TabularInline):
+    model = MetaIndicadorProyecto
+    extra = 1
+    fields = (
+        'orden', 'meta_descripcion', 'indicador_nombre', 'unidad_medida',
+        'linea_base', 'valor_meta', 'valor_alcanzado',
+        'metodo_verificacion', 'fuente_verificacion',
+    )
+    ordering = ['orden']
+    verbose_name = "Meta e Indicador"
+    verbose_name_plural = "── I. (1.12 - 1.13) Metas e Indicadores"
+
+
 @admin.register(ProyectoRSU)
 class ProyectoRSUAdmin(admin.ModelAdmin):
     form = TipoActividadForm
@@ -128,6 +141,7 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
         ProyectoAsignaturaInline,
         ProyectoDocenteInline,
         EjesSubitemsInline,
+        MetaIndicadorProyectoInline,
         ActividadProyectoInline,
         CronogramaAccionInline,
         DocumentoSustentoProyectoInline,
@@ -145,7 +159,6 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
                 'eje_rsu', 'eje_detalle',
                 'linea_estrategica', 'objetivo_institucional', 'ods',
                 'tipo_actividad', 'tipo_actividad_otro',
-                'meta_cuantitativa', 'indicador',
                 'fecha_inicio', 'fecha_evaluacion_avance', 'fecha_termino',
                 'fecha_encuesta_docentes', 'fecha_encuesta_alumnos', 'fecha_encuesta_grupo_destinatario',
                 'periodo', 'docente_responsable', 'anio_carrera', 'es_tesis_quinto_anio',
@@ -234,6 +247,13 @@ class PartidaPresupuestariaAdmin(admin.ModelAdmin):
     list_display = ('proyecto', 'categoria', 'descripcion', 'cantidad', 'costo_unitario', 'monto_ejecutado', 'fuente')
     list_filter = ('categoria', 'tipo_recurso', 'fuente')
     ordering = ['proyecto', 'orden']
+
+
+@admin.register(MetaIndicadorProyecto)
+class MetaIndicadorProyectoAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'orden', 'meta_descripcion', 'indicador_nombre', 'valor_meta', 'valor_alcanzado')
+    ordering = ['proyecto', 'orden']
+    search_fields = ('meta_descripcion', 'indicador_nombre', 'proyecto__codigo')
 
 
 @admin.register(DocumentoSustentoProyecto)

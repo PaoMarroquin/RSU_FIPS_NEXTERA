@@ -64,7 +64,7 @@ export default function Actividades() {
       setActividades(dataActividades || []);
       
       // Mapeamos las metas directamente desde tu 'MetaIndicadorProyectoSerializer' anidado
-      setMetasIndicadores(dataProyectoFull?.meta_indicadores || []);
+      setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
       
     } catch (error) {
       console.error("Error al abrir proyecto:", error);
@@ -85,7 +85,7 @@ export default function Actividades() {
       
       // Opcional: Si el cumplimiento altera los indicadores automáticamente en el back, refrescamos el detalle
       const dataProyectoFull = await authService.getProyectoDetalle(proyectoSeleccionado.id);
-      setMetasIndicadores(dataProyectoFull?.meta_indicadores || []);
+      setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
     } catch (error) {
       mostrarAlerta("error", "No se pudo guardar el cambio de estado en Django.");
     }
