@@ -71,6 +71,9 @@ export default function Sidebar() {
             <Link className={getLinkClass("/evaluacion")} to="/evaluacion">
               <FiCheckSquare className="text-lg" /> Evaluar Proyectos
             </Link>
+            <Link className={getLinkClass("/usuarios")} to="/usuarios">
+              <FiUsers className="text-lg" /> Usuarios
+            </Link>
           </>
         )}
 
