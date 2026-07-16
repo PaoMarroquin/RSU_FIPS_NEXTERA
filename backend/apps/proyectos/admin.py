@@ -6,6 +6,7 @@ from .models import (
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, TipoBeneficiario,
     ProyectoEjeSubitem, MetaIndicadorProyecto,
+    AvanceActividad, EvidenciaAvance,
 )
 
 TIPO_ACTIVIDAD_CHOICES = [
@@ -75,7 +76,7 @@ class EjesSubitemsInline(admin.TabularInline):
 class ActividadProyectoInline(admin.TabularInline):
     model = ActividadProyecto
     extra = 1
-    fields = ('orden', 'nombre', 'descripcion', 'curso_vinculado', 'responsable', 'fecha', 'evidencia_esperada')
+    fields = ('orden', 'nombre', 'descripcion', 'curso_vinculado', 'responsable', 'fecha', 'evidencia_esperada', 'estado')
     ordering = ['orden']
     verbose_name = "Actividad"
     verbose_name_plural = "── VI. Actividades"
@@ -132,7 +133,7 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
     )
     filter_horizontal = ('ods', 'beneficiarios')
     readonly_fields = (
-        'codigo', 'created_at', 'updated_at',
+        'codigo', 'porcentaje_ejecucion', 'created_at', 'updated_at',
         'fecha_envio_revision', 'fecha_aprobacion',
         'fecha_inicio_ejecucion', 'fecha_cierre',
     )
@@ -149,7 +150,7 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Identificación', {
-            'fields': ('codigo', 'estado', 'presentado_con_anticipacion'),
+            'fields': ('codigo', 'estado', 'porcentaje_ejecucion', 'presentado_con_anticipacion'),
         }),
         ('I. Datos Generales', {
             'fields': (
@@ -231,8 +232,27 @@ class ProyectoDocenteAdmin(admin.ModelAdmin):
 
 @admin.register(ActividadProyecto)
 class ActividadProyectoAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'nombre', 'fecha', 'responsable')
+    list_display = ('proyecto', 'orden', 'nombre', 'fecha', 'responsable', 'estado')
+    list_filter = ('estado',)
     ordering = ['proyecto', 'orden']
+
+
+@admin.register(AvanceActividad)
+class AvanceActividadAdmin(admin.ModelAdmin):
+    list_display = ('id', 'proyecto', 'actividad', 'estado_actividad', 'estado_revision', 'autor', 'created_at')
+    list_filter = ('estado_actividad', 'estado_revision')
+    search_fields = ('descripcion', 'proyecto__codigo', 'actividad__nombre')
+    readonly_fields = ('created_at', 'revisado_en')
+    ordering = ['-created_at']
+
+
+@admin.register(EvidenciaAvance)
+class EvidenciaAvanceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'avance', 'tipo', 'nombre', 'eliminada', 'uploaded_at')
+    list_filter = ('tipo', 'eliminada')
+    search_fields = ('nombre', 'avance__proyecto__codigo')
+    readonly_fields = ('uploaded_at', 'eliminada_en')
+    ordering = ['-uploaded_at']
 
 
 @admin.register(CronogramaAccion)

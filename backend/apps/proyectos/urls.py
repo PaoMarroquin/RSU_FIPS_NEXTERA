@@ -31,6 +31,14 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/metas-indicadores/', views.MetaIndicadorProyectoListCreateView.as_view(), name='meta-indicador-list'),
     path('proyectos/<int:proyecto_pk>/metas-indicadores/<int:pk>/', views.MetaIndicadorProyectoDetailView.as_view(), name='meta-indicador-detail'),
 
+    # Registro de avances y evidencias ───────────────────────────────
+    path('proyectos/<int:proyecto_pk>/avances/', views.AvanceActividadListCreateView.as_view(), name='avance-list'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:pk>/', views.AvanceActividadDetailView.as_view(), name='avance-detail'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:pk>/observar/', views.AvanceObservarView.as_view(), name='avance-observar'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:pk>/corregir/', views.AvanceCorregirView.as_view(), name='avance-corregir'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/', views.EvidenciaAvanceListCreateView.as_view(), name='evidencia-list'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/<int:pk>/', views.EvidenciaAvanceDetailView.as_view(), name='evidencia-detail'),
+
     # ── Reportes ──────────────────────────────────────────────────────────────
     path('reportes/general/', ReporteGeneralView.as_view(), name='reporte-general'),
     path('reportes/facultad/<int:facultad_pk>/', ReporteFacultadView.as_view(), name='reporte-facultad'),
