@@ -15,7 +15,7 @@ class Command(BaseCommand):
 
         # 1. Fetch or create roles
         rol_docente, _ = Rol.objects.get_or_create(nombre='Docente', defaults={'descripcion': 'Docente', 'activo': True})
-        rol_coord, _ = Rol.objects.get_or_create(nombre='Coordinador', defaults={'descripcion': 'Coordinador', 'activo': True})
+        rol_coord, _ = Rol.objects.get_or_create(nombre=Rol.JEFATURA, defaults={'descripcion': 'Jefatura RSU', 'activo': True})
 
         # 2. Fetch or create institutional units
         facultad, _ = Facultad.objects.get_or_create(codigo='FIPS', defaults={'nombre': 'Facultad de Ingeniería de Producción y Servicios'})

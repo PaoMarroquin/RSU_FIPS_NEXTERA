@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from apps.utils.permissions import (
-    IsOwnerOrReadOnly, IsDocente, IsDepartamento, IsAdministrador, IsJefaturaRSU
+    IsOwnerOrReadOnly, IsDepartamento, IsAdministrador, IsJefaturaRSU
 )
 from apps.planificacion.models import PeriodoAcademico
 from .models import (
@@ -389,14 +389,6 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ─── Presupuesto ─────────────────────────────────────────────────────────────
-
-def _get_proyecto_propietario(pk, user):
-    """Verifica que el usuario sea el docente responsable. Sin restricción de estado."""
-    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
-    if proyecto.docente_responsable != user:
-        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
-    return proyecto
-
 
 class PartidaPresupuestariaListCreateView(generics.ListCreateAPIView):
     serializer_class = PartidaPresupuestariaSerializer
