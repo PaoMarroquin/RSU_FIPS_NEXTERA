@@ -53,6 +53,9 @@ export default function Sidebar() {
             <Link className={getLinkClass("/actividades")} to="/actividades">
               <FiCalendar className="text-lg" /> Mis Actividades
             </Link>
+            <Link className={getLinkClass("/informes")} to="/informes">
+              <FiCalendar className="text-lg" /> Informe
+            </Link>
             <Link className={getLinkClass("/notificaciones")} to="/notificaciones">
             <FiBell className="text-lg" /> Notificaciones
           </Link>
