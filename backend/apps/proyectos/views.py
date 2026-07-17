@@ -347,7 +347,9 @@ class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        # PARCHE PARA PERMITIR SUBIDA DE ARCHIVOS DE EVIDENCIAS
+        #get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user) 
+        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):

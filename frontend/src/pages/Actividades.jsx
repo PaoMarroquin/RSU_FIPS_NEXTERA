@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
-  FiClock, FiUpload,
-  FiFilter, FiBookOpen, FiCheck, FiTarget, FiTrendingUp,
-  FiFolder, FiChevronRight, FiInbox
+  FiClock, FiUpload, FiFilter, FiBookOpen, FiCheck, FiTarget,
+  FiTrendingUp, FiFolder, FiChevronRight, FiInbox, FiPlayCircle, FiRotateCcw
 } from "react-icons/fi";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { actividadesService } from "../api/actividadesService"; // Cambiado al nuevo servicio
+import { actividadesService } from "../api/actividadesService"; // Importando el nuevo servicio independiente
 import { useToast } from "../context/ToastContext";
 
+// Definición de transiciones cíclicas y unidireccionales de estado (Máquina de Estados)
+const SIGUIENTE_ESTADO = {
+  'pendiente': 'en_ejecucion',
+  'en_ejecucion': 'completada',
+  'completada': 'pendiente'
+};
+
 export default function Actividades() {
-  // 1. ESTADOS REALES
+  // 1. ESTADOS REALES DEL COMPONENTE
   const [proyectos, setProyectos] = useState([]);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
   const [actividades, setActividades] = useState([]);
@@ -20,18 +26,17 @@ export default function Actividades() {
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const { showToast } = useToast();
 
-  // Estados de Filtros
+  // Estado del Filtro de Actividades
   const [filtroEstado, setFiltroEstado] = useState("todos");
 
-  // 2. CARGA INICIAL DESDE BACKEND: Lista de Proyectos del Docente
+  // 2. CARGA INICIAL DESDE BACKEND: Lista de Proyectos Aprobados del Docente
   useEffect(() => {
     const cargarProyectosDocente = async () => {
       try {
         setLoading(true);
-        // Usamos el nuevo servicio
         const response = await actividadesService.getProyectos();
-
-        // Filtramos solo los aprobados de forma segura
+        
+        // Conversión y filtrado seguro
         const listaProyectos = Array.isArray(response) ? response : [];
         const aprobados = listaProyectos.filter(p => p.estado?.toLowerCase() === "aprobado");
         setProyectos(aprobados);
@@ -51,13 +56,13 @@ export default function Actividades() {
       setLoadingDetalle(true);
       setProyectoSeleccionado(proyecto);
 
-      // Sincronización limpia con el nuevo servicio
+      // Llamadas concurrentes al backend
       const [dataActividades, dataProyectoFull] = await Promise.all([
         actividadesService.getActividades(proyecto.id),
         actividadesService.getProyectoDetalle(proyecto.id)
       ]);
 
-      // Controlamos de forma segura que actividades sea un array plano
+      // Controlamos de forma defensiva que actividades siempre sea un array plano
       const listaActividades = Array.isArray(dataActividades) 
         ? dataActividades 
         : (dataActividades?.results || dataActividades?.data || []);
@@ -73,26 +78,32 @@ export default function Actividades() {
     }
   };
 
-  // 4. PERSISTENCIA DE CAMBIOS (PATCH) EN EL BACKEND
-  const handleToggleCumplido = async (actividadId, estadoActual) => {
+  // 4. PERSISTENCIA EN BACKEND: CAMBIAR ESTADO SECUENCIALMENTE
+  const handleCambiarEstado = async (actividadId, estadoActual) => {
     try {
-      const payload = { cumplido: !estadoActual };
+      const proximoEstado = SIGUIENTE_ESTADO[estadoActual] || 'pendiente';
+      const payload = { estado: proximoEstado };
+
       const dataActualizada = await actividadesService.patchActividad(proyectoSeleccionado.id, actividadId, payload);
 
+      // Actualizamos el estado localmente de manera segura
       setActividades(prev => {
         const actual = Array.isArray(prev) ? prev : [];
         return actual.map(act => act.id === actividadId ? dataActualizada : act);
       });
-      showToast("success", `Actividad actualizada correctamente en el sistema.`);
+      
+      showToast("success", `Actividad actualizada a: ${proximoEstado.replace('_', ' ').toUpperCase()}`);
 
-      // Refrescamos indicadores por si cambiaron
+      // Opcional: Refrescar el detalle para reflejar los avances de metas automatizados en el backend
       const dataProyectoFull = await actividadesService.getProyectoDetalle(proyectoSeleccionado.id);
       setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
     } catch (error) {
-      showToast("error", "No se pudo guardar el cambio de estado en Django.");
+      console.error("Error al actualizar estado:", error);
+      showToast("error", "No se pudo actualizar el estado de la actividad en Django.");
     }
   };
 
+  // 5. PERSISTENCIA EN BACKEND: ADJUNTAR EVIDENCIA (multipart/form-data)
   const handleSubirEvidencia = async (actividadId, e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -108,18 +119,68 @@ export default function Actividades() {
       });
       showToast("success", `Evidencia adjuntada con éxito.`);
     } catch (error) {
+      console.error("Error al subir evidencia:", error);
       showToast("error", "Error crítico al transferir el archivo al servidor.");
     }
   };
 
-  // Filtrado In-Memory con protección anti-crash total
+  // Filtrado In-Memory con protección total anti-crashing
   const actividadesFiltradas = Array.isArray(actividades)
     ? actividades.filter(act => {
-        if (filtroEstado === "cumplidos" && !act.cumplido) return false;
-        if (filtroEstado === "pendientes" && act.cumplido) return false;
+        if (filtroEstado !== "todos" && act.estado !== filtroEstado) return false;
         return true;
       })
     : [];
+
+  // Helper de estilos: Badges de Estado
+  const obtenerBadgeEstado = (estado) => {
+    switch (estado) {
+      case 'en_ejecucion':
+        return <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200/50">En Ejecución</span>;
+      case 'completada':
+        return <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200/50">Completada</span>;
+      default: // 'pendiente'
+        return <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200/50">Pendiente</span>;
+    }
+  };
+
+  // Helper de acciones: Botón Inteligente de Siguiente Estado
+  const obtenerBotonAccion = (act) => {
+    switch (act.estado) {
+      case 'pendiente':
+        return (
+          <button
+            onClick={() => handleCambiarEstado(act.id, act.estado)}
+            title="Mover a En Ejecución"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 text-xs font-bold transition-all shadow-sm"
+          >
+            <FiPlayCircle className="text-sm" /> Iniciar
+          </button>
+        );
+      case 'en_ejecucion':
+        return (
+          <button
+            onClick={() => handleCambiarEstado(act.id, act.estado)}
+            title="Mover a Completada"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 text-xs font-bold transition-all shadow-sm"
+          >
+            <FiCheck className="text-sm" /> Completar
+          </button>
+        );
+      case 'completada':
+        return (
+          <button
+            onClick={() => handleCambiarEstado(act.id, act.estado)}
+            title="Mover de nuevo a Pendiente"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 text-xs font-bold transition-all shadow-sm"
+          >
+            <FiRotateCcw className="text-sm" /> Reiniciar
+          </button>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -180,7 +241,7 @@ export default function Actividades() {
             </div>
           )}
 
-          {/* VISTA 2: METAS E INDICADORES (DETALLE) */}
+          {/* VISTA 2: METAS E INDICADORES (DETALLE DEL PROYECTO SELECCIONADO) */}
           {proyectoSeleccionado && (
             <div className="space-y-6">
               <button
@@ -233,17 +294,18 @@ export default function Actividades() {
                     )}
                   </div>
 
-                  {/* FILTROS DE ACTIVIDADES */}
+                  {/* BARRA DE FILTROS */}
                   <div className="flex items-center gap-2 justify-end">
-                    <span className="text-xs text-slate-400 flex items-center gap-1"><FiFilter /> Filtrar por:</span>
+                    <span className="text-xs text-slate-400 flex items-center gap-1"><FiFilter /> Filtrar por estado:</span>
                     <select 
                       value={filtroEstado} 
                       onChange={(e) => setFiltroEstado(e.target.value)} 
-                      className="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 focus:outline-[#7B1E3A]"
+                      className="text-xs bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg text-slate-600 focus:outline-[#7B1E3A] font-medium shadow-sm"
                     >
                       <option value="todos">Todos</option>
-                      <option value="pendientes">Pendientes</option>
-                      <option value="cumplidos">Cumplidos</option>
+                      <option value="pendiente">Pendientes</option>
+                      <option value="en_ejecucion">En Ejecución</option>
+                      <option value="completada">Completadas</option>
                     </select>
                   </div>
 
@@ -254,30 +316,39 @@ export default function Actividades() {
                     </div>
 
                     {actividadesFiltradas.length === 0 ? (
-                      <div className="p-8 text-center text-slate-400 italic text-xs">No se encontraron actividades en esta sección.</div>
+                      <div className="p-8 text-center text-slate-400 italic text-xs">No se encontraron actividades con el filtro actual.</div>
                     ) : (
                       <div className="divide-y divide-slate-100">
                         {actividadesFiltradas.map((act) => (
-                          <div key={act.id} className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${act.cumplido ? 'bg-emerald-50/10' : ''}`}>
+                          <div 
+                            key={act.id} 
+                            className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${
+                              act.estado === 'completada' ? 'bg-emerald-50/10' : act.estado === 'en_ejecucion' ? 'bg-blue-50/10' : ''
+                            }`}
+                          >
                             <div className="space-y-1">
-                              <h4 className={`text-xs font-bold text-slate-800 ${act.cumplido ? 'line-through text-slate-400' : ''}`}>{act.nombre}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className={`text-xs font-bold text-slate-800 ${act.estado === 'completada' ? 'line-through text-slate-400' : ''}`}>
+                                  {act.nombre}
+                                </h4>
+                                {obtenerBadgeEstado(act.estado)}
+                              </div>
                               <p className="text-[11px] text-slate-500">{act.descripcion || "Sin descripción."}</p>
                               <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5">
                                 <span>📅 Límite: {act.fecha}</span>
                                 {act.responsable && <span>• 👤 Resp: {act.responsable}</span>}
                               </div>
                             </div>
+                            
                             <div className="flex items-center gap-2 self-end sm:self-auto">
+                              {/* Subida de Evidencias */}
                               <input type="file" onChange={(e) => handleSubirEvidencia(act.id, e)} className="hidden" id={`file-${act.id}`} />
-                              <label htmlFor={`file-${act.id}`} className="px-2.5 py-1.5 bg-white border border-slate-300 rounded text-[11px] font-bold text-slate-700 cursor-pointer hover:bg-slate-50 shadow-sm transition-colors">
-                                <FiUpload className="inline mr-1 text-slate-400" /> {act.archivo_evidencia ? "Modificar" : "Evidencia"}
+                              <label htmlFor={`file-${act.id}`} className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 cursor-pointer hover:bg-slate-50 shadow-sm transition-colors flex items-center gap-1">
+                                <FiUpload className="text-slate-400" /> {act.archivo_evidencia ? "Modificar" : "Evidencia"}
                               </label>
-                              <button
-                                onClick={() => handleToggleCumplido(act.id, act.cumplido)}
-                                className={`p-1.5 rounded border transition-colors ${act.cumplido ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-400 border-slate-300 hover:border-emerald-500 hover:text-emerald-500'}`}
-                              >
-                                <FiCheck />
-                              </button>
+                              
+                              {/* Botón de acción secuencial */}
+                              {obtenerBotonAccion(act)}
                             </div>
                           </div>
                         ))}
