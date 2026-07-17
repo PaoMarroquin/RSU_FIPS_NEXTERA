@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import { FiLoader } from 'react-icons/fi';
+import { useToast } from '../context/ToastContext';
 
-import NuevoProyecto from './NuevoProyecto'; 
+import NuevoProyecto from './NuevoProyecto';
 
 export default function EditarProyecto() {
   const { id } = useParams(); // Obtenemos el ID de la URL
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
@@ -140,7 +142,7 @@ export default function EditarProyecto() {
 
       } catch (error) {
         console.error("Error al obtener el proyecto para editar:", error);
-        alert("No se pudo cargar la información del proyecto.");
+        showToast('error', "No se pudo cargar la información del proyecto.");
         navigate('/proyectos');
       }
     };

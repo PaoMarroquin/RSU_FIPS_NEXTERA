@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ToastProvider } from "./context/ToastContext";
+import Toast from "./components/Toast";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -18,25 +20,28 @@ import ExportarUsuarios from './pages/usuarios/ExportarUsuarios';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/proyectos" element={<Proyectos />} />
-        <Route path="/proyectos/nuevo" element={<NuevoProyecto />} /> 
-        <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
-        <Route path="/evaluacion" element={<RevisionProyectos />} />
-        <Route path="/actividades" element={<Actividades />} />
-        <Route path="/informes" element={<Informes />} />
-        <Route path="/repositorio" element={<Repositorio />} />
-        <Route path="/notificaciones" element={<Notificaciones />} />
-        <Route path="/configuracion" element={<Configuracion />} />
-        <Route path="/usuarios" element={<ListaUsuarios />} />
-        <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
-        <Route path="/usuarios/exportar" element={<ExportarUsuarios />} />
-        <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
-      </Routes>
-    </BrowserRouter>
+    <ToastProvider>
+      <Toast />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/proyectos" element={<Proyectos />} />
+          <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
+          <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
+          <Route path="/evaluacion" element={<RevisionProyectos />} />
+          <Route path="/actividades" element={<Actividades />} />
+          <Route path="/informes" element={<Informes />} />
+          <Route path="/repositorio" element={<Repositorio />} />
+          <Route path="/notificaciones" element={<Notificaciones />} />
+          <Route path="/configuracion" element={<Configuracion />} />
+          <Route path="/usuarios" element={<ListaUsuarios />} />
+          <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
+          <Route path="/usuarios/exportar" element={<ExportarUsuarios />} />
+          <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 

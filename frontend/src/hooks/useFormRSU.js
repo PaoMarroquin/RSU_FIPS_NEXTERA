@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
+import { useToast } from '../context/ToastContext';
 
 const mockInitialData = {
   id: null,
@@ -140,6 +141,7 @@ export const useFormRSU = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const { showToast } = useToast();
   
   // Inicialización perezosa: Carga el borrador del localStorage al instante si existe
   const [formData, setFormData] = useState(() => {
@@ -220,9 +222,9 @@ export const useFormRSU = () => {
       console.error("Error al enviar a revisión:", error);
 
       if (error.response?.data?.detail) {
-        alert(error.response.data.detail);
+        showToast('error', error.response.data.detail);
       } else {
-        alert("No se pudo enviar el proyecto a revisión.");
+        showToast('error', "No se pudo enviar el proyecto a revisión.");
       }
 
       return false;
@@ -245,7 +247,7 @@ export const useFormRSU = () => {
 
     if (!cumpleObligatorios) {
       console.error("Error: Faltan campos obligatorios (facultad, escuela, departamento, semestre_academico, titulo, eje_rsu, ods)");
-      alert("Por favor, completa los campos obligatorios del Paso 1 y Paso 4 (ODS) antes de guardar.");
+      showToast('error', "Por favor, completa los campos obligatorios del Paso 1 y Paso 4 (ODS) antes de guardar.");
       return;
     }
 
@@ -476,7 +478,7 @@ export const useFormRSU = () => {
         // Si hubo errores parciales, mostramos resumen pero NO fallamos el guardado completo
         if (erroresFinanciamiento.length > 0) {
           console.warn("Errores parciales en financiamiento:", erroresFinanciamiento);
-          alert(`El proyecto se guardó, pero hubo errores en algunas partidas de financiamiento:\n${erroresFinanciamiento.join('\n')}`);
+          showToast('error', `El proyecto se guardó, pero hubo errores en algunas partidas de financiamiento:\n${erroresFinanciamiento.join('\n')}`);
         }
 
         try {
@@ -495,7 +497,7 @@ export const useFormRSU = () => {
         try {
           await api.post(`/api/v1/proyectos/${proyectoId}/revisar/`);
           console.log("Proyecto enviado a revisión exitosamente.");
-          alert('Proyecto enviado a revisión correctamente. El Departamento lo revisará pronto.');
+          showToast('success', 'Proyecto enviado a revisión correctamente. El Departamento lo revisará pronto.');
         } catch (errRevision) {
           console.error("Error al enviar a revisión:", errRevision);
           const data = errRevision.response?.data;
@@ -506,7 +508,7 @@ export const useFormRSU = () => {
           } else if (!data?.detail) {
             msg = JSON.stringify(data);
           }
-          alert(`El proyecto se guardó pero no se pudo enviar a revisión:\n${msg}`);
+          showToast('error', `El proyecto se guardó pero no se pudo enviar a revisión:\n${msg}`);
           return false; // Salimos sin limpiar ni redirigir para que el usuario pueda corregir
         }
       }
@@ -528,28 +530,28 @@ export const useFormRSU = () => {
         const backendErrors = error.response.data || {};
         
         if (error.response.status === 403) {
-          alert("Error 403 (Permiso Denegado): Tu usuario actual no tiene permisos de docente o administrador en el backend.");
+          showToast('error', "Error 403 (Permiso Denegado): Tu usuario actual no tiene permisos de docente o administrador en el backend.");
         } else if (backendErrors.non_field_errors) {
-          alert(`Restricción del sistema:\n${backendErrors.non_field_errors.join("\n")}`);
+          showToast('error', `Restricción del sistema:\n${backendErrors.non_field_errors.join("\n")}`);
         } else if (backendErrors.detail) {
           let errStr = `Detalle del Servidor: ${backendErrors.detail}`;
           if (backendErrors.errors) {
             const errList = Object.entries(backendErrors.errors).map(([k, v]) => `- ${k}: ${v}`).join('\n');
             errStr += `\n${errList}`;
           }
-          alert(errStr);
+          showToast('error', errStr);
         } else {
           // If it's a dict of field errors: { campo1: ["error"], campo2: ["error"] }
           const fieldErrors = Object.entries(backendErrors)
             .map(([field, errs]) => `- ${field}: ${Array.isArray(errs) ? errs.join(', ') : JSON.stringify(errs)}`)
             .join('\n');
-          alert(`Error ${error.response.status}: Error de validación al guardar:\n${fieldErrors}`);
+          showToast('error', `Error ${error.response.status}: Error de validación al guardar:\n${fieldErrors}`);
         }
 
       } else if (error instanceof Error) {
-        alert(`Error en el formulario: ${error.message}. Por favor, revisa que todos los campos estén completos correctamente.`);
+        showToast('error', `Error en el formulario: ${error.message}. Por favor, revisa que todos los campos estén completos correctamente.`);
       } else {
-        alert("Hubo un error al intentar conectarse al servidor.");
+        showToast('error', "Hubo un error al intentar conectarse al servidor.");
       }
     } finally {
       setIsSubmitting(false);

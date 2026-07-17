@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FiCheckCircle, FiAlertCircle, FiClock, FiUpload, 
-  FiFilter, FiBookOpen, FiCheck, FiTarget, FiTrendingUp, 
+import {
+  FiClock, FiUpload,
+  FiFilter, FiBookOpen, FiCheck, FiTarget, FiTrendingUp,
   FiFolder, FiChevronRight, FiInbox
 } from "react-icons/fi";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { authService } from "../api/authService"; // Asegúrate de que apunte a tu Axios instance
+import { useToast } from "../context/ToastContext";
 
 export default function Actividades() {
   // 1. ESTADOS REALES
@@ -17,16 +18,11 @@ export default function Actividades() {
   
   const [loading, setLoading] = useState(true);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
-  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
+  const { showToast } = useToast();
 
   // Estados de Filtros
-  const [filtroEstado, setFiltroEstado] = useState("todos"); 
-  const [filtroTiempo, setFiltroTiempo] = useState("todos"); 
-
-  const mostrarAlerta = (type, text) => {
-    setStatusMsg({ type, text });
-    setTimeout(() => setStatusMsg({ type: "", text: "" }), 5000);
-  };
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [filtroTiempo, setFiltroTiempo] = useState("todos");
 
   // 2. CARGA INICIAL DESDE BACKEND: Lista de Proyectos del Docente
   useEffect(() => {
@@ -41,7 +37,7 @@ export default function Actividades() {
         setProyectos(aprobados);
       } catch (error) {
         console.error("Error cargando proyectos:", error);
-        mostrarAlerta("error", "No se pudo sincronizar la lista de proyectos desde el servidor.");
+        showToast("error", "No se pudo sincronizar la lista de proyectos desde el servidor.");
       } finally {
         setLoading(false);
       }
@@ -68,7 +64,7 @@ export default function Actividades() {
       
     } catch (error) {
       console.error("Error al abrir proyecto:", error);
-      mostrarAlerta("error", "Ocurrió un problema al descargar los indicadores y el plan de trabajo.");
+      showToast("error", "Ocurrió un problema al descargar los indicadores y el plan de trabajo.");
     } finally {
       setLoadingDetalle(false);
     }
@@ -81,13 +77,13 @@ export default function Actividades() {
       const dataActualizada = await authService.patchActividad(proyectoSeleccionado.id, actividadId, payload);
       
       setActividades(prev => prev.map(act => act.id === actividadId ? dataActualizada : act));
-      mostrarAlerta("success", `Actividad actualizada correctamente en el sistema.`);
+      showToast("success", `Actividad actualizada correctamente en el sistema.`);
       
       // Opcional: Si el cumplimiento altera los indicadores automáticamente en el back, refrescamos el detalle
       const dataProyectoFull = await authService.getProyectoDetalle(proyectoSeleccionado.id);
       setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
     } catch (error) {
-      mostrarAlerta("error", "No se pudo guardar el cambio de estado en Django.");
+      showToast("error", "No se pudo guardar el cambio de estado en Django.");
     }
   };
 
@@ -100,9 +96,9 @@ export default function Actividades() {
 
       const dataActualizada = await authService.patchActividadFormData(proyectoSeleccionado.id, actividadId, dataPayload);
       setActividades(prev => prev.map(act => act.id === actividadId ? dataActualizada : act));
-      mostrarAlerta("success", `Evidencia adjuntada con éxito.`);
+      showToast("success", `Evidencia adjuntada con éxito.`);
     } catch (error) {
-      mostrarAlerta("error", "Error crítico al transferir el archivo al servidor.");
+      showToast("error", "Error crítico al transferir el archivo al servidor.");
     }
   };
 
@@ -190,14 +186,6 @@ export default function Actividades() {
                 </span>
                 <h2 className="text-base font-bold tracking-tight mt-1">{proyectoSeleccionado.titulo}</h2>
               </div>
-
-              {statusMsg.text && (
-                <div className={`p-4 rounded-lg flex items-center gap-3 border text-sm transition-all ${
-                  statusMsg.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
-                }`}>
-                  <FiCheckCircle /> <span>{statusMsg.text}</span>
-                </div>
-              )}
 
               {loadingDetalle ? (
                 <div className="text-center py-12 text-xs text-slate-400 font-medium">Sincronizando cronograma con Django...</div>

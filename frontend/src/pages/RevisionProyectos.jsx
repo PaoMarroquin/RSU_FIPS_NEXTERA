@@ -8,11 +8,12 @@ import {
 } from "react-icons/fi";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { useToast } from "../context/ToastContext";
 
 export default function RevisionProyectos() {
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
+  const { showToast } = useToast();
 
   // Estados del Modal de Evaluación y Detalle
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,11 +32,6 @@ export default function RevisionProyectos() {
   useEffect(() => {
     fetchProyectos();
   }, []);
-
-  const mostrarAlerta = (type, text) => {
-    setStatusMsg({ type, text });
-    setTimeout(() => setStatusMsg({ type: "", text: "" }), 5000);
-  };
 
   // 1. CARGA DE PROYECTOS PARA REVISAR (Consumo general + Filtro exhaustivo)
   const fetchProyectos = async () => {
@@ -60,7 +56,7 @@ export default function RevisionProyectos() {
       setProyectos(pendientesDeRevision);
     } catch (error) {
       console.error("Error fetching revisiones:", error);
-      mostrarAlerta("error", "No se pudo conectar con el servidor de proyectos.");
+      showToast("error", "No se pudo conectar con el servidor de proyectos.");
     } finally {
       setLoading(false);
     }
@@ -96,7 +92,7 @@ export default function RevisionProyectos() {
   // 3. ENVIAR DICTAMEN (APROBAR / OBSERVACIÓN)
   const handleEvaluate = async () => {
     if (actionType === "observar" && !comentario.trim()) {
-      mostrarAlerta("error", "El comentario técnico es obligatorio para poder observar el proyecto.");
+      showToast("error", "El comentario técnico es obligatorio para poder observar el proyecto.");
       return;
     }
 
@@ -111,7 +107,7 @@ export default function RevisionProyectos() {
 
       await api.post(endpoint, payload);
       
-      mostrarAlerta("success", `El proyecto ha sido ${actionType === 'aprobar' ? 'Aprobado' : 'Observado'} con éxito.`);
+      showToast("success", `El proyecto ha sido ${actionType === 'aprobar' ? 'Aprobado' : 'Observado'} con éxito.`);
       setModalOpen(false);
       fetchProyectos();
     } catch (error) {
@@ -119,7 +115,7 @@ export default function RevisionProyectos() {
       const msg = error.response?.data?.comentario_tecnico?.[0] || 
                   error.response?.data?.detail || 
                   "Error al procesar el dictamen en el servidor.";
-      mostrarAlerta("error", msg);
+      showToast("error", msg);
     } finally {
       setEvaluating(false);
     }
@@ -143,15 +139,6 @@ export default function RevisionProyectos() {
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Panel de Departamento: Revisión RSU</h1>
             <p className="text-xs text-slate-500 mt-0.5">Evalúa, fiscaliza los sub-recursos y emite dictámenes para los planes de trabajo enviados.</p>
           </div>
-
-          {statusMsg.text && (
-            <div className={`p-4 rounded-xl flex items-center gap-3 border text-sm shadow-sm transition-all ${
-              statusMsg.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
-            }`}>
-              {statusMsg.type === "success" ? <FiCheckCircle className="text-lg" /> : <FiXCircle className="text-lg" />}
-              <span className="font-medium">{statusMsg.text}</span>
-            </div>
-          )}
 
           {/* TABLA PRINCIPAL DE PROYECTOS PARA REVISAR */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
