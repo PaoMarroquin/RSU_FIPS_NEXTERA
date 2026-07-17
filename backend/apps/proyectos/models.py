@@ -16,6 +16,17 @@ def validate_documento_sustento_size(archivo):
             f'El archivo no puede superar los {DOCUMENTO_SUSTENTO_MAX_SIZE_MB}MB.')
 
 
+# Evidencias de avances (PDF, imágenes y listas de asistencia)
+EVIDENCIA_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png']
+EVIDENCIA_MAX_SIZE_MB = 10
+
+
+def validate_evidencia_size(archivo):
+    if archivo.size > EVIDENCIA_MAX_SIZE_MB * 1024 * 1024:
+        raise ValidationError(
+            f'La evidencia no puede superar los {EVIDENCIA_MAX_SIZE_MB}MB.')
+
+
 class TipoBeneficiario(models.Model):
     codigo = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=200)
@@ -90,6 +101,10 @@ class ProyectoRSU(models.Model):
         max_length=50, unique=True, null=True, blank=True,
         help_text="Código asignado por la comisión OURS una vez consolidados todos los proyectos.")
     estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS, db_index=True)
+    # HU-05 (T-89): calculado automáticamente según el estado de las actividades.
+    porcentaje_ejecucion = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        help_text="% de ejecución (0-100) calculado automáticamente según el estado de las actividades.")
     presentado_con_anticipacion = models.BooleanField(default=False)
 
     # Continuación de proyectos entre semestres
@@ -393,6 +408,11 @@ class ActividadProyecto(models.Model):
     """
     VI. Desarrollo de Actividades - cada actividad conducente al logro de objetivos.
     """
+    ESTADOS_ACTIVIDAD = [
+        ('pendiente',    'Pendiente'),
+        ('en_ejecucion', 'En Ejecución'),
+        ('completada',   'Completada'),
+    ]
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='actividades')
     nombre = models.CharField(max_length=300, help_text="Nombre de la actividad")
@@ -405,6 +425,9 @@ class ActividadProyecto(models.Model):
     evidencia_esperada = models.CharField(
         max_length=400, blank=True, null=True,
         help_text="Evidencia esperada (ej: Fotos, listas, informes)")
+    # HU-05 (T-89): base del cálculo del % de ejecución del proyecto.
+    estado = models.CharField(
+        max_length=20, choices=ESTADOS_ACTIVIDAD, default='pendiente', db_index=True)
     orden = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -732,6 +755,9 @@ class Notificacion(models.Model):
         ('observacion', 'Observación'),
         ('envio_revision', 'Enviado a Revisión'),
         ('correccion', 'Corrección Enviada'),
+        # HU-05 (T-90): seguimiento de avances
+        ('avance_observado', 'Avance Observado'),
+        ('avance_corregido', 'Avance Corregido'),
     ]
 
     destinatario = models.ForeignKey(
@@ -767,3 +793,107 @@ class Notificacion(models.Model):
 
     def __str__(self):
         return f'[{self.tipo}] → {self.destinatario_id}: {self.titulo}'
+
+
+class AvanceActividad(models.Model):
+    """
+    HU-05 (T-86): Registro de avances de una actividad del proyecto.
+
+    Historial append-only (no se edita ni elimina) que guarda, por cada avance:
+    descripción, estado actualizado de la actividad, observaciones, autor
+    (docente responsable) y fecha/hora (CA-05). La Jefatura RSU / Departamento /
+    Administrador pueden observarlo, lo que notifica al docente (T-90).
+    """
+    ESTADOS_REVISION = [
+        ('registrado', 'Registrado'),
+        ('observado',  'Observado'),
+        ('corregido',  'Corregido'),
+    ]
+    proyecto = models.ForeignKey(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='avances')
+    actividad = models.ForeignKey(
+        ActividadProyecto, on_delete=models.CASCADE, related_name='avances')
+    descripcion = models.TextField(help_text="Descripción del avance realizado.")
+    estado_actividad = models.CharField(
+        max_length=20, choices=ActividadProyecto.ESTADOS_ACTIVIDAD,
+        help_text="Estado que se fija a la actividad con este avance.")
+    observaciones = models.TextField(
+        blank=True, null=True, help_text="Observaciones del docente (opcional).")
+
+    # Flujo de revisión del avance (T-90)
+    estado_revision = models.CharField(
+        max_length=20, choices=ESTADOS_REVISION, default='registrado', db_index=True)
+    comentario_revision = models.TextField(
+        blank=True, null=True, help_text="Comentario del revisor al observar el avance.")
+
+    # Trazabilidad (CA-05)
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='avances_registrados',
+        help_text="Docente responsable que registró el avance.")
+    revisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='avances_revisados',
+        help_text="Usuario que observó el avance (Jefatura RSU/Departamento/Admin).")
+    created_at = models.DateTimeField(auto_now_add=True)
+    revisado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'proyecto_avances'
+        verbose_name = 'Avance de Actividad'
+        verbose_name_plural = 'Avances de Actividad'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Avance #{self.id} - actividad#{self.actividad_id} [{self.estado_actividad}]'
+
+
+class EvidenciaAvance(models.Model):
+    """
+    HU-05 (T-87): Evidencia digital asociada a un avance.
+
+    Admite archivo local (PDF/JPG/JPEG/PNG - CA-03/CA-04) o enlace de Google
+    Drive (recomendado por el cliente para no saturar el servidor). El borrado
+    es lógico (soft-delete) para conservar la trazabilidad del proyecto.
+    """
+    TIPOS = [
+        ('archivo', 'Archivo'),
+        ('enlace',  'Enlace Drive'),
+    ]
+    avance = models.ForeignKey(
+        AvanceActividad, on_delete=models.CASCADE, related_name='evidencias')
+    tipo = models.CharField(max_length=10, choices=TIPOS)
+    archivo = models.FileField(
+        upload_to='proyectos/evidencias/', null=True, blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=EVIDENCIA_EXTENSIONS),
+            validate_evidencia_size,
+        ],
+    )
+    enlace_drive = models.URLField(blank=True, null=True)
+    nombre = models.CharField(max_length=255, blank=True, null=True)
+    # Soft-delete: se conserva el registro histórico (regla de trazabilidad).
+    eliminada = models.BooleanField(default=False, db_index=True)
+    eliminada_en = models.DateTimeField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'proyecto_evidencias'
+        verbose_name = 'Evidencia de Avance'
+        verbose_name_plural = 'Evidencias de Avance'
+        ordering = ['-uploaded_at']
+
+    def clean(self):
+        if self.tipo == 'archivo':
+            if not self.archivo:
+                raise ValidationError({'archivo': 'Debe adjuntar un archivo cuando el tipo es "archivo".'})
+            if self.enlace_drive:
+                raise ValidationError({'enlace_drive': 'No use enlace cuando el tipo es "archivo".'})
+        elif self.tipo == 'enlace':
+            if not self.enlace_drive:
+                raise ValidationError({'enlace_drive': 'Debe indicar un enlace de Drive cuando el tipo es "enlace".'})
+            if self.archivo:
+                raise ValidationError({'archivo': 'No adjunte archivo cuando el tipo es "enlace".'})
+
+    def __str__(self):
+        return self.nombre or f'Evidencia {self.id} - avance#{self.avance_id}'

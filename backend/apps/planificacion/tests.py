@@ -9,7 +9,7 @@ class PlanificacionAPITests(APITestCase):
     def setUp(self):
         # Retrieve seeded roles
         self.rol_admin = Rol.objects.get(nombre='Administrador')
-        self.rol_coord = Rol.objects.get(nombre='Coordinador')
+        self.rol_coord = Rol.objects.get(nombre='Jefatura RSU')
         self.rol_docente = Rol.objects.get(nombre='Docente')
 
         # Retrieve seeded ejes and ODS
@@ -113,9 +113,10 @@ class PlanificacionAPITests(APITestCase):
         response = self.client.get(url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Should only return the published matrix
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['id'], matriz_publicada.id)
+        # Should only return the published matrix (la respuesta viene paginada)
+        resultados = response.data['results']
+        self.assertEqual(len(resultados), 1)
+        self.assertEqual(resultados[0]['id'], matriz_publicada.id)
 
     def test_configure_objectives_indicators_and_suggested_activities(self):
         """
@@ -185,5 +186,7 @@ class PlanificacionAPITests(APITestCase):
         # Filter for 1st year
         response_1st_year = self.client.get(act_url + '?anio_academico=1', format='json')
         self.assertEqual(response_1st_year.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response_1st_year.data), 1)
-        self.assertEqual(response_1st_year.data[0]['nombre'], 'Elaboración de Afiches y Campaña de Sensibilización')
+        # La respuesta viene paginada
+        actividades_1er_anio = response_1st_year.data['results']
+        self.assertEqual(len(actividades_1er_anio), 1)
+        self.assertEqual(actividades_1er_anio[0]['nombre'], 'Elaboración de Afiches y Campaña de Sensibilización')

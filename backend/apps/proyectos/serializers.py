@@ -6,7 +6,8 @@ from .models import (
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
     FuenteFinanciamiento, TipoBeneficiario, ProyectoEjeSubitem,
-    RevisionProyecto, Notificacion, HistorialEstadoProyecto
+    RevisionProyecto, Notificacion, HistorialEstadoProyecto,
+    AvanceActividad, EvidenciaAvance,
 )
 from apps.planificacion.models import ODS, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
@@ -48,7 +49,7 @@ class ActividadProyectoSerializer(serializers.ModelSerializer):
         model = ActividadProyecto
         fields = [
             'id', 'nombre', 'descripcion', 'curso_vinculado',
-            'responsable', 'fecha', 'evidencia_esperada', 'orden',
+            'responsable', 'fecha', 'evidencia_esperada', 'estado', 'orden',
         ]
 
 
@@ -153,6 +154,75 @@ class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
         return attrs
 
 
+# ── HU-05: Registro de avances y evidencias ──────────────────────────────────
+
+class EvidenciaAvanceSerializer(serializers.ModelSerializer):
+    """T-87: evidencia de un avance (archivo PDF/JPG/JPEG/PNG o enlace de Drive)."""
+    class Meta:
+        model = EvidenciaAvance
+        fields = ['id', 'tipo', 'archivo', 'enlace_drive', 'nombre', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+    def validate(self, attrs):
+        # CA-04: coherencia archivo XOR enlace según el tipo declarado.
+        tipo = attrs.get('tipo', getattr(self.instance, 'tipo', None))
+        archivo = attrs.get('archivo', getattr(self.instance, 'archivo', None))
+        enlace = attrs.get('enlace_drive', getattr(self.instance, 'enlace_drive', None))
+        if tipo == 'archivo':
+            if not archivo:
+                raise serializers.ValidationError({'archivo': 'Debe adjuntar un archivo (PDF/JPG/JPEG/PNG).'})
+            if enlace:
+                raise serializers.ValidationError({'enlace_drive': 'No use enlace cuando el tipo es "archivo".'})
+        elif tipo == 'enlace':
+            if not enlace:
+                raise serializers.ValidationError({'enlace_drive': 'Debe indicar un enlace de Google Drive.'})
+            if archivo:
+                raise serializers.ValidationError({'archivo': 'No adjunte archivo cuando el tipo es "enlace".'})
+        return attrs
+
+
+class AvanceActividadSerializer(serializers.ModelSerializer):
+    """T-86: avance de una actividad, con sus evidencias vigentes (no eliminadas)."""
+    evidencias = serializers.SerializerMethodField(read_only=True)
+    autor_nombre = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = AvanceActividad
+        fields = [
+            'id', 'actividad', 'descripcion', 'estado_actividad', 'observaciones',
+            'estado_revision', 'comentario_revision',
+            'autor', 'autor_nombre', 'revisor', 'created_at', 'revisado_en',
+            'evidencias',
+        ]
+        read_only_fields = [
+            'id', 'estado_revision', 'comentario_revision',
+            'autor', 'revisor', 'created_at', 'revisado_en',
+        ]
+
+    def get_evidencias(self, obj):
+        qs = obj.evidencias.filter(eliminada=False)
+        return EvidenciaAvanceSerializer(qs, many=True, context=self.context).data
+
+    def get_autor_nombre(self, obj):
+        if obj.autor_id:
+            return f'{obj.autor.nombres} {obj.autor.apellidos}'.strip()
+        return None
+
+    def validate_descripcion(self, value):
+        if not value or not str(value).strip():
+            raise serializers.ValidationError('La descripción del avance es obligatoria.')
+        return value
+
+    def validate(self, attrs):
+        # T-88: la actividad debe pertenecer al proyecto de la URL.
+        proyecto_pk = self.context.get('proyecto_pk')
+        actividad = attrs.get('actividad')
+        if actividad is not None and proyecto_pk is not None and actividad.proyecto_id != int(proyecto_pk):
+            raise serializers.ValidationError(
+                {'actividad': 'La actividad no pertenece a este proyecto.'})
+        return attrs
+
+
 class ProyectoEjeSubitemSerializer(serializers.ModelSerializer):
     sub_eje_clave  = serializers.CharField(source='sub_eje.clave', read_only=True)
     sub_eje_nombre = serializers.CharField(source='sub_eje.nombre', read_only=True)
@@ -238,12 +308,14 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     tipo_actividad_display = serializers.SerializerMethodField(read_only=True)
     fuente_financiamiento_display = serializers.CharField(
         source='get_fuente_financiamiento_display', read_only=True)
+    porcentaje_ejecucion = serializers.DecimalField(
+        max_digits=5, decimal_places=2, read_only=True)
 
     class Meta:
         model = ProyectoRSU
         fields = [
             # ── Identificación ────────────────────────────────────────────
-            'id', 'codigo', 'estado',
+            'id', 'codigo', 'estado', 'porcentaje_ejecucion',
             'es_continuacion', 'proyecto_origen', 'continuaciones_count',
 
             # ── Sección I - Datos Generales ───────────────────────────────
