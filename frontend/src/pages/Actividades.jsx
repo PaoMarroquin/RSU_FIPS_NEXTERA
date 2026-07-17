@@ -6,34 +6,34 @@ import {
 } from "react-icons/fi";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { authService } from "../api/authService"; // Asegúrate de que apunte a tu Axios instance
+import { actividadesService } from "../api/actividadesService"; // Cambiado al nuevo servicio
 import { useToast } from "../context/ToastContext";
 
 export default function Actividades() {
   // 1. ESTADOS REALES
-  const [proyectos, setProyectos] = useState([]); 
-  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null); 
+  const [proyectos, setProyectos] = useState([]);
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
   const [actividades, setActividades] = useState([]);
   const [metasIndicadores, setMetasIndicadores] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const { showToast } = useToast();
 
   // Estados de Filtros
   const [filtroEstado, setFiltroEstado] = useState("todos");
-  const [filtroTiempo, setFiltroTiempo] = useState("todos");
 
   // 2. CARGA INICIAL DESDE BACKEND: Lista de Proyectos del Docente
   useEffect(() => {
     const cargarProyectosDocente = async () => {
       try {
         setLoading(true);
-        // LLAMADA REAL: Ajusta el método según tu API, por ejemplo pasándole el estado aprobado
-        const response = await authService.getProyectos(); 
-        
-        // Filtramos en el cliente solo los aprobados por si las dudas
-        const aprobados = (response || []).filter(p => p.estado?.toLowerCase() === "aprobado");
+        // Usamos el nuevo servicio
+        const response = await actividadesService.getProyectos();
+
+        // Filtramos solo los aprobados de forma segura
+        const listaProyectos = Array.isArray(response) ? response : [];
+        const aprobados = listaProyectos.filter(p => p.estado?.toLowerCase() === "aprobado");
         setProyectos(aprobados);
       } catch (error) {
         console.error("Error cargando proyectos:", error);
@@ -51,17 +51,20 @@ export default function Actividades() {
       setLoadingDetalle(true);
       setProyectoSeleccionado(proyecto);
 
-      // Llamadas concurrentes al backend de Django
+      // Sincronización limpia con el nuevo servicio
       const [dataActividades, dataProyectoFull] = await Promise.all([
-        authService.getActividades(proyecto.id), // GET /api/v1/proyectos/{id}/actividades/
-        authService.getProyectoDetalle(proyecto.id) // GET /api/v1/proyectos/{id}/ (Trae los serializadores internos)
+        actividadesService.getActividades(proyecto.id),
+        actividadesService.getProyectoDetalle(proyecto.id)
       ]);
 
-      setActividades(dataActividades || []);
-      
-      // Mapeamos las metas directamente desde tu 'MetaIndicadorProyectoSerializer' anidado
+      // Controlamos de forma segura que actividades sea un array plano
+      const listaActividades = Array.isArray(dataActividades) 
+        ? dataActividades 
+        : (dataActividades?.results || dataActividades?.data || []);
+
+      setActividades(listaActividades);
       setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
-      
+
     } catch (error) {
       console.error("Error al abrir proyecto:", error);
       showToast("error", "Ocurrió un problema al descargar los indicadores y el plan de trabajo.");
@@ -74,13 +77,16 @@ export default function Actividades() {
   const handleToggleCumplido = async (actividadId, estadoActual) => {
     try {
       const payload = { cumplido: !estadoActual };
-      const dataActualizada = await authService.patchActividad(proyectoSeleccionado.id, actividadId, payload);
-      
-      setActividades(prev => prev.map(act => act.id === actividadId ? dataActualizada : act));
+      const dataActualizada = await actividadesService.patchActividad(proyectoSeleccionado.id, actividadId, payload);
+
+      setActividades(prev => {
+        const actual = Array.isArray(prev) ? prev : [];
+        return actual.map(act => act.id === actividadId ? dataActualizada : act);
+      });
       showToast("success", `Actividad actualizada correctamente en el sistema.`);
-      
-      // Opcional: Si el cumplimiento altera los indicadores automáticamente en el back, refrescamos el detalle
-      const dataProyectoFull = await authService.getProyectoDetalle(proyectoSeleccionado.id);
+
+      // Refrescamos indicadores por si cambiaron
+      const dataProyectoFull = await actividadesService.getProyectoDetalle(proyectoSeleccionado.id);
       setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
     } catch (error) {
       showToast("error", "No se pudo guardar el cambio de estado en Django.");
@@ -92,22 +98,28 @@ export default function Actividades() {
     if (!file) return;
     try {
       const dataPayload = new FormData();
-      dataPayload.append("archivo_evidencia", file); // Debe coincidir con el FileField de tu modelo Django
+      dataPayload.append("archivo_evidencia", file);
 
-      const dataActualizada = await authService.patchActividadFormData(proyectoSeleccionado.id, actividadId, dataPayload);
-      setActividades(prev => prev.map(act => act.id === actividadId ? dataActualizada : act));
+      const dataActualizada = await actividadesService.patchActividadFormData(proyectoSeleccionado.id, actividadId, dataPayload);
+      
+      setActividades(prev => {
+        const actual = Array.isArray(prev) ? prev : [];
+        return actual.map(act => act.id === actividadId ? dataActualizada : act);
+      });
       showToast("success", `Evidencia adjuntada con éxito.`);
     } catch (error) {
       showToast("error", "Error crítico al transferir el archivo al servidor.");
     }
   };
 
-  // Filtrado In-Memory rápido
-  const actividadesFiltradas = actividades.filter(act => {
-    if (filtroEstado === "cumplidos" && !act.cumplido) return false;
-    if (filtroEstado === "pendientes" && act.cumplido) return false;
-    return true;
-  });
+  // Filtrado In-Memory con protección anti-crash total
+  const actividadesFiltradas = Array.isArray(actividades)
+    ? actividades.filter(act => {
+        if (filtroEstado === "cumplidos" && !act.cumplido) return false;
+        if (filtroEstado === "pendientes" && act.cumplido) return false;
+        return true;
+      })
+    : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -132,7 +144,6 @@ export default function Actividades() {
                   Consultando registros en Django...
                 </div>
               ) : proyectos.length === 0 ? (
-                /* CASO: SI NO HAY PROYECTOS REGISTRADOS/APROBADOS */
                 <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center gap-3">
                   <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 text-lg">
                     <FiInbox />
@@ -143,10 +154,9 @@ export default function Actividades() {
                   </div>
                 </div>
               ) : (
-                /* CASO: SÍ HAY PROYECTOS */
                 <div className="grid grid-cols-1 gap-3">
                   {proyectos.map((proy) => (
-                    <div 
+                    <div
                       key={proy.id}
                       onClick={() => handleSeleccionarProyecto(proy)}
                       className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#7B1E3A] shadow-sm hover:shadow transition-all cursor-pointer flex justify-between items-center group"
@@ -173,7 +183,7 @@ export default function Actividades() {
           {/* VISTA 2: METAS E INDICADORES (DETALLE) */}
           {proyectoSeleccionado && (
             <div className="space-y-6">
-              <button 
+              <button
                 onClick={() => setProyectoSeleccionado(null)}
                 className="text-xs font-bold text-[#7B1E3A] bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 shadow-sm transition-colors flex items-center gap-1"
               >
@@ -191,12 +201,12 @@ export default function Actividades() {
                 <div className="text-center py-12 text-xs text-slate-400 font-medium">Sincronizando cronograma con Django...</div>
               ) : (
                 <>
-                  {/* SECCIÓN METAS E INDICADORES (Si no trae nada el backend, no renderiza las cajas) */}
+                  {/* SECCIÓN METAS E INDICADORES */}
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-4 bg-slate-50/70 border-b border-slate-200 font-bold text-xs text-slate-600 uppercase tracking-wider flex items-center gap-2">
                       <FiTarget className="text-slate-500 text-sm" /> Indicadores de Impacto del Proyecto
                     </div>
-                    
+
                     {metasIndicadores.length === 0 ? (
                       <div className="p-6 text-center text-slate-400 italic text-xs">Este proyecto no tiene metas parametrizadas en su indicador.</div>
                     ) : (
@@ -223,14 +233,28 @@ export default function Actividades() {
                     )}
                   </div>
 
+                  {/* FILTROS DE ACTIVIDADES */}
+                  <div className="flex items-center gap-2 justify-end">
+                    <span className="text-xs text-slate-400 flex items-center gap-1"><FiFilter /> Filtrar por:</span>
+                    <select 
+                      value={filtroEstado} 
+                      onChange={(e) => setFiltroEstado(e.target.value)} 
+                      className="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 focus:outline-[#7B1E3A]"
+                    >
+                      <option value="todos">Todos</option>
+                      <option value="pendientes">Pendientes</option>
+                      <option value="cumplidos">Cumplidos</option>
+                    </select>
+                  </div>
+
                   {/* SECCIÓN ACTIVIDADES DEL PLAN DE TRABAJO */}
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="p-4 bg-slate-50/70 border-b border-slate-200 font-bold text-xs text-slate-600 uppercase tracking-wider">
                       Actividades del Plan de Trabajo ({actividadesFiltradas.length})
                     </div>
-                    
+
                     {actividadesFiltradas.length === 0 ? (
-                      <div className="p-8 text-center text-slate-400 italic text-xs">No se encontraron actividades asignadas a este cronograma.</div>
+                      <div className="p-8 text-center text-slate-400 italic text-xs">No se encontraron actividades en esta sección.</div>
                     ) : (
                       <div className="divide-y divide-slate-100">
                         {actividadesFiltradas.map((act) => (
@@ -248,8 +272,8 @@ export default function Actividades() {
                               <label htmlFor={`file-${act.id}`} className="px-2.5 py-1.5 bg-white border border-slate-300 rounded text-[11px] font-bold text-slate-700 cursor-pointer hover:bg-slate-50 shadow-sm transition-colors">
                                 <FiUpload className="inline mr-1 text-slate-400" /> {act.archivo_evidencia ? "Modificar" : "Evidencia"}
                               </label>
-                              <button 
-                                onClick={() => handleToggleCumplido(act.id, act.cumplido)} 
+                              <button
+                                onClick={() => handleToggleCumplido(act.id, act.cumplido)}
                                 className={`p-1.5 rounded border transition-colors ${act.cumplido ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-400 border-slate-300 hover:border-emerald-500 hover:text-emerald-500'}`}
                               >
                                 <FiCheck />
