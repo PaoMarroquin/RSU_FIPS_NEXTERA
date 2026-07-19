@@ -39,7 +39,7 @@ function App() {
           <Route path="/configuracion" element={<Configuracion />} />
           <Route path="/usuarios" element={<ListaUsuarios />} />
           <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
-          <Route path="/usuarios/exportar" element={<ExportarUsuarios />} />
+          <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
           <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
           <Route path="/matriz-operativa" element={<MatrizOperativa />} />
           <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />

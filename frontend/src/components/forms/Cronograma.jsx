@@ -117,7 +117,6 @@ export default function Cronograma({ data, updateData }) {
               <th className="p-3 w-2/12">Fecha Inicio *</th>
               <th className="p-3 w-2/12">Fecha Fin *</th>
               <th className="p-3 w-2/12">Responsable</th>
-              <th className="p-3 w-2/12">Estado Avance *</th>
               <th className="p-3 w-1/12 text-center"></th>
             </tr>
           </thead>
@@ -221,7 +220,7 @@ export default function Cronograma({ data, updateData }) {
 
             {cronogramas.length === 0 && (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-xs text-slate-400">
+                <td colSpan="6" className="text-center py-8 text-xs text-slate-400">
                   No hay acciones registradas en el cronograma. Presione "Agregar Acción" para iniciar.
                 </td>
               </tr>

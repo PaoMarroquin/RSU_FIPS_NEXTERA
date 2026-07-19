@@ -8,6 +8,18 @@ export default function DatosGenerales({ data, updateData }) {
 
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
+    if (type === 'date' && value) {
+      if (name === 'fechaTermino' && data.fechaInicio && value < data.fechaInicio) {
+        alert('⚠️ La fecha de término no puede ser anterior a la fecha de inicio.');
+        return; 
+      }
+      if (name === 'fechaInicio' && data.fechaTermino && value > data.fechaTermino) {
+        alert('⚠️ La fecha de inicio no puede ser posterior a la fecha de término.');
+        return; 
+      }
+    }
+
+    // Si pasa la validación o es otro tipo de input, actualiza normal
     updateData(name, type === 'checkbox' ? checked : value);
   };
 
@@ -144,19 +156,6 @@ export default function DatosGenerales({ data, updateData }) {
             onChange={(e, nombre) => {
               handleChange(e);
               updateData('departamento_nombre', nombre);
-            }}
-          />
-
-          <PaginatedSelect
-            label="Periodo Académico"
-            name="periodo"
-            value={data.periodo}
-            selectedName={data.periodo_nombre}
-            fetchFn={academicService.getPeriodos}
-            placeholder="Seleccione el periodo"
-            onChange={(e, nombre) => {
-              handleChange(e);
-              updateData('periodo_nombre', nombre);
             }}
           />
 

@@ -11,6 +11,7 @@ const mockInitialData = {
   anio_carrera: null, es_tesis_quinto_anio: false,
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
+  es_tesis_quinto_anio: false,
   beneficiarios: '', 
   eje_rsu: null, ejes_subitems: [], eje_detalle: "",
   tiposActividad: [],
@@ -18,7 +19,7 @@ const mockInitialData = {
   metas_indicadores: [],
   fechaInicio: '', fechaEvaluacion: '', fechaTermino: '',
   encuestaDocentes: '', encuestaEstudiantes: '', encuestaDestinatarios: '',
-
+  
   // Paso 2
   fund_razonGrupo: '',
   fund_proposito: '',
@@ -345,7 +346,7 @@ export const useFormRSU = () => {
             const estadoLimpio = (crono.estado_avance || "pendiente").toLowerCase().trim();
             
             // Si por alguna razón el texto no coincide, Django usará 'pendiente' por defecto
-            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "pendiente";
+            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "no iniciado";
 
             return {
               descripcion: crono.descripcion, 

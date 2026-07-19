@@ -11,11 +11,12 @@ import {
   FiAlertCircle, 
   FiCheckCircle, 
   FiFileText,
-  FiLoader
+  FiLoader,
+  FiDownload
 } from "react-icons/fi";
 import * as XLSX from "xlsx";
 
-export default function ExportarUsuarios() {
+export default function ImportarUsuarios() {
   const navigate = useNavigate();
   const [filas, setFilas] = useState([]);
   const [procesandoMasivo, setProcesandoMasivo] = useState(false);
@@ -41,7 +42,7 @@ export default function ExportarUsuarios() {
         url = res.data.next ? res.data.next.replace(/^.*\/(api\/v1\/)/, '/$1') : null; // Normalizar URL para Axios
       }
     } catch (e) {
-      print.error(`Error trayendo catálogo de ${endpoint}`, e);
+      console.error(`Error trayendo catálogo de ${endpoint}`, e);
     }
     return resultadosCompletos;
   };
@@ -93,8 +94,11 @@ export default function ExportarUsuarios() {
         // Mapear texto a ID numérico usando los catálogos en memoria
         const matchRol = catalogos.roles.find(x => strNormalize(x.nombre) === txtRol);
         const matchFac = catalogos.facultades.find(x => strNormalize(x.nombre) === txtFac);
-        const matchEsc = catalogos.escuelas.find(x => strNormalize(x.nombre) === txtEsc);
-        const matchDep = catalogos.departamentos.find(x => strNormalize(x.nombre) === txtDep);
+        // Escuela y Departamento solo cuentan como match válido si además pertenecen a la Facultad de la fila
+        const matchEscRaw = catalogos.escuelas.find(x => strNormalize(x.nombre) === txtEsc);
+        const matchDepRaw = catalogos.departamentos.find(x => strNormalize(x.nombre) === txtDep);
+        const matchEsc = matchEscRaw && matchFac && matchEscRaw.facultad === matchFac.id ? matchEscRaw : null;
+        const matchDep = matchDepRaw && matchFac && matchDepRaw.facultad === matchFac.id ? matchDepRaw : null;
 
         return {
           indexKey: index,
@@ -129,7 +133,22 @@ export default function ExportarUsuarios() {
   // Edición directa
   const handleCellEdit = (indexKey, campo, nuevoValor) => {
     setFilas((prev) =>
-      prev.map((f) => f.indexKey === indexKey ? { ...f, [campo]: nuevoValor } : f)
+      prev.map((f) => {
+        if (f.indexKey !== indexKey) return f;
+        // Al cambiar la Facultad, limpiamos Escuela/Departamento si ya no le pertenecen
+        if (campo === "facultad") {
+          const nuevaFacultadId = nuevoValor ? parseInt(nuevoValor) : null;
+          const escuelaValida = catalogos.escuelas.find(x => x.id === Number(f.escuela))?.facultad === nuevaFacultadId;
+          const depValido = catalogos.departamentos.find(x => x.id === Number(f.departamento))?.facultad === nuevaFacultadId;
+          return {
+            ...f,
+            facultad: nuevoValor,
+            escuela: escuelaValida ? f.escuela : "",
+            departamento: depValido ? f.departamento : "",
+          };
+        }
+        return { ...f, [campo]: nuevoValor };
+      })
     );
   };
 
@@ -299,16 +318,16 @@ export default function ExportarUsuarios() {
                             </td>
 
                             <td className={`p-2 ${f.escuela_raw && !f.escuela ? "bg-amber-50" : f.escuela ? "bg-green-50/40" : ""}`}>
-                              <select value={f.escuela || ""} onChange={(e) => handleCellEdit(f.indexKey, "escuela", e.target.value)} className={`w-full bg-transparent p-1 border rounded ${f.escuela_raw && !f.escuela ? "border-amber-400" : f.escuela ? "border-green-300" : "border-transparent"}`}>
-                                <option value="">{f.escuela ? "✓ Seleccionado" : f.escuela_raw ? `Desconocido: "${f.escuela_raw}"` : "— Seleccione —"}</option>
-                                {catalogos.escuelas.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+                              <select value={f.escuela || ""} onChange={(e) => handleCellEdit(f.indexKey, "escuela", e.target.value)} disabled={!f.facultad} className={`w-full bg-transparent p-1 border rounded ${!f.facultad ? "opacity-50 cursor-not-allowed border-transparent" : f.escuela_raw && !f.escuela ? "border-amber-400" : f.escuela ? "border-green-300" : "border-transparent"}`}>
+                                <option value="">{!f.facultad ? "Seleccione Facultad primero" : f.escuela ? "✓ Seleccionado" : f.escuela_raw ? `Desconocido: "${f.escuela_raw}"` : "— Seleccione —"}</option>
+                                {catalogos.escuelas.filter(x => x.facultad === Number(f.facultad)).map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
                               </select>
                             </td>
 
                             <td className={`p-2 ${f.departamento_raw && !f.departamento ? "bg-amber-50" : f.departamento ? "bg-green-50/40" : ""}`}>
-                              <select value={f.departamento || ""} onChange={(e) => handleCellEdit(f.indexKey, "departamento", e.target.value)} className={`w-full bg-transparent p-1 border rounded ${f.departamento_raw && !f.departamento ? "border-amber-400" : f.departamento ? "border-green-300" : "border-transparent"}`}>
-                                <option value="">{f.departamento ? "✓ Seleccionado" : f.departamento_raw ? `Desconocido: "${f.departamento_raw}"` : "— Seleccione —"}</option>
-                                {catalogos.departamentos.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+                              <select value={f.departamento || ""} onChange={(e) => handleCellEdit(f.indexKey, "departamento", e.target.value)} disabled={!f.facultad} className={`w-full bg-transparent p-1 border rounded ${!f.facultad ? "opacity-50 cursor-not-allowed border-transparent" : f.departamento_raw && !f.departamento ? "border-amber-400" : f.departamento ? "border-green-300" : "border-transparent"}`}>
+                                <option value="">{!f.facultad ? "Seleccione Facultad primero" : f.departamento ? "✓ Seleccionado" : f.departamento_raw ? `Desconocido: "${f.departamento_raw}"` : "— Seleccione —"}</option>
+                                {catalogos.departamentos.filter(x => x.facultad === Number(f.facultad)).map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
                               </select>
                             </td>
 

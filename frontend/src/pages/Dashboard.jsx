@@ -275,6 +275,8 @@ export default function Dashboard() {
     const role = localStorage.getItem("user_role");
     return role ? role.toLowerCase() : "docente";
   });
+  const [proyectos, setProyectos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
