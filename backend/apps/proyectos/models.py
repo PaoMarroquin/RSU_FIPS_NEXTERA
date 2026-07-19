@@ -630,7 +630,7 @@ class RevisionProyecto(models.Model):
     """
     T-65/T-66/T-68/T-69: Registra cada dictamen emitido por el
     Administrativo de Departamento (rol Departamento) sobre un proyecto.
-    Un proyecto puede tener múltiples revisiones (una por ciclo).
+    Un proyecto puede tener múltiples Res (una por ciclo).
     """
     DECISIONES = [
         ('aprobado',  'Aprobado'),
