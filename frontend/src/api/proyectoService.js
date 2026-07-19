@@ -13,5 +13,21 @@ export const proyectoService = {
   deleteProyecto: async (id) => {
     const response = await api.delete(`/api/v1/proyectos/${id}/`);
     return response.data;
+  },
+
+  // Trae todos los proyectos visibles para el usuario autenticado, recorriendo la paginación del backend
+  getAllProyectos: async () => {
+    let page = 1;
+    let allResults = [];
+    let data = await proyectoService.getProyectos(page);
+    allResults = allResults.concat(data.results || []);
+
+    while (data.next) {
+      page += 1;
+      data = await proyectoService.getProyectos(page);
+      allResults = allResults.concat(data.results || []);
+    }
+
+    return allResults;
   }
 };

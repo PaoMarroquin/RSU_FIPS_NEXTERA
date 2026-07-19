@@ -7,9 +7,9 @@ import {
   FiUsers, 
   FiUserPlus, 
   FiRefreshCw, 
-  FiSearch, 
-  FiDownload, 
-  FiChevronLeft, 
+  FiSearch,
+  FiUpload,
+  FiChevronLeft,
   FiChevronRight, 
   FiEdit2 
 } from "react-icons/fi";
@@ -81,11 +81,11 @@ export default function ListaUsuarios() {
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
-              <button 
-                onClick={() => navigate("/usuarios/exportar")}
+              <button
+                onClick={() => navigate("/usuarios/importar")}
                 className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg flex items-center gap-2 transition-colors shadow-sm"
               >
-                <FiDownload className="text-base" /> Exportar a Excel
+                <FiUpload className="text-base" /> Importar desde Excel
               </button>
               <button 
                 onClick={() => navigate("/usuarios/nuevo")}

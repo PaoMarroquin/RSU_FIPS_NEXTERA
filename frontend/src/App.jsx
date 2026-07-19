@@ -16,7 +16,7 @@ import Notificaciones from './pages/Notificaciones';
 import ListaUsuarios from './pages/usuarios/ListaUsuarios';
 import CrearUsuarios from './pages/usuarios/CrearUsuarios';
 import EditarUsuarios from './pages/usuarios/EditarUsuarios';
-import ExportarUsuarios from './pages/usuarios/ExportarUsuarios';
+import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
 
 function App() {
   return (
@@ -37,7 +37,7 @@ function App() {
           <Route path="/configuracion" element={<Configuracion />} />
           <Route path="/usuarios" element={<ListaUsuarios />} />
           <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
-          <Route path="/usuarios/exportar" element={<ExportarUsuarios />} />
+          <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
           <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
         </Routes>
       </BrowserRouter>

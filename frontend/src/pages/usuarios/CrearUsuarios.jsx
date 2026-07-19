@@ -4,6 +4,7 @@ import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 import PaginatedSelect from "../../components/forms/PaginatedSelect";
 import { userService } from "../../api/userService";
+import { academicService } from "../../api/academicService";
 import { FiUserPlus, FiArrowLeft, FiSave } from "react-icons/fi";
 
 export default function CrearUsuarios() {
@@ -189,7 +190,7 @@ export default function CrearUsuarios() {
                     handleChange(e);
                     updateData('rol_nombre', nombre);
                   }}
-                  endpoint="/api/v1/roles/"
+                  fetchFn={userService.getRoles}
                   placeholder="Seleccione un rol"
                 />
 
@@ -207,7 +208,7 @@ export default function CrearUsuarios() {
                     updateData('departamento', null);
                     updateData('departamento_nombre', '');
                   }}
-                  endpoint="/api/v1/facultades/"
+                  fetchFn={academicService.getFacultades}
                   placeholder="Seleccione una facultad"
                 />
 
@@ -220,7 +221,7 @@ export default function CrearUsuarios() {
                     handleChange(e);
                     updateData('escuela_nombre', nombre);
                   }}
-                  endpoint="/api/v1/escuelas/"
+                  fetchFn={academicService.getEscuelas}
                   placeholder="Seleccione una escuela"
                   disabled={!data.facultad}
                   dependencia={data.facultad}
@@ -235,7 +236,7 @@ export default function CrearUsuarios() {
                     handleChange(e);
                     updateData('departamento_nombre', nombre);
                   }}
-                  endpoint="/api/v1/departamentos/"
+                  fetchFn={academicService.getDepartamentos}
                   placeholder="Seleccione un departamento"
                   disabled={!data.facultad}
                   dependencia={data.facultad}
