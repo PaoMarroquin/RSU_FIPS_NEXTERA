@@ -318,7 +318,8 @@ class ProyectoRSU(models.Model):
     # CLASIFICACIÓN ACADÉMICA / RELACIONES
     # ──────────────────────────────────────────────────────────────────────────
     periodo = models.ForeignKey(
-        PeriodoAcademico, on_delete=models.PROTECT, related_name='proyectos')
+        PeriodoAcademico, on_delete=models.PROTECT, related_name='proyectos',
+        null=True, blank=True)
     docente_responsable = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name='proyectos_responsable')
