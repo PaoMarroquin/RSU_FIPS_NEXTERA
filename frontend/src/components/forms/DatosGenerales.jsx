@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PaginatedSelect from './PaginatedSelect';
 import BeneficiariosSelector from './BeneficiariosSelector';
 import EjeRSUSelector from './EjeRSUSelector';
+import { academicService } from './../../api/academicService';
 
 export default function DatosGenerales({ data, updateData }) {
 
@@ -103,18 +104,17 @@ export default function DatosGenerales({ data, updateData }) {
             name="facultad"
             value={data.facultad}
             selectedName={data.facultad_nombre}
+            fetchFn={academicService.getFacultades}
+            placeholder="Seleccione una facultad"
             onChange={(e, nombre) => {
-              handleChange(e); // Guarda el ID normalmente
-              updateData('facultad_nombre', nombre); // Guarda el Nombre explícitamente
-
-              // Limpiamos los hijos 
+              handleChange(e);
+              updateData('facultad_nombre', nombre);
+              // Limpiamos cascada de hijos de forma limpia
               updateData('escuela', null);
               updateData('escuela_nombre', '');
               updateData('departamento', null);
               updateData('departamento_nombre', '');
             }}
-            endpoint="/api/v1/facultades/"
-            placeholder="Seleccione una facultad"
           />
 
           <PaginatedSelect
@@ -122,14 +122,14 @@ export default function DatosGenerales({ data, updateData }) {
             name="escuela"
             value={data.escuela}
             selectedName={data.escuela_nombre}
+            fetchFn={academicService.getEscuelas}
+            placeholder="Seleccione una escuela"
+            disabled={!data.facultad}
+            dependencia={data.facultad}
             onChange={(e, nombre) => {
               handleChange(e);
               updateData('escuela_nombre', nombre);
             }}
-            endpoint="/api/v1/escuelas/"
-            placeholder="Seleccione una escuela"
-            disabled={!data.facultad}
-            dependencia={data.facultad}
           />
 
           <PaginatedSelect
@@ -137,14 +137,14 @@ export default function DatosGenerales({ data, updateData }) {
             name="departamento"
             value={data.departamento}
             selectedName={data.departamento_nombre}
+            fetchFn={academicService.getDepartamentos}
+            placeholder="Seleccione un departamento"
+            disabled={!data.facultad}
+            dependencia={data.facultad}
             onChange={(e, nombre) => {
               handleChange(e);
               updateData('departamento_nombre', nombre);
             }}
-            endpoint="/api/v1/departamentos/"
-            placeholder="Seleccione un departamento"
-            disabled={!data.facultad}
-            dependencia={data.facultad}
           />
 
           <PaginatedSelect
@@ -152,12 +152,12 @@ export default function DatosGenerales({ data, updateData }) {
             name="periodo"
             value={data.periodo}
             selectedName={data.periodo_nombre}
+            fetchFn={academicService.getPeriodos}
+            placeholder="Seleccione el periodo"
             onChange={(e, nombre) => {
               handleChange(e);
               updateData('periodo_nombre', nombre);
             }}
-            endpoint="/api/v1/periodos/"
-            placeholder="Seleccione el periodo"
           />
 
           <div className="flex flex-col gap-1">
