@@ -8,6 +8,7 @@ const mockInitialData = {
   // Paso 1: Datos Generales
   facultad: '', escuela: '', departamento: '', semestre: '',
   periodo: null, periodo_nombre: '',
+  anio_carrera: null, es_tesis_quinto_anio: false,
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
   beneficiarios: '', 
@@ -369,8 +370,8 @@ export const useFormRSU = () => {
         rec_mat_otros: formData.recursos?.rec_mat_otros || "",
 
         periodo: parseInt(formData.periodo, 10),
-        anio_carrera: 5,
-        es_tesis_quinto_anio: true,
+        anio_carrera: formData.anio_carrera ? parseInt(formData.anio_carrera, 10) : null,
+        es_tesis_quinto_anio: formData.es_tesis_quinto_anio || false,
         ods: (formData.ods && formData.ods.length > 0) ? formData.ods : [0],
         
         asignaturas: (formData.asignaturas || "").split(',').map(a => ({ nombre_asignatura: a.trim() })).filter(a => a.nombre_asignatura !== ""),

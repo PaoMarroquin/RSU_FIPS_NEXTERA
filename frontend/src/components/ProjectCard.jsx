@@ -1,7 +1,7 @@
 import React from 'react';
-import { FiUser, FiBook, FiEdit2, FiTrash2 } from "react-icons/fi"; // Agregados iconos de edición y eliminación
+import { FiUser, FiBook, FiEdit2, FiTrash2, FiEye } from "react-icons/fi"; // Agregados iconos de edición y eliminación
 
-export default function ProjectCard({ id, title, author, faculty, progress, status, tag, onEdit, onDelete }) {
+export default function ProjectCard({ id, title, author, faculty, progress, status, tag, onEdit, onDelete, onView }) {
   // Convertimos a minúsculas y reemplazamos espacios por guiones
   // Nota: Asegúrate de que las claves coincidan exactamente con lo que devuelve tu backend (con o sin tildes)
   const statusKey = status ? status.toLowerCase().replace(" ", "-") : "borrador";
@@ -83,6 +83,15 @@ export default function ProjectCard({ id, title, author, faculty, progress, stat
 
         {/* ACCIONES (Editar y Eliminar) — solo si el rol tiene permiso */}
         <div className="flex items-center gap-1">
+          {onView && (
+            <button 
+              onClick={onView}
+              title="Ver expediente"
+              className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+            >
+              <FiEye className="w-4 h-4" />
+            </button>
+          )}
           {onEdit && (
             <button 
               onClick={onEdit}
@@ -104,7 +113,6 @@ export default function ProjectCard({ id, title, author, faculty, progress, stat
           )}
         </div>
       </div>
-
     </div>
   );
 }

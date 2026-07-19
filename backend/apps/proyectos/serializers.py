@@ -50,6 +50,7 @@ class ActividadProyectoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'descripcion', 'curso_vinculado',
             'responsable', 'fecha', 'evidencia_esperada', 'estado', 'orden',
+            'url_evidencia', 'archivo_evidencia',
         ]
 
 

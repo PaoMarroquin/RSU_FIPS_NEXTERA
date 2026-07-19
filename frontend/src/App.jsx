@@ -17,6 +17,8 @@ import ListaUsuarios from './pages/usuarios/ListaUsuarios';
 import CrearUsuarios from './pages/usuarios/CrearUsuarios';
 import EditarUsuarios from './pages/usuarios/EditarUsuarios';
 import ExportarUsuarios from './pages/usuarios/ExportarUsuarios';
+import MatrizOperativa from './pages/MatrizOperativa';
+import ProyectosJefatura from './pages/ProyectosJefatura';
 
 function App() {
   return (
@@ -39,6 +41,8 @@ function App() {
           <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
           <Route path="/usuarios/exportar" element={<ExportarUsuarios />} />
           <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
+          <Route path="/matriz-operativa" element={<MatrizOperativa />} />
+          <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>

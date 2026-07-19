@@ -163,10 +163,19 @@ export default function Actividades({ data, updateData }) {
                   <td className="p-2">
                     <input
                       type="date"
-                      className="w-full border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-[#b1122b]"
+                      className={`w-full border rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${
+                        (item.fecha && ((data.fechaInicio && item.fecha < data.fechaInicio) || (data.fechaTermino && item.fecha > data.fechaTermino)))
+                          ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                          : 'border-slate-300 focus:border-[#b1122b]'
+                      }`}
                       value={item.fecha || ""}
+                      min={data.fechaInicio || undefined}
+                      max={data.fechaTermino || undefined}
                       onChange={(e) => handleChangeActividades(index, 'fecha', e.target.value)}
                     />
+                    {(item.fecha && ((data.fechaInicio && item.fecha < data.fechaInicio) || (data.fechaTermino && item.fecha > data.fechaTermino))) && (
+                      <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Fuera de rango</span>
+                    )}
                   </td>
 
                   {/* Evidencia */}

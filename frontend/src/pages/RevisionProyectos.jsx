@@ -4,11 +4,12 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { 
   FiCheckCircle, FiXCircle, FiInbox, FiTarget, 
-  FiCalendar, FiDollarSign, FiInfo, FiFileText 
+  FiCalendar, FiDollarSign, FiInfo, FiFileText, FiEye, FiX 
 } from "react-icons/fi";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "../context/ToastContext";
+import ReporteExpediente from "../components/reports/ReporteExpediente";
 
 export default function RevisionProyectos() {
   const [proyectos, setProyectos] = useState([]);
@@ -28,6 +29,11 @@ export default function RevisionProyectos() {
   const [cronograma, setCronograma] = useState([]);
   const [presupuesto, setPresupuesto] = useState(null);
   const [loadingSubRecursos, setLoadingSubRecursos] = useState(false);
+
+  // Estados del Modal de Visualización (informe completo)
+  const [modalVistaOpen, setModalVistaOpen] = useState(false);
+  const [proyectoDetalle, setProyectoDetalle] = useState(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   useEffect(() => {
     fetchProyectos();
@@ -59,6 +65,21 @@ export default function RevisionProyectos() {
       showToast("error", "No se pudo conectar con el servidor de proyectos.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 2b. ABRIR MODAL DE VISUALIZACIÓN (INFORME COMPLETO)
+  const openModalVisualizacion = async (proyecto) => {
+    setProyectoDetalle(null);
+    setModalVistaOpen(true);
+    try {
+      setLoadingDetalle(true);
+      const res = await api.get(`/api/v1/proyectos/${proyecto.id}/`);
+      setProyectoDetalle(res.data);
+    } catch (error) {
+      console.error("Error cargando detalle del proyecto:", error);
+    } finally {
+      setLoadingDetalle(false);
     }
   };
 
@@ -185,6 +206,13 @@ export default function RevisionProyectos() {
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-2">
                           <button 
+                            className="px-2.5 py-1.5 bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 font-bold rounded-lg transition-colors flex items-center gap-1"
+                            onClick={() => openModalVisualizacion(proyecto)}
+                            title="Ver informe completo"
+                          >
+                            <FiEye /> Ver
+                          </button>
+                          <button 
                             className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold rounded-lg transition-colors flex items-center gap-1"
                             onClick={() => openModalRevision(proyecto, 'aprobar')}
                           >
@@ -206,6 +234,45 @@ export default function RevisionProyectos() {
           </div>
         </main>
       </div>
+
+      {/* MODAL DE VISUALIZACIÓN: INFORME COMPLETO DEL PROYECTO */}
+      {modalVistaOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col">
+            {/* Cabecera */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <FiEye className="text-slate-500" /> Informe Completo del Proyecto
+              </h2>
+              <button
+                onClick={() => setModalVistaOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <FiX />
+              </button>
+            </div>
+
+            {/* Contenido: Expediente Integral Completo */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingDetalle ? (
+                <div className="text-center py-10 text-slate-400 font-medium animate-pulse">Cargando informe completo...</div>
+              ) : (
+                <ReporteExpediente matrizSeleccionada={proyectoDetalle} showPrintButton={false} />
+              )}
+            </div>
+
+            {/* Pie del modal */}
+            <div className="px-6 py-3 border-t border-slate-100 flex justify-end shrink-0">
+              <button
+                onClick={() => setModalVistaOpen(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL DETALLADO DE DICTAMEN TÉCNICO */}
       {modalOpen && (

@@ -178,9 +178,9 @@ def _filter_proyectos_por_rol(qs, user):
     if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
         return qs
     if user.rol and user.rol.nombre == Rol.JEFATURA:
-        return qs.filter(facultad=user.facultad) if user.facultad else qs.none()
+        return qs.filter(facultad=user.facultad).exclude(estado='borrador') if user.facultad else qs.none()
     if user.rol and user.rol.nombre == Rol.DEPARTAMENTO:
-        return qs.filter(departamento=user.departamento) if user.departamento else qs.none()
+        return qs.filter(departamento=user.departamento).exclude(estado='borrador') if user.departamento else qs.none()
     if user.rol and user.rol.nombre == Rol.DOCENTE:
         return qs.filter(
             Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)

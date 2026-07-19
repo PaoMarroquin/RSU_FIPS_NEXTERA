@@ -320,7 +320,3 @@ class FuenteFinanciamientoAdmin(admin.ModelAdmin):
     search_fields = ('proyecto__titulo',)
 
 
-@admin.register(MetaIndicadorProyecto)
-class MetaIndicadorProyectoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'proyecto', 'orden', 'meta_descripcion', 'indicador_nombre')
-    ordering = ['proyecto', 'orden']

@@ -12,7 +12,7 @@ export default function Cronograma({ data, updateData }) {
           fecha_inicio: "",
           fecha_fin: "",
           responsable: "",
-          estado_avance: "pendiente", // Valor técnico nativo para Django
+          estado_avance: "no_iniciado", // Valor técnico nativo para Django
           orden: 1
         }
       ]);
@@ -34,7 +34,7 @@ export default function Cronograma({ data, updateData }) {
         fecha_inicio: "",
         fecha_fin: "",
         responsable: "",
-        estado_avance: "pendiente",
+        estado_avance: "no_iniciado", // Valor técnico nativo para Django
         orden: cronogramas.length + 1
       },
     ]);
@@ -169,6 +169,7 @@ export default function Cronograma({ data, updateData }) {
                         (!item.fecha_fin || esFechaInvalida) ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
                       }`}
                       value={item.fecha_fin || ""}
+                      min={item.fecha_inicio || undefined}
                       onChange={(e) => handleChangeCronograma(index, "fecha_fin", e.target.value)}
                     />
                     {esFechaInvalida && (
@@ -191,12 +192,13 @@ export default function Cronograma({ data, updateData }) {
                   <td className="p-2">
                     <select
                       className="w-full border border-slate-300 bg-white rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-[#b1122b]"
-                      value={item.estado_avance || "pendiente"}
+                      value={item.estado_avance || "no_iniciado"}
                       onChange={(e) => handleChangeCronograma(index, "estado_avance", e.target.value)}
                     >
-                      <option value="pendiente">No iniciado</option>
-                      <option value="en_progreso">En proceso</option>
-                      <option value="completado">Terminado</option>
+                      <option value="no_iniciado">No Iniciado</option>
+                      <option value="pendiente">Pendiente</option>
+                      <option value="en_proceso">En proceso</option>
+                      <option value="finalizado">Finalizado</option>
                     </select>
                   </td>
 

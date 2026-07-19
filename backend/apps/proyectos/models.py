@@ -428,6 +428,8 @@ class ActividadProyecto(models.Model):
     # HU-05 (T-89): base del cálculo del % de ejecución del proyecto.
     estado = models.CharField(
         max_length=20, choices=ESTADOS_ACTIVIDAD, default='pendiente', db_index=True)
+    url_evidencia = models.URLField(max_length=500, blank=True, null=True, help_text="URL de evidencia (Drive, etc.)")
+    archivo_evidencia = models.FileField(upload_to='evidencias_actividades/', blank=True, null=True, help_text="Archivo de evidencia")
     orden = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -445,6 +447,7 @@ class CronogramaAccion(models.Model):
     VII. Cronograma - distribución de acciones a lo largo del periodo de ejecución.
     """
     ESTADOS_AVANCE = [
+        ('no_iniciado', 'No Iniciado'),
         ('pendiente',  'Pendiente'),
         ('en_proceso', 'En Proceso'),
         ('finalizado', 'Finalizado'),
@@ -458,7 +461,7 @@ class CronogramaAccion(models.Model):
     responsable = models.CharField(
         max_length=200, blank=True, null=True)
     estado_avance = models.CharField(
-        max_length=30, choices=ESTADOS_AVANCE, default='pendiente')
+        max_length=30, choices=ESTADOS_AVANCE, default='no_iniciado')
     orden = models.PositiveIntegerField(default=0)
 
     class Meta:
