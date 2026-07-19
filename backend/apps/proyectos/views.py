@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import generics, status, serializers, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -7,14 +8,17 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Sum, F, ExpressionWrapper, DecimalField
 from django.shortcuts import get_object_or_404
+from django.http import Http404
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from apps.utils.permissions import (
-    IsOwnerOrReadOnly, IsDocente, IsDepartamento, IsAdministrador
+    IsOwnerOrReadOnly, IsDepartamento, IsAdministrador, IsJefaturaRSU
 )
 from apps.planificacion.models import PeriodoAcademico
 from .models import (
     ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento,
     ProyectoEjeSubitem, RevisionProyecto, HistorialEstadoProyecto, Notificacion,
+    AvanceActividad, EvidenciaAvance,
 )
 from .serializers import (
     ProyectoRSUSerializer,
@@ -25,6 +29,8 @@ from .serializers import (
     FuenteFinanciamientoSerializer,
     RevisionProyectoSerializer,
     NotificacionSerializer,
+    AvanceActividadSerializer,
+    EvidenciaAvanceSerializer,
 )
 from apps.usuarios.models import Rol
 
@@ -72,8 +78,6 @@ def _validar_campos_obligatorios(proyecto):
 
     req_text('titulo', 'El título del proyecto')
     req_text('semestre_academico', 'El semestre académico')
-    req_text('meta_cuantitativa', 'La meta cuantificable (1.12)')
-    req_text('indicador', 'El indicador (1.13)')
     req_text('lugar_ejecucion', 'El lugar de ejecución (1.18)')
     req_text('fund_por_que_grupo', '¿Por qué se eligió el grupo beneficiario?')
     req_text('fund_para_que_proyecto', '¿Para qué servirá el proyecto?')
@@ -112,6 +116,31 @@ def _validar_campos_obligatorios(proyecto):
         errores['ods'] = 'Debe seleccionar al menos un ODS.'
     if not proyecto.asignaturas.exists():
         errores['asignaturas'] = 'Debe registrar al menos una asignatura vinculada (1.5).'
+
+    errores.update(_validar_indicadores_y_presupuesto(proyecto))
+
+    return errores
+
+
+def _validar_indicadores_y_presupuesto(proyecto):
+    """HU-05 AC#2/AC#3: indicador cuantitativo obligatorio y presupuesto > 0 antes de enviar a revisión."""
+    errores = {}
+
+    if not proyecto.metas_indicadores.filter(valor_meta__isnull=False).exists():
+        errores['metas_indicadores'] = (
+            'Debe definir al menos un indicador de cumplimiento cuantitativo '
+            '(con meta numérica) antes de enviar a revisión.'
+        )
+
+    total_presupuesto = sum(
+        (p.monto_presupuestado for p in proyecto.partidas_presupuesto.all()),
+        Decimal('0'),
+    )
+    if total_presupuesto <= 0:
+        errores['presupuesto'] = (
+            'Debe registrar al menos una partida presupuestaria con monto '
+            'mayor a cero antes de enviar a revisión.'
+        )
 
     return errores
 
@@ -157,6 +186,15 @@ def _filter_proyectos_por_rol(qs, user):
             Q(docente_responsable=user) | Q(docentes_adicionales__docente=user)
         ).distinct()
     return qs.none()
+
+
+def _verificar_proyecto_visible(pk, user):
+    """Lanza 404 si el proyecto no es visible para el usuario según su rol
+    (mismo criterio que ProyectoListCreateView). Usar en get_queryset() de los
+    sub-recursos (actividades, cronograma, presupuesto, indicadores) para que
+    la lectura respete el mismo scope que ya se aplica a escritura."""
+    if not _filter_proyectos_por_rol(ProyectoRSU.objects.all(), user).filter(pk=pk).exists():
+        raise Http404
 
 
 class ProyectoListCreateView(generics.ListCreateAPIView):
@@ -289,6 +327,7 @@ class ActividadProyectoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return ActividadProyecto.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -304,10 +343,13 @@ class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        # PARCHE PARA PERMITIR SUBIDA DE ARCHIVOS DE EVIDENCIAS
+        #get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user) 
+        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -320,6 +362,7 @@ class CronogramaAccionListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return CronogramaAccion.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -335,6 +378,7 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return CronogramaAccion.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -348,19 +392,12 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 # ─── Presupuesto ─────────────────────────────────────────────────────────────
 
-def _get_proyecto_propietario(pk, user):
-    """Verifica que el usuario sea el docente responsable. Sin restricción de estado."""
-    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
-    if proyecto.docente_responsable != user:
-        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
-    return proyecto
-
-
 class PartidaPresupuestariaListCreateView(generics.ListCreateAPIView):
     serializer_class = PartidaPresupuestariaSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return PartidaPresupuestaria.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -376,6 +413,7 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return PartidaPresupuestaria.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -392,6 +430,7 @@ class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def perform_create(self, serializer):
@@ -405,6 +444,7 @@ class FuenteFinanciamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -426,7 +466,9 @@ class PresupuestoResumenView(APIView):
 
     def get(self, request, proyecto_pk):
         proyecto = get_object_or_404(
-            ProyectoRSU.objects.select_related('docente_responsable'),
+            _filter_proyectos_por_rol(
+                ProyectoRSU.objects.select_related('docente_responsable'), request.user
+            ),
             pk=proyecto_pk,
         )
         partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
@@ -533,6 +575,7 @@ class MetaIndicadorProyectoListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return MetaIndicadorProyecto.objects.filter(
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
@@ -548,6 +591,7 @@ class MetaIndicadorProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
         return MetaIndicadorProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
@@ -835,3 +879,246 @@ class NotificacionLeerView(APIView):
             notificacion.leida_en = timezone.now()
             notificacion.save(update_fields=['leida', 'leida_en'])
         return Response({'detail': 'Notificación marcada como leída.'}, status=status.HTTP_200_OK)
+
+
+# ─── HU-05: Registro de avances y evidencias ─────────────────────────────────
+
+def _get_proyecto_ejecucion(pk, user):
+    """
+    T-88: solo el docente responsable registra avances, y solo en proyectos
+    aprobados o en ejecución.
+    """
+    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
+    if proyecto.docente_responsable != user:
+        raise PermissionDenied('Solo el docente responsable puede registrar avances de este proyecto.')
+    if proyecto.estado not in ['aprobado', 'en_ejecucion']:
+        raise serializers.ValidationError(
+            f"Solo se pueden registrar avances en proyectos aprobados o en ejecución "
+            f"(estado actual: '{proyecto.estado}')."
+        )
+    return proyecto
+
+
+def _recalcular_porcentaje_ejecucion(proyecto):
+    """
+    T-89: % de ejecución = actividades completadas / total de actividades * 100.
+    Punto único de cálculo: si se decide ponderar 'en_ejecucion', se cambia aquí.
+    """
+    actividades = proyecto.actividades.all()
+    total = actividades.count()
+    if total == 0:
+        pct = Decimal('0.00')
+    else:
+        completadas = actividades.filter(estado='completada').count()
+        pct = (Decimal(completadas) / Decimal(total) * 100).quantize(Decimal('0.01'))
+    proyecto.porcentaje_ejecucion = pct
+    proyecto.save(update_fields=['porcentaje_ejecucion', 'updated_at'])
+    return pct
+
+
+def _validar_consistencia_metas(proyecto):
+    """
+    T-88: consistencia de las metas del proyecto.
+
+    Se valida aquí (flujo de avances) y NO en MetaIndicadorProyectoSerializer,
+    porque ese serializer se reutiliza en el guardado anidado del proyecto y
+    endurecerlo rompería la edición de metas que ya usa el frontend.
+    """
+    for meta in proyecto.metas_indicadores.all():
+        if meta.valor_alcanzado is None:
+            continue
+        if meta.valor_meta is not None and meta.valor_alcanzado > meta.valor_meta:
+            raise serializers.ValidationError({'metas_indicadores': (
+                f'La meta "{meta.indicador_nombre}" tiene un valor alcanzado '
+                f'({meta.valor_alcanzado}) mayor que su valor meta ({meta.valor_meta}).'
+            )})
+        if meta.linea_base is not None and meta.valor_alcanzado < meta.linea_base:
+            raise serializers.ValidationError({'metas_indicadores': (
+                f'La meta "{meta.indicador_nombre}" tiene un valor alcanzado '
+                f'({meta.valor_alcanzado}) menor que su línea base ({meta.linea_base}).'
+            )})
+
+
+def _get_avance_visible(proyecto_pk, avance_pk, user):
+    """Avance accesible según el scope de lectura por rol del proyecto."""
+    _verificar_proyecto_visible(proyecto_pk, user)
+    return get_object_or_404(
+        AvanceActividad.objects.select_related('proyecto', 'actividad', 'autor'),
+        pk=avance_pk, proyecto_id=proyecto_pk,
+    )
+
+
+class AvanceActividadListCreateView(generics.ListCreateAPIView):
+    """
+    T-86: GET historial de avances (CA-06) / POST registra un avance (CA-01, CA-05).
+    La lectura respeta el scope por rol (la Jefatura RSU también lo visualiza).
+    """
+    serializer_class = AvanceActividadSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['proyecto_pk'] = self.kwargs['proyecto_pk']
+        return ctx
+
+    def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
+        qs = AvanceActividad.objects.filter(
+            proyecto_id=self.kwargs['proyecto_pk']
+        ).select_related('actividad', 'autor', 'revisor').prefetch_related('evidencias')
+        actividad_id = self.request.query_params.get('actividad')
+        if actividad_id:
+            qs = qs.filter(actividad_id=actividad_id)
+        return qs.order_by('-created_at')
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        proyecto = _get_proyecto_ejecucion(self.kwargs['proyecto_pk'], self.request.user)
+        _validar_consistencia_metas(proyecto)
+        avance = serializer.save(proyecto=proyecto, autor=self.request.user)
+
+        # CA-01: el avance actualiza el estado de la actividad.
+        actividad = avance.actividad
+        actividad.estado = avance.estado_actividad
+        actividad.save(update_fields=['estado'])
+
+        # El primer avance pone el proyecto en ejecución.
+        if proyecto.estado == 'aprobado':
+            proyecto.estado = 'en_ejecucion'
+            if not proyecto.fecha_inicio_ejecucion:
+                proyecto.fecha_inicio_ejecucion = timezone.now()
+            proyecto.save(update_fields=['estado', 'fecha_inicio_ejecucion'])
+
+        # CA-02 / T-89: recálculo automático del % de ejecución.
+        _recalcular_porcentaje_ejecucion(proyecto)
+
+
+class AvanceActividadDetailView(generics.RetrieveAPIView):
+    """T-86: detalle de un avance. Sin PUT/PATCH/DELETE: el historial es append-only."""
+    serializer_class = AvanceActividadSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
+        return AvanceActividad.objects.filter(
+            proyecto_id=self.kwargs['proyecto_pk']
+        ).select_related('actividad', 'autor', 'revisor').prefetch_related('evidencias')
+
+
+class EvidenciaAvanceListCreateView(generics.ListCreateAPIView):
+    """
+    T-87: GET lista evidencias vigentes / POST carga archivo (PDF/JPG/JPEG/PNG)
+    o registra un enlace de Google Drive (CA-03, CA-04).
+    """
+    serializer_class = EvidenciaAvanceSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        avance = _get_avance_visible(
+            self.kwargs['proyecto_pk'], self.kwargs['avance_pk'], self.request.user)
+        return avance.evidencias.filter(eliminada=False).order_by('-uploaded_at')
+
+    def perform_create(self, serializer):
+        proyecto = _get_proyecto_ejecucion(self.kwargs['proyecto_pk'], self.request.user)
+        avance = get_object_or_404(
+            AvanceActividad, pk=self.kwargs['avance_pk'], proyecto=proyecto)
+        if avance.autor != self.request.user:
+            raise PermissionDenied('Solo el autor del avance puede cargar sus evidencias.')
+        serializer.save(avance=avance)
+
+
+class EvidenciaAvanceDetailView(generics.RetrieveDestroyAPIView):
+    """
+    T-87: GET visualiza una evidencia / DELETE la marca como eliminada
+    (soft-delete): el registro se conserva para la trazabilidad del proyecto.
+    """
+    serializer_class = EvidenciaAvanceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        avance = _get_avance_visible(
+            self.kwargs['proyecto_pk'], self.kwargs['avance_pk'], self.request.user)
+        return avance.evidencias.filter(eliminada=False)
+
+    def perform_destroy(self, instance):
+        _get_proyecto_ejecucion(self.kwargs['proyecto_pk'], self.request.user)
+        if instance.avance.autor != self.request.user:
+            raise PermissionDenied('Solo el autor del avance puede eliminar sus evidencias.')
+        instance.eliminada = True
+        instance.eliminada_en = timezone.now()
+        instance.save(update_fields=['eliminada', 'eliminada_en'])
+
+
+class AvanceObservarView(APIView):
+    """
+    T-90: Jefatura RSU / Departamento / Administrador observa un avance y
+    notifica al docente responsable que requiere corrección.
+    """
+    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador | IsJefaturaRSU]
+
+    @transaction.atomic
+    def post(self, request, proyecto_pk, pk):
+        _verificar_proyecto_visible(proyecto_pk, request.user)
+        avance = get_object_or_404(
+            AvanceActividad.objects.select_related(
+                'proyecto', 'actividad', 'proyecto__docente_responsable'),
+            pk=pk, proyecto_id=proyecto_pk,
+        )
+        comentario = request.data.get('comentario', '').strip()
+        if not comentario:
+            raise serializers.ValidationError(
+                {'comentario': 'Este campo es obligatorio al observar un avance.'})
+
+        avance.estado_revision = 'observado'
+        avance.comentario_revision = comentario
+        avance.revisor = request.user
+        avance.revisado_en = timezone.now()
+        avance.save(update_fields=[
+            'estado_revision', 'comentario_revision', 'revisor', 'revisado_en'])
+
+        proyecto = avance.proyecto
+        _crear_notificacion(
+            destinatario=proyecto.docente_responsable,
+            proyecto=proyecto,
+            tipo='avance_observado',
+            titulo=f'Avance observado en "{proyecto.titulo[:50]}"',
+            mensaje=(
+                f'Tu avance de la actividad "{avance.actividad.nombre}" fue observado '
+                f'y requiere corrección:\n\n{comentario}'
+            ),
+        )
+        return Response({'detail': 'Avance observado exitosamente.'}, status=status.HTTP_200_OK)
+
+
+class AvanceCorregirView(APIView):
+    """
+    T-90: el docente responsable marca como corregido un avance observado y
+    notifica al revisor que lo observó.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, proyecto_pk, pk):
+        proyecto = _get_proyecto_ejecucion(proyecto_pk, request.user)
+        avance = get_object_or_404(
+            AvanceActividad.objects.select_related('actividad'), pk=pk, proyecto=proyecto)
+        if avance.estado_revision != 'observado':
+            raise serializers.ValidationError('Solo se pueden corregir avances observados.')
+
+        comentario = request.data.get('comentario', '').strip()
+        avance.estado_revision = 'corregido'
+        avance.save(update_fields=['estado_revision'])
+
+        if avance.revisor:
+            _crear_notificacion(
+                destinatario=avance.revisor,
+                proyecto=proyecto,
+                tipo='avance_corregido',
+                titulo=f'Avance corregido en "{proyecto.titulo[:50]}"',
+                mensaje=(
+                    f'El docente corrigió el avance de la actividad "{avance.actividad.nombre}".'
+                    + (f'\n\n{comentario}' if comentario else '')
+                ),
+            )
+        return Response({'detail': 'Avance marcado como corregido.'}, status=status.HTTP_200_OK)

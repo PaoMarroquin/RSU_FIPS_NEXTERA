@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import { FiLoader } from 'react-icons/fi';
+import { useToast } from '../context/ToastContext';
 
-import NuevoProyecto from './NuevoProyecto'; 
+import NuevoProyecto from './NuevoProyecto';
 
 export default function EditarProyecto() {
   const { id } = useParams(); // Obtenemos el ID de la URL
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
@@ -40,8 +42,18 @@ export default function EditarProyecto() {
           eje_detalle: data.eje_detalle || "",
           tiposActividad: Array.isArray(data.tipo_actividad) ? data.tipo_actividad : [],
           tipoActividadOtro: data.tipo_actividad_otro || '',
-          meta: data.meta_cuantitativa || '',
-          indicador: data.indicador || '',
+          metas_indicadores: Array.isArray(data.metas_indicadores) ? data.metas_indicadores.map(meta => ({
+            id: meta.id || null,
+            meta_descripcion: meta.meta_descripcion || '',
+            indicador_nombre: meta.indicador_nombre || '',
+            unidad_medida: meta.unidad_medida || '',
+            linea_base: meta.linea_base ?? '',
+            valor_meta: meta.valor_meta ?? '',
+            valor_alcanzado: meta.valor_alcanzado ?? '',
+            metodo_verificacion: meta.metodo_verificacion || '',
+            fuente_verificacion: meta.fuente_verificacion || '',
+            orden: meta.orden || 0,
+          })) : [],
           fechaInicio: data.fecha_inicio || '',
           fechaEvaluacion: data.fecha_evaluacion_avance || '',
           fechaTermino: data.fecha_termino || '',
@@ -130,7 +142,7 @@ export default function EditarProyecto() {
 
       } catch (error) {
         console.error("Error al obtener el proyecto para editar:", error);
-        alert("No se pudo cargar la información del proyecto.");
+        showToast('error', "No se pudo cargar la información del proyecto.");
         navigate('/proyectos');
       }
     };

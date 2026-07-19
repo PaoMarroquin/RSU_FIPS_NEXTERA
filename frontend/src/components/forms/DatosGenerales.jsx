@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PaginatedSelect from './PaginatedSelect';
 import BeneficiariosSelector from './BeneficiariosSelector';
 import EjeRSUSelector from './EjeRSUSelector';
@@ -22,6 +22,64 @@ export default function DatosGenerales({ data, updateData }) {
       <span className="text-xs font-medium text-slate-600 leading-tight">{label}</span>
     </label>
   );
+
+  const metasGuardadas = data.metas_indicadores || [];
+
+  const [listaMetas, setListaMetas] = useState(() =>
+    metasGuardadas.length > 0
+      ? metasGuardadas
+      : [
+        {
+          id: null,
+          meta_descripcion: "",
+          indicador_nombre: "",
+          linea_base: "",
+          valor_meta: "",
+        },
+      ]
+  );
+
+  useEffect(() => {
+    updateData("metas_indicadores", listaMetas);
+  }, [listaMetas]);
+
+  const agregarMeta = () => {
+    setListaMetas([
+      ...listaMetas,
+      {
+        id: null,
+        meta_descripcion: "",
+        indicador_nombre: "",
+        linea_base: "",
+        valor_meta: "",
+      },
+    ]);
+  };
+
+  const eliminarMeta = (index) => {
+    if (listaMetas.length === 1) {
+      setListaMetas([
+        {
+          id: null,
+          meta_descripcion: "",
+          indicador_nombre: "",
+          linea_base: "",
+          valor_meta: "",
+        },
+      ]);
+    } else {
+      setListaMetas(listaMetas.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleMetaChange = (index, field, value) => {
+    const nuevas = [...listaMetas];
+    nuevas[index] = {
+      ...nuevas[index],
+      [field]: value,
+    };
+    setListaMetas(nuevas);
+  };
 
   return (
     <div className="space-y-6 transition-all duration-300">
@@ -89,7 +147,7 @@ export default function DatosGenerales({ data, updateData }) {
             dependencia={data.facultad}
           />
 
-          <PaginatedSelect 
+          <PaginatedSelect
             label="Periodo Académico"
             name="periodo"
             value={data.periodo}
@@ -163,9 +221,9 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Tipo de Eje RSU
         </h3>
-        
+
         {/* Le pasamos data completo para que gestione toda la estructura JSON */}
-        <EjeRSUSelector 
+        <EjeRSUSelector
           data={data}
           updateData={updateData}
         />
@@ -179,9 +237,9 @@ export default function DatosGenerales({ data, updateData }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            { label: "Programas formativos",                      value: "programas_formativos" },
-            { label: "Acompañamiento a sectores identificados",   value: "acompanamiento" },
-            { label: "Asesoría",                                   value: "asesoria" },
+            { label: "Programas formativos", value: "programas_formativos" },
+            { label: "Acompañamiento a sectores identificados", value: "acompanamiento" },
+            { label: "Asesoría", value: "asesoria" },
             { label: "Iniciativas de acercamiento a la comunidad", value: "acercamiento_comunidad" },
           ].map(({ label, value }) => {
             const isSelected = (data.tiposActividad || []).includes(value);
@@ -268,15 +326,70 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Meta e Indicador
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Meta (cuantificable) <span className="text-red-500">*</span></label>
-            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="meta" placeholder="Ej. Capacitar a 50 estudiantes" value={data.meta} onChange={handleChange} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Indicador <span className="text-red-500">*</span></label>
-            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="indicador" placeholder="Ej. N° de estudiantes capacitados" value={data.indicador} onChange={handleChange} />
-          </div>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
+          {listaMetas.map((meta, index) => (
+            <div
+              key={index}
+              className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4"
+            >
+              <input
+                type="text"
+                placeholder="Descripción de la meta"
+                value={meta.meta_descripcion}
+                onChange={(e) =>
+                  handleMetaChange(index, "meta_descripcion", e.target.value)
+                }
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+              />
+
+              <input
+                type="text"
+                placeholder="Nombre del indicador"
+                value={meta.indicador_nombre}
+                onChange={(e) =>
+                  handleMetaChange(index, "indicador_nombre", e.target.value)
+                }
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+              />
+
+              <input
+                type="number"
+                placeholder="Línea base"
+                value={meta.linea_base}
+                onChange={(e) =>
+                  handleMetaChange(index, "linea_base", e.target.value)
+                }
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+              />
+
+              <input
+                type="number"
+                placeholder="Valor meta"
+                value={meta.valor_meta}
+                onChange={(e) =>
+                  handleMetaChange(index, "valor_meta", e.target.value)
+                }
+                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
+              />
+
+              <button
+                type="button"
+                onClick={() => eliminarMeta(index)}
+                className="h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={agregarMeta}
+            className="mt-2 px-4 py-2 rounded-md bg-[#b1122b] text-white hover:bg-[#920f24]"
+          >
+            + Agregar meta e indicador
+          </button>
         </div>
       </div>
 

@@ -213,7 +213,19 @@ const Informes = () => {
                               )}
                             </td>
                           </tr>
-                          <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Metas e Indicador:</td><td className="p-2"><b>Indicador:</b> {matrizSeleccionada.indicador} <br/> <b>Meta:</b> {matrizSeleccionada.meta_cuantitativa}</td></tr>
+                          <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Metas e Indicadores:</td><td className="p-2">
+                            {(matrizSeleccionada.metas_indicadores || []).length > 0 ? (
+                              (matrizSeleccionada.metas_indicadores || []).map((mi, idx) => (
+                                <div key={idx} className={idx > 0 ? "mt-1 pt-1 border-t border-slate-200" : ""}>
+                                  <b>Meta:</b> {mi.meta_descripcion} <br/>
+                                  <b>Indicador:</b> {mi.indicador_nombre}
+                                  {mi.valor_meta != null ? ` (Meta: ${mi.valor_meta}${mi.valor_alcanzado != null ? `, Alcanzado: ${mi.valor_alcanzado}` : ''})` : ''}
+                                </div>
+                              ))
+                            ) : (
+                              <span className="italic text-slate-400">Sin metas e indicadores registrados</span>
+                            )}
+                          </td></tr>
                           <tr className="border-b border-slate-300"><td className="p-2 font-bold bg-slate-50 border-r border-slate-300">Tipo de Actividad:</td><td className="p-2">
                             {(() => {
                               const labels = {

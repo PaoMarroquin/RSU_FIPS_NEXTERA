@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { FiBell, FiSearch, FiChevronDown, FiUser, FiLogOut, FiCheckCircle, FiInfo } from "react-icons/fi";
+import { useNavigate, Link } from "react-router-dom";
+import { FiBell, FiSearch, FiChevronDown, FiUser, FiLogOut, FiCheckSquare } from "react-icons/fi";
 import { authService } from "../api/authService";
-import api from "../api/axiosConfig";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { useNotificaciones } from "../hooks/useNotificaciones";
+import { getTipoConfig } from "../utils/notificacionTipos";
 
 export default function Topbar() {
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
-  
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notificaciones, setNotificaciones] = useState([]);
+  const { notificaciones, unreadCount, marcarComoLeida, marcarTodasComoLeidas } = useNotificaciones();
 
   // Estado dinámico para los datos del usuario conectados al backend
   const [userData, setUserData] = useState({
@@ -56,17 +57,7 @@ export default function Topbar() {
       }
     };
 
-    const fetchNotificaciones = async () => {
-      try {
-        const res = await api.get('/api/v1/notificaciones/');
-        setNotificaciones(res.data.results || res.data);
-      } catch (error) {
-        console.error("Error fetching notificaciones:", error);
-      }
-    };
-
     sincronizarUsuario();
-    fetchNotificaciones();
   }, []);
 
   // Función para cerrar el menú si el usuario hace clic fuera de él
@@ -96,17 +87,6 @@ export default function Topbar() {
       navigate('/'); 
     }
   };
-
-  const markAsRead = async (notifId) => {
-    try {
-      await api.patch(`/api/v1/notificaciones/${notifId}/leer/`);
-      setNotificaciones(prev => prev.map(n => n.id === notifId ? { ...n, leida: true } : n));
-    } catch (error) {
-      console.error("Error al marcar como leida:", error);
-    }
-  };
-
-  const unreadCount = notificaciones.filter(n => !n.leida).length;
 
   return (
     <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-6 lg:px-8 sticky top-0 z-20 w-full">
@@ -141,9 +121,20 @@ export default function Topbar() {
           {/* Menú Desplegable Notificaciones */}
           {isNotifOpen && (
             <div className="absolute right-0 mt-3 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-              <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white">
+              <div className="px-4 py-2 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white gap-2">
                 <span className="font-bold text-slate-800">Notificaciones</span>
-                <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{unreadCount} nuevas</span>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={marcarTodasComoLeidas}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-[#b1122b] hover:text-[#8a0e21] transition-colors"
+                    >
+                      <FiCheckSquare className="text-sm" />
+                      Marcar todas
+                    </button>
+                  )}
+                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{unreadCount} nuevas</span>
+                </div>
               </div>
               {notificaciones.length === 0 ? (
                 <div className="p-4 text-center text-slate-500 text-sm">
@@ -151,38 +142,47 @@ export default function Topbar() {
                 </div>
               ) : (
                 <div className="flex flex-col">
-                  {notificaciones.map(notif => (
-                    <div 
-                      key={notif.id} 
-                      className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!notif.leida ? 'bg-red-50/30' : ''}`}
-                      onClick={() => {
-                        if (!notif.leida) markAsRead(notif.id);
-                      }}
-                    >
-                      <div className="flex gap-3">
-                        <div className="mt-1">
-                          {notif.tipo === 'aprobacion' ? (
-                            <FiCheckCircle className="text-emerald-500 text-lg" />
-                          ) : (
-                            <FiInfo className="text-[#b1122b] text-lg" />
-                          )}
-                        </div>
-                        <div>
-                          <strong className={`block text-sm leading-snug ${!notif.leida ? 'text-slate-800' : 'text-slate-600'}`}>
-                            {notif.titulo}
-                          </strong>
-                          <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                            {notif.mensaje}
-                          </p>
-                          <span className="text-[10px] text-slate-400 mt-2 block">
-                            {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: es })}
-                          </span>
+                  {notificaciones.slice(0, 8).map(notif => {
+                    const tipoConfig = getTipoConfig(notif.tipo);
+                    const TipoIcon = tipoConfig.icon;
+                    return (
+                      <div
+                        key={notif.id}
+                        className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer ${!notif.leida ? 'bg-red-50/30' : ''}`}
+                        onClick={() => {
+                          if (!notif.leida) marcarComoLeida(notif.id);
+                        }}
+                      >
+                        <div className="flex gap-3">
+                          <div className={`mt-0.5 h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${tipoConfig.bg}`}>
+                            <TipoIcon className={`text-base ${tipoConfig.text}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <strong className={`block text-sm leading-snug ${!notif.leida ? 'text-slate-800' : 'text-slate-600'}`}>
+                              {notif.titulo}
+                            </strong>
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                              {notif.mensaje}
+                            </p>
+                            <span className="text-[10px] text-slate-400 mt-2 block">
+                              {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: es })}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
+              <div className="px-4 pt-2 pb-1 border-t border-slate-100 sticky bottom-0 bg-white">
+                <Link
+                  to="/notificaciones"
+                  onClick={() => setIsNotifOpen(false)}
+                  className="block text-center text-xs font-semibold text-[#b1122b] hover:text-[#8a0e21] py-1.5 transition-colors"
+                >
+                  Ver todas las notificaciones
+                </Link>
+              </div>
             </div>
           )}
         </div>

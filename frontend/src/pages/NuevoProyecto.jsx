@@ -58,6 +58,14 @@ export default function NuevoProyecto() {
       navigate('/proyectos'); 
     }
   };
+  
+  const handleGuardarBorrador = async () => {
+    const exito = await enviarProyectoBackend('BORRADOR');
+    if (exito) {
+      navigate('/proyectos'); 
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -102,7 +110,7 @@ export default function NuevoProyecto() {
           nextStep={nextStep}
           prevStep={prevStep}
           enviarProyectoBackend={handleFinalizarYEnviar} 
-          guardarBorrador={handleCancelarYGuardarBorrador}
+          guardarBorrador={handleGuardarBorrador}
         />
       </div>
     </div>

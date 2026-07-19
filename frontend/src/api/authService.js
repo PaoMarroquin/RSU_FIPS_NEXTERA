@@ -30,28 +30,6 @@ export const authService = {
     return response.data;
   },
 
-  // 1. Obtener todas las actividades asociadas a un proyecto específico
-    getActividades: async (proyectoId) => {
-      const response = await api.get(`/api/v1/proyectos/${proyectoId}/actividades/`);
-      return response.data;
-    },
-
-    // 2. Modificar campos rápidos como el check de "cumplido" (Envía formato JSON regular)
-    patchActividad: async (proyectoId, actividadId, payload) => {
-      const response = await api.patch(`/api/v1/proyectos/${proyectoId}/actividades/${actividadId}/`, payload);
-      return response.data;
-    },
-
-    // 3. Subir el archivo de evidencia en binario (Envía formato FormData multipart)
-    patchActividadFormData: async (proyectoId, actividadId, formDataPayload) => {
-      const response = await api.patch(`/api/v1/proyectos/${proyectoId}/actividades/${actividadId}/`, formDataPayload, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        }
-      });
-      return response.data;
-    }
-
 };
 
 

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import ProjectCard from "../components/ProjectCard";
+import ConfirmModal from "../components/ConfirmModal";
 import api from '../api/axiosConfig';
+import { useToast } from '../context/ToastContext';
 
 import {
   FiSearch,
@@ -19,6 +21,8 @@ import {
 
 export default function Proyectos() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
 
   // Rol del usuario autenticado
   const userRole = localStorage.getItem('user_role') || '';
@@ -92,18 +96,20 @@ export default function Proyectos() {
     navigate(`/proyectos/editar/${id}`);
   };
 
-  const handleDelete = async (id) => {
-    const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.");
+  const handleDelete = (id) => {
+    setDeleteTargetId(id);
+  };
 
-    if (confirmar) {
-      try {
-        await api.delete(`/api/v1/proyectos/${id}/`);
-        setProjectsDb(prevProjects => prevProjects.filter(p => p.id !== id));
-        alert("Proyecto eliminado con éxito.");
-      } catch (error) {
-        console.error("Error al eliminar el proyecto:", error);
-        alert("Hubo un problema al intentar eliminar el proyecto.");
-      }
+  const confirmDelete = async () => {
+    const id = deleteTargetId;
+    setDeleteTargetId(null);
+    try {
+      await api.delete(`/api/v1/proyectos/${id}/`);
+      setProjectsDb(prevProjects => prevProjects.filter(p => p.id !== id));
+      showToast('success', "Proyecto eliminado con éxito.");
+    } catch (error) {
+      console.error("Error al eliminar el proyecto:", error);
+      showToast('error', "Hubo un problema al intentar eliminar el proyecto.");
     }
   };
 
@@ -381,6 +387,15 @@ export default function Proyectos() {
 
         </section>
       </div>
+
+      <ConfirmModal
+        open={deleteTargetId !== null}
+        titulo="Eliminar proyecto"
+        mensaje="¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   );
 }

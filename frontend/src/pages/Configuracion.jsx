@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { FiUser, FiPhone, FiUpload, FiCheckCircle, FiAlertCircle, FiFileText, FiAward } from "react-icons/fi";
+import { FiUser, FiPhone, FiUpload, FiFileText, FiAward } from "react-icons/fi";
 import { authService } from "../api/authService"; // Servicio real
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+import { useToast } from "../context/ToastContext";
 
 export default function MiPerfil() {
   // Estado 1:1 con tu backend Django
@@ -26,7 +27,7 @@ export default function MiPerfil() {
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
+  const { showToast } = useToast();
 
   // 1. CARGA LOS DATOS DEL PERFIL DESDE DJANGO AL ENTRAR
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function MiPerfil() {
 
       } catch (error) {
         console.error("Error al cargar perfil:", error);
-        mostrarAlerta("error", "No se pudieron obtener tus datos del servidor.");
+        showToast("error", "No se pudieron obtener tus datos del servidor.");
       } finally {
         setLoading(false);
       }
@@ -63,11 +64,6 @@ export default function MiPerfil() {
 
     cargarPerfil();
   }, []);
-
-  const mostrarAlerta = (type, text) => {
-    setStatusMsg({ type, text });
-    setTimeout(() => setStatusMsg({ type: "", text: "" }), 5000);
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -78,7 +74,7 @@ export default function MiPerfil() {
     const file = e.target.files[0];
     if (file) {
       if (!file.type.match("image/jpeg") && !file.type.match("image/png")) {
-        mostrarAlerta("error", "La firma debe ser una imagen válida (JPG o PNG).");
+        showToast("error", "La firma debe ser una imagen válida (JPG o PNG).");
         return;
       }
       setFormData((prev) => ({ ...prev, firma_digital: file }));
@@ -105,14 +101,14 @@ export default function MiPerfil() {
       }
 
       const resultado = await authService.updateMiPerfil(dataPayload);
-      mostrarAlerta("success", "¡Perfil actualizado correctamente en el servidor!");
+      showToast("success", "¡Perfil actualizado correctamente en el servidor!");
       
       if (resultado.firma_digital) {
         setFormData((prev) => ({ ...prev, firma_digital: resultado.firma_digital }));
       }
     } catch (error) {
       console.error("Error al guardar perfil:", error);
-      mostrarAlerta("error", "Hubo un problema al intentar guardar los cambios.");
+      showToast("error", "Hubo un problema al intentar guardar los cambios.");
     } finally {
       setIsSubmitting(false);
     }
@@ -161,18 +157,6 @@ export default function MiPerfil() {
                   </div>
                 </div>
               </div>
-
-              {/* MENSAJES DE ÉXITO O ERROR */}
-              {statusMsg.text && (
-                <div className={`p-4 rounded-lg flex items-center gap-3 border text-sm transition-all ${
-                  statusMsg.type === "success" 
-                    ? "bg-green-50 border-green-200 text-green-800" 
-                    : "bg-red-50 border-red-200 text-red-800"
-                }`}>
-                  {statusMsg.type === "success" ? <FiCheckCircle className="text-lg shrink-0" /> : <FiAlertCircle className="text-lg shrink-0" />}
-                  <span>{statusMsg.text}</span>
-                </div>
-              )}
 
               {/* FORMULARIO PARA VER Y ACTUALIZAR DATOS */}
               <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
