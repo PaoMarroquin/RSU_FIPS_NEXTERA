@@ -8,6 +8,18 @@ export default function DatosGenerales({ data, updateData }) {
 
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
+    if (type === 'date' && value) {
+      if (name === 'fechaTermino' && data.fechaInicio && value < data.fechaInicio) {
+        alert('⚠️ La fecha de término no puede ser anterior a la fecha de inicio.');
+        return; 
+      }
+      if (name === 'fechaInicio' && data.fechaTermino && value > data.fechaTermino) {
+        alert('⚠️ La fecha de inicio no puede ser posterior a la fecha de término.');
+        return; 
+      }
+    }
+
+    // Si pasa la validación o es otro tipo de input, actualiza normal
     updateData(name, type === 'checkbox' ? checked : value);
   };
 
@@ -147,19 +159,6 @@ export default function DatosGenerales({ data, updateData }) {
             }}
           />
 
-          <PaginatedSelect
-            label="Periodo Académico"
-            name="periodo"
-            value={data.periodo}
-            selectedName={data.periodo_nombre}
-            fetchFn={academicService.getPeriodos}
-            placeholder="Seleccione el periodo"
-            onChange={(e, nombre) => {
-              handleChange(e);
-              updateData('periodo_nombre', nombre);
-            }}
-          />
-
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">
               Semestre Académico <span className="text-red-500">*</span>
@@ -173,6 +172,36 @@ export default function DatosGenerales({ data, updateData }) {
               onChange={handleChange}
             />
           </div>
+
+          <div className="flex items-center gap-2 py-2">
+            <input
+              type="checkbox"
+              id="es_tesis_quinto_anio"
+              name="es_tesis_quinto_anio"
+              className="h-4 w-4 rounded border-slate-300 text-[#b1122b] focus:ring-[#b1122b]/20 transition-all cursor-pointer accent-[#b1122b]"
+              checked={!!data.es_tesis_quinto_anio}
+              onChange={handleChange}
+            />
+            <label
+              htmlFor="es_tesis_quinto_anio"
+              className="text-sm font-semibold text-slate-600 cursor-pointer select-none"
+            >
+              ¿Es tesis de 5to año?
+            </label>
+          </div>
+
+          <PaginatedSelect
+            label="Periodo Académico"
+            name="periodo"
+            value={data.periodo}
+            selectedName={data.periodo_nombre}
+            fetchFn={academicService.getPeriodos}
+            placeholder="Seleccione el periodo"
+            onChange={(e, nombre) => {
+              handleChange(e);
+              updateData('periodo_nombre', nombre);
+            }}
+          />
 
           <div className="flex flex-col gap-1 md:col-span-2">
             <label className="text-xs font-semibold text-slate-600">Asignatura(s) participante(s) <span className="text-red-500">*</span></label>
