@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiChevronDown, FiLoader } from 'react-icons/fi';
-import api from '../../api/axiosConfig';
 
 export default function PaginatedSelect({ 
   label, 
@@ -8,10 +7,12 @@ export default function PaginatedSelect({
   value,
   selectedName, 
   onChange, 
-  endpoint, 
+  fetchFn, 
   placeholder,
   disabled = false,
-  dependencia = null
+  dependencia = null,
+  valueKey = 'id',
+  labelKey = 'nombre'
 }) {
   const [options, setOptions] = useState([]);
   const [page, setPage] = useState(1);
@@ -22,6 +23,7 @@ export default function PaginatedSelect({
   const dropdownRef = useRef(null);
   const listRef = useRef(null);
 
+  // Cerrar al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -32,21 +34,50 @@ export default function PaginatedSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 1. EFECTO DE RESOLUCIÓN: Si llega un ID (value) pero no su nombre, ejecuta la recursividad del servicio
+  useEffect(() => {
+    if (value && !selectedName && !disabled) {
+      const alreadyExists = options.some(opt => opt[valueKey] === value);
+      
+      if (!alreadyExists) {
+        const resolveMissingName = async () => {
+          setIsLoading(true);
+          try {
+            // Pasamos 'true' como tercer parámetro para activar el modo recursivo del servicio
+            const data = await fetchFn(1, dependencia, true);
+            setOptions(data.results || []);
+            setHasMore(false); // Ya se trajo todo, no hay más páginas que pedir por scroll
+          } catch (error) {
+            console.error(`Error resolviendo nombre huérfano para ${name}:`, error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        resolveMissingName();
+      }
+    }
+  }, [value, selectedName, dependencia, disabled, fetchFn, name, valueKey]);
+
+  // 2. EFECTO DE CASCADA: Si cambia el padre (dependencia) o se deshabilita, se resetea por completo
   useEffect(() => {
     setOptions([]);
     setPage(1);
     setHasMore(true);
+    
     if (!disabled && isOpen) {
       fetchData(1, true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dependencia, disabled]);
 
+  // 3. EFECTO DE APERTURA Y PAGINACIÓN
   useEffect(() => {
     if (isOpen && page > 1) {
       fetchData(page);
     } else if (isOpen && options.length === 0) {
       fetchData(1);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, isOpen]);
 
   const fetchData = async (pageNum, reset = false) => {
@@ -54,14 +85,14 @@ export default function PaginatedSelect({
     
     setIsLoading(true);
     try {
-      const queryParam = dependencia ? `&facultad=${dependencia}` : '';
-      const response = await api.get(`${endpoint}?page=${pageNum}${queryParam}`);
+      // Paginación normal por defecto (getAll = false)
+      const data = await fetchFn(pageNum, dependencia, false);
+      const newResults = data.results || [];
       
-      const newResults = response.data.results;
       setOptions(prev => reset ? newResults : [...prev, ...newResults]);
-      setHasMore(response.data.next !== null);
+      setHasMore(data.next !== null);
     } catch (error) {
-      console.error(`Error cargando datos de ${endpoint}:`, error);
+      console.error(`Error en PaginatedSelect (${name}):`, error);
     } finally {
       setIsLoading(false);
     }
@@ -75,20 +106,14 @@ export default function PaginatedSelect({
   };
 
   const handleSelect = (option) => {
-    // AQUÍ ESTÁ LA MAGIA: Pasamos el evento normal, y como segundo parámetro el NOMBRE real
     onChange({
-      target: {
-        name: name,
-        value: option.id,
-        type: 'select'
-      }
-    }, option.nombre);
-    
+      target: { name, value: option[valueKey], type: 'select' }
+    }, option[labelKey]);
     setIsOpen(false);
   };
 
-  const selectedOption = options.find(opt => opt.id === value);
-  const displayText = selectedOption ? selectedOption.nombre : (selectedName || placeholder);
+  const selectedOption = options.find(opt => opt[valueKey] === value);
+  const displayText = selectedOption ? selectedOption[labelKey] : (selectedName || placeholder);
 
   return (
     <div className="flex flex-col gap-1 relative" ref={dropdownRef}>
@@ -105,25 +130,25 @@ export default function PaginatedSelect({
         <span className={value ? 'text-slate-800' : 'text-slate-400'}>
           {displayText}
         </span>
-        <FiChevronDown className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        {isLoading && !isOpen ? (
+          <FiLoader className="animate-spin text-[#b1122b]" />
+        ) : (
+          <FiChevronDown className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        )}
       </div>
 
       {isOpen && !disabled && (
         <div className="absolute top-[60px] left-0 right-0 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden">
-          <ul 
-            className="max-h-48 overflow-y-auto p-1"
-            onScroll={handleScroll}
-            ref={listRef}
-          >
+          <ul className="max-h-48 overflow-y-auto p-1" onScroll={handleScroll} ref={listRef}>
             {options.map((opt) => (
               <li 
-                key={opt.id}
+                key={opt[valueKey]}
                 onClick={() => handleSelect(opt)}
                 className={`px-3 py-2 text-sm rounded-md cursor-pointer transition-colors
-                  ${value === opt.id ? 'bg-red-50 text-[#b1122b] font-semibold' : 'text-slate-700 hover:bg-slate-100'}
+                  ${value === opt[valueKey] ? 'bg-red-50 text-[#b1122b] font-semibold' : 'text-slate-700 hover:bg-slate-100'}
                 `}
               >
-                {opt.nombre}
+                {opt[labelKey]}
               </li>
             ))}
             

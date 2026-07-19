@@ -80,9 +80,7 @@ export default function Proyectos() {
 
   // MANDAR A CREAR DESDE CERO COMPLETAMENTE VACÍO
   const handleNuevoProyecto = () => {
-    // 1. Limpiamos cualquier rastro que dejes guardado temporalmente en la sesión local
-    localStorage.removeItem('proyecto_form_data');
-    localStorage.removeItem('current_project_id'); // Por si guardas el ID para saber si editas o creas
+    localStorage.removeItem('rsu_draft');
 
     // 2. Opcional: Si manejas un estado global (como un Context o Zustand), asegúrate de invocar su reset aquí.
     // resetFormGlobal();
