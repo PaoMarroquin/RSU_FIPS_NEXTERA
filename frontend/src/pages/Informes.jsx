@@ -87,6 +87,7 @@ const Informes = () => {
             <div>
               <h2 className="text-2xl font-bold text-slate-800 m-0">Informes Completos de Ejecución</h2>
               <p className="text-sm text-slate-500 mt-1">Expediente oficial consolidado del Proyecto de Responsabilidad Social</p>
+            </div>
           </div>
 
           <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
