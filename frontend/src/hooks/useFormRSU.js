@@ -11,7 +11,6 @@ const mockInitialData = {
   anio_carrera: null, es_tesis_quinto_anio: false,
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
-  es_tesis_quinto_anio: false,
   beneficiarios: '', 
   eje_rsu: null, ejes_subitems: [], eje_detalle: "",
   tiposActividad: [],
