@@ -277,9 +277,6 @@ export default function Dashboard() {
   });
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const [proyectos, setProyectos] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Sincronizar rol si cambia en localStorage
