@@ -92,7 +92,7 @@ export default function ProjectCard({ id, title, author, faculty, progress, stat
               <FiEye className="w-4 h-4" />
             </button>
           )}
-          {onEdit && (
+          {onEdit && !['en_revision', 'aprobado'].includes(statusKey) && (
             <button 
               onClick={onEdit}
               title="Editar proyecto"
