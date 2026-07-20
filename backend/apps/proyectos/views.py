@@ -99,7 +99,7 @@ def _validar_campos_obligatorios(proyecto):
 
     for campo, label in [
         ('eje_rsu_id', 'El eje RSU'),
-        ('periodo_id', 'El periodo académico'),
+        # ('periodo_id', 'El periodo académico'), #quitar obligacaion de periodo academico
         ('facultad_id', 'La facultad'),
         ('escuela_id', 'La escuela profesional'),
         ('departamento_id', 'El departamento académico'),
