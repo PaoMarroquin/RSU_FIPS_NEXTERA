@@ -248,11 +248,11 @@ export const useFormRSU = () => {
       campo !== null && campo !== '' && campo !== 0 && (Array.isArray(campo) ? campo.length > 0 : true)
     );
 
-    if (!cumpleObligatorios) {
+    /*if (!cumpleObligatorios) {
       console.error("Error: Faltan campos obligatorios (facultad, escuela, departamento, semestre_academico, titulo, eje_rsu, ods)");
       showToast('error', "Por favor, completa los campos obligatorios del Paso 1 y Paso 4 (ODS) antes de guardar.");
       return;
-    }
+    }*/
 
     setIsSubmitting(true);
 
@@ -262,8 +262,8 @@ export const useFormRSU = () => {
         facultad: parseInt(formData.facultad, 10),
         escuela: parseInt(formData.escuela, 10),
         departamento: parseInt(formData.departamento, 10),
-        //semestre_academico: formData.semestre,
-        semestre_academico: formData.periodo_nombre,
+        semestre_academico: formData.semestre,
+        //semestre_academico: formData.periodo_nombre,
         titulo: formData.titulo,
         nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1), // Mínimo 1
         nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0), // Mínimo 0
@@ -336,7 +336,7 @@ export const useFormRSU = () => {
           .map((crono, i) => {
             // Diccionario local para traducir lo que venga del Formulario a lo que acepta Django
             const mapeoEstadosBackend = {
-              "no iniciado": "pendiente",
+              "no iniciado": "no_iniciado",
               "pendiente": "pendiente",
               "en proceso": "en_proceso",
               "en_proceso": "en_proceso",
@@ -348,7 +348,7 @@ export const useFormRSU = () => {
             const estadoLimpio = (crono.estado_avance || "pendiente").toLowerCase().trim();
             
             // Si por alguna razón el texto no coincide, Django usará 'pendiente' por defecto
-            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "no iniciado";
+            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "no_iniciado";
 
             return {
               descripcion: crono.descripcion, 

@@ -12,7 +12,7 @@ export default function Cronograma({ data, updateData }) {
           fecha_inicio: "",
           fecha_fin: "",
           responsable: "",
-          estado_avance: "no_iniciado", // Valor técnico nativo para Django
+          estado_avance: "no_iniciado",
           orden: 1
         }
       ]);
@@ -34,7 +34,7 @@ export default function Cronograma({ data, updateData }) {
         fecha_inicio: "",
         fecha_fin: "",
         responsable: "",
-        estado_avance: "no_iniciado", // Valor técnico nativo para Django
+        estado_avance: "no_iniciado",
         orden: cronogramas.length + 1
       },
     ]);
@@ -58,10 +58,21 @@ export default function Cronograma({ data, updateData }) {
     if (item.fecha_fin < item.fecha_inicio) {
       return "La fecha de fin no puede ser anterior a la de inicio.";
     }
+    const fueraRangoGeneral =
+      (data.fechaInicio && (item.fecha_inicio < data.fechaInicio || item.fecha_fin < data.fechaInicio)) ||
+      (data.fechaTermino && (item.fecha_inicio > data.fechaTermino || item.fecha_fin > data.fechaTermino));
+
+    if (fueraRangoGeneral) {
+      return "Fechas fuera del rango general del proyecto.";
+    }
     return null;
   };
 
-  const tieneErroresFecha = cronogramas.some(item => item.fecha_inicio && item.fecha_fin && item.fecha_fin < item.fecha_inicio);
+  const tieneErroresFecha = cronogramas.some(item =>
+    (item.fecha_inicio && item.fecha_fin && item.fecha_fin < item.fecha_inicio) ||
+    (item.fecha_inicio && ((data.fechaInicio && item.fecha_inicio < data.fechaInicio) || (data.fechaTermino && item.fecha_inicio > data.fechaTermino))) ||
+    (item.fecha_fin && ((data.fechaInicio && item.fecha_fin < data.fechaInicio) || (data.fechaTermino && item.fecha_fin > data.fechaTermino)))
+  );
   const tieneCamposVacios = cronogramas.some(item => !item.descripcion?.trim() || !item.fecha_inicio || !item.fecha_fin);
 
   return (
@@ -102,7 +113,7 @@ export default function Cronograma({ data, updateData }) {
           <p className="font-bold">⚠️ Por favor, corrige los siguientes problemas para asegurar el guardado en el servidor:</p>
           <ul className="list-disc list-inside ml-1 space-y-0.5 opacity-90">
             {tieneCamposVacios && <li>Hay filas con campos obligatorios vacíos (Descripción, Fecha Inicio o Fin).</li>}
-            {tieneErroresFecha && <li>La <b>Fecha Fin</b> no puede ser menor que la <b>Fecha Inicio</b>.</li>}
+            {tieneErroresFecha && <li>Las fechas no pueden cruzarse ni salirse del rango de Inicio y Termino del proyecto.</li>}
           </ul>
         </div>
       )}
@@ -126,10 +137,13 @@ export default function Cronograma({ data, updateData }) {
               const errorFila = obtenerErrorFila(item);
               const esFechaInvalida = item.fecha_inicio && item.fecha_fin && item.fecha_fin < item.fecha_inicio;
               const esDescInvalida = !item.descripcion?.trim();
+              const errorLocal = item.fecha_inicio && item.fecha_fin && item.fecha_fin < item.fecha_inicio;
+              const inicioFueraRango = item.fecha_inicio && ((data.fechaInicio && item.fecha_inicio < data.fechaInicio) || (data.fechaTermino && item.fecha_inicio > data.fechaTermino));
+              const finFueraRango = item.fecha_fin && ((data.fechaInicio && item.fecha_fin < data.fechaInicio) || (data.fechaTermino && item.fecha_fin > data.fechaTermino));
 
               return (
                 <tr key={index} className={`transition-colors ${errorFila ? 'bg-red-50/10' : 'hover:bg-slate-50/50'}`}>
-                  
+
                   {/* Número de orden */}
                   <td className="p-2 text-center text-xs font-bold text-slate-400">
                     {item.orden || index + 1}
@@ -139,9 +153,8 @@ export default function Cronograma({ data, updateData }) {
                   <td className="p-2">
                     <input
                       type="text"
-                      className={`w-full border rounded-md px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${
-                        esDescInvalida ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
-                      }`}
+                      className={`w-full border rounded-md px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${esDescInvalida ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
+                        }`}
                       placeholder="Descripción de la acción..."
                       value={item.descripcion || ""}
                       onChange={(e) => handleChangeCronograma(index, "descripcion", e.target.value)}
@@ -152,27 +165,34 @@ export default function Cronograma({ data, updateData }) {
                   <td className="p-2">
                     <input
                       type="date"
-                      className={`w-full border rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${
-                        (!item.fecha_inicio || esFechaInvalida) ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
-                      }`}
+                      className={`w-full border rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${(!item.fecha_inicio || errorLocal || inicioFueraRango) ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
+                        }`}
                       value={item.fecha_inicio || ""}
+                      min={data.fechaInicio || undefined}
+                      max={item.fecha_fin || data.fechaTermino || undefined}
                       onChange={(e) => handleChangeCronograma(index, "fecha_inicio", e.target.value)}
                     />
+                    {inicioFueraRango && (
+                      <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Fuera de rango proyecto</span>
+                    )}
                   </td>
 
                   {/* Fecha Fin */}
                   <td className="p-2">
                     <input
                       type="date"
-                      className={`w-full border rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${
-                        (!item.fecha_fin || esFechaInvalida) ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
-                      }`}
+                      className={`w-full border rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${(!item.fecha_fin || errorLocal || finFueraRango) ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'
+                        }`}
                       value={item.fecha_fin || ""}
-                      min={item.fecha_inicio || undefined}
+                      min={item.fecha_inicio || data.fechaInicio || undefined}
+                      max={data.fechaTermino || undefined}
                       onChange={(e) => handleChangeCronograma(index, "fecha_fin", e.target.value)}
                     />
-                    {esFechaInvalida && (
+                    {errorLocal && (
                       <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Fin menor a Inicio</span>
+                    )}
+                    {finFueraRango && !errorLocal && (
+                      <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Fuera de rango proyecto</span>
                     )}
                   </td>
 
@@ -185,20 +205,6 @@ export default function Cronograma({ data, updateData }) {
                       value={item.responsable || ""}
                       onChange={(e) => handleChangeCronograma(index, "responsable", e.target.value)}
                     />
-                  </td>
-
-                  {/* Estado Avance */}
-                  <td className="p-2">
-                    <select
-                      className="w-full border border-slate-300 bg-white rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:border-[#b1122b]"
-                      value={item.estado_avance || "no_iniciado"}
-                      onChange={(e) => handleChangeCronograma(index, "estado_avance", e.target.value)}
-                    >
-                      <option value="no_iniciado">No Iniciado</option>
-                      <option value="pendiente">Pendiente</option>
-                      <option value="en_proceso">En proceso</option>
-                      <option value="finalizado">Finalizado</option>
-                    </select>
                   </td>
 
                   {/* Eliminar */}
