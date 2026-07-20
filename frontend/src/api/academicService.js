@@ -39,8 +39,22 @@ export const academicService = {
   },
 
   getPeriodos: async (page = 1, dependenciaId = null, getAll = false) => {
-    if (getAll) return fetchRecursive('/api/v1/periodos/');
-    const response = await api.get('/api/v1/periodos/', { params: { page } });
-    return response.data;
-  }
+    if (getAll) {
+      const data = await fetchRecursive('/api/v1/periodos/');
+      return {
+        ...data,
+        results: data.results.filter(periodo => periodo.activo),
+      };
+    }
+
+    const response = await api.get('/api/v1/periodos/', {
+      params: { page }
+    });
+
+    return {
+      ...response.data,
+      results: response.data.results.filter(periodo => periodo.activo),
+    };
+  },
+
 };

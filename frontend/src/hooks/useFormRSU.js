@@ -237,8 +237,10 @@ export const useFormRSU = () => {
   const enviarProyectoBackend = async (modo = 'BORRADOR') => {
     // 1. Validar campos estrictamente obligatorios requeridos por el backend
     const camposObligatorios = [
+      formData.periodo,
       formData.facultad, formData.escuela, formData.departamento, 
-      formData.semestre, formData.titulo, formData.eje_rsu, formData.ods
+      //formData.semestre, 
+      formData.titulo, formData.eje_rsu, formData.ods
     ];
     
     // Verificamos que los IDs no sean nulos/cero y que los strings/arrays tengan contenido
@@ -260,7 +262,8 @@ export const useFormRSU = () => {
         facultad: parseInt(formData.facultad, 10),
         escuela: parseInt(formData.escuela, 10),
         departamento: parseInt(formData.departamento, 10),
-        semestre_academico: formData.semestre,
+        //semestre_academico: formData.semestre,
+        semestre_academico: formData.periodo_nombre,
         titulo: formData.titulo,
         nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1), // Mínimo 1
         nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0), // Mínimo 0

@@ -19,10 +19,12 @@ export default function MiPerfil() {
   });
 
   // Datos informativos que Django devuelve pero no se editan directamente con números
-  const [extraUserData, setExtraUserData] = useState({
+const [extraUserData, setExtraUserData] = useState({
     correoInstitucional: "",
     rolNombre: "",
-    facultadNombre: ""
+    facultadNombre: "",
+    escuelaNombre: "",
+    departamentoNombre: ""
   });
 
   const [loading, setLoading] = useState(true);
@@ -49,9 +51,11 @@ export default function MiPerfil() {
         });
 
         setExtraUserData({
-          correoInstitucional: data.correo_institucional || "correo@unsa.edu.pe",
-          rolNombre: data.rol_nombre || "si sale esto no conecto :'v",
-          facultadNombre: data.facultad_nombre || ""
+          correoInstitucional: data.correo_institucional || "",
+          rolNombre: data.rol_nombre || "",
+          facultadNombre: data.facultad_nombre || "",
+          escuelaNombre: data.escuela_nombre || "",
+          departamentoNombre: data.departamento_nombre || ""
         });
 
       } catch (error) {
@@ -89,12 +93,10 @@ export default function MiPerfil() {
     try {
       // Usamos FormData porque hay un archivo binario (la firma)
       const dataPayload = new FormData();
+
       dataPayload.append("nombres", formData.nombres);
       dataPayload.append("apellidos", formData.apellidos);
       dataPayload.append("celular", formData.celular);
-      if (formData.facultad) dataPayload.append("facultad", parseInt(formData.facultad, 10));
-      if (formData.escuela) dataPayload.append("escuela", parseInt(formData.escuela, 10));
-      if (formData.departamento) dataPayload.append("departamento", parseInt(formData.departamento, 10));
 
       if (formData.firma_digital instanceof File) {
         dataPayload.append("firma_digital", formData.firma_digital);
@@ -218,42 +220,51 @@ export default function MiPerfil() {
                     </div>
                   </div>
 
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pt-4 pb-2">Estructura Organizativa (IDs Numéricos)</h3>
+<h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pt-4 pb-2">
+  Información Académica
+</h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">ID Facultad</label>
-                      <input
-                        type="number"
-                        name="facultad"
-                        className="w-full text-sm rounded-md border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-1 focus:ring-[#b1122b] focus:border-[#b1122b] transition-all"
-                        value={formData.facultad}
-                        onChange={handleInputChange}
-                      />
-                    </div>
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div>
+    <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
+      Facultad
+    </label>
+    <input
+      type="text"
+      readOnly
+      disabled
+      className="w-full text-sm rounded-md border border-slate-200 px-3 py-2 bg-slate-50 text-slate-500"
+      value={extraUserData.facultadNombre || ""}
+    />
+  </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">ID Escuela</label>
-                      <input
-                        type="number"
-                        name="escuela"
-                        className="w-full text-sm rounded-md border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-1 focus:ring-[#b1122b] focus:border-[#b1122b] transition-all"
-                        value={formData.escuela}
-                        onChange={handleInputChange}
-                      />
-                    </div>
+  <div>
+    <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
+      Escuela Profesional
+    </label>
+    <input
+      type="text"
+      readOnly
+      disabled
+      className="w-full text-sm rounded-md border border-slate-200 px-3 py-2 bg-slate-50 text-slate-500"
+      value={extraUserData.escuelaNombre || ""}
+    />
+  </div>
 
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">ID Departamento</label>
-                      <input
-                        type="number"
-                        name="departamento"
-                        className="w-full text-sm rounded-md border border-slate-300 px-3 py-2 text-slate-800 outline-none focus:ring-1 focus:ring-[#b1122b] focus:border-[#b1122b] transition-all"
-                        value={formData.departamento}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
+  <div>
+    <label className="text-[11px] font-bold text-slate-600 block mb-1.5 uppercase tracking-wide">
+      Departamento Académico
+    </label>
+    <input
+      type="text"
+      readOnly
+      disabled
+      className="w-full text-sm rounded-md border border-slate-200 px-3 py-2 bg-slate-50 text-slate-500"
+      value={extraUserData.departamentoNombre || ""}
+    />
+  </div>
+</div>
+
 
                   <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pt-4 pb-2">Firma Digital Autenticadora</h3>
 
