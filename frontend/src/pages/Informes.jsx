@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import api from '../api/axiosConfig'; 
-import { FiSearch, FiCalendar, FiClock, FiCheckCircle, FiFileText, FiPrinter, FiTarget, FiDollarSign, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiCalendar, FiClock, FiCheckCircle, FiFileText, FiPrinter, FiTarget, FiDollarSign, FiRefreshCw, FiFilter } from 'react-icons/fi';
 import ReporteExpediente from '../components/reports/ReporteExpediente';
 
 const Informes = () => {
@@ -87,13 +87,6 @@ const Informes = () => {
             <div>
               <h2 className="text-2xl font-bold text-slate-800 m-0">Informes Completos de Ejecución</h2>
               <p className="text-sm text-slate-500 mt-1">Expediente oficial consolidado del Proyecto de Responsabilidad Social</p>
-            </div>
-            <button 
-              onClick={fetchMatrices} 
-              className="p-2 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 flex items-center gap-1 text-xs font-semibold shadow-xs"
-            >
-              <FiRefreshCw className={loading ? "animate-spin" : ""} /> Sincronizar Back
-            </button>
           </div>
 
           <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
