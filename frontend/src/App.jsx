@@ -16,7 +16,7 @@ import Notificaciones from './pages/Notificaciones';
 import ListaUsuarios from './pages/usuarios/ListaUsuarios';
 import CrearUsuarios from './pages/usuarios/CrearUsuarios';
 import EditarUsuarios from './pages/usuarios/EditarUsuarios';
-import ExportarUsuarios from './pages/usuarios/ExportarUsuarios';
+import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
 import MatrizOperativa from './pages/MatrizOperativa';
 import ProyectosJefatura from './pages/ProyectosJefatura';
 
