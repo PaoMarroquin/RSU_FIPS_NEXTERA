@@ -4,7 +4,8 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { 
   FiCheckCircle, FiXCircle, FiInbox, FiTarget, 
-  FiCalendar, FiDollarSign, FiInfo, FiFileText, FiEye, FiX 
+  FiCalendar, FiDollarSign, FiFileText, FiEye, FiX, FiAlertCircle,
+  FiMapPin, FiTrendingUp
 } from "react-icons/fi";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,19 +19,21 @@ export default function RevisionProyectos() {
 
   // Estados del Modal de Evaluación y Detalle
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedProyecto, setSelectedProyecto] = useState(null);
-  const [comentario, setComentario] = useState("");
+  const [selectedProyecto, setSelectedProyecto] = useState(null); 
+  
+  // Diccionario dinámico exhaustivo para mapear observaciones por cada campo
+  const [observacionesCampos, setObservacionesCampos] = useState({});
   const [evaluating, setEvaluating] = useState(false);
   const [actionType, setActionType] = useState(null); // 'aprobar' or 'observar'
 
-  // Pestañas dentro del modal para que el departamento revise todo
-  const [activeTab, setActiveTab] = useState("metas"); 
+  // Pestañas organizadas para albergar todos los campos
+  const [activeTab, setActiveTab] = useState("general"); 
   const [metas, setMetas] = useState([]);
   const [cronograma, setCronograma] = useState([]);
-  const [presupuesto, setPresupuesto] = useState(null);
+  const [presupuestoCompleto, setPresupuestoCompleto] = useState([]);
   const [loadingSubRecursos, setLoadingSubRecursos] = useState(false);
 
-  // Estados del Modal de Visualización (informe completo)
+  // Estados del Modal de Visualización
   const [modalVistaOpen, setModalVistaOpen] = useState(false);
   const [proyectoDetalle, setProyectoDetalle] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
@@ -39,16 +42,12 @@ export default function RevisionProyectos() {
     fetchProyectos();
   }, []);
 
-  // 1. CARGA DE PROYECTOS PARA REVISAR (Consumo general + Filtro exhaustivo)
   const fetchProyectos = async () => {
     try {
       setLoading(true);
-      
-      // Consultamos el listado general para evitar bloqueos por departamento del backend
       const res = await api.get("/api/v1/proyectos/");
       const todosLosProyectos = res.data?.results || res.data || [];
       
-      // Filtramos en el cliente abarcando todas las variantes posibles del estado
       const pendientesDeRevision = todosLosProyectos.filter(proyecto => {
         const estadoLimpio = proyecto.estado?.toLowerCase().trim() || "";
         return (
@@ -68,7 +67,6 @@ export default function RevisionProyectos() {
     }
   };
 
-  // 2b. ABRIR MODAL DE VISUALIZACIÓN (INFORME COMPLETO)
   const openModalVisualizacion = async (proyecto) => {
     setProyectoDetalle(null);
     setModalVistaOpen(true);
@@ -83,47 +81,95 @@ export default function RevisionProyectos() {
     }
   };
 
-  // 2. ABRIR DICTAMEN Y CARGAR SUS SUB-RECURSOS REALES EN PARALELO
   const openModalRevision = async (proyecto, action) => {
-    setSelectedProyecto(proyecto);
+    setSelectedProyecto(null); 
     setActionType(action);
-    setComentario("");
-    setActiveTab("metas");
+    setActiveTab("general");
     setModalOpen(true);
+    setLoadingSubRecursos(true);
+    
+    setObservacionesCampos({
+      titulo: "",
+      codigo: "",
+      linea_investigacion: "",
+      ods_vinculados: "",
+      resumen: "",
+      justificacion: "",
+      planteamiento_problema: "",
+      objetivo_general: "",
+      objetivos_especificos: "",
+      localizacion: "",
+      distrito_provincia: "",
+      beneficiarios_directos: "",
+      beneficiarios_indirectos: "",
+      docentes_participantes: "",
+      estudiantes_participantes: "",
+      entities_aliadas: "",
+      metas_globales: "",
+      cronograma_global: "",
+      monto_financiamiento: "",
+      partidas_bienes: "",
+      partidas_servicios: "",
+      observacion_general: ""
+    });
     
     try {
-      setLoadingSubRecursos(true);
-      // Peticiones usando {proyecto_pk} estructurado en tu API
-      const [resMetas, resCronograma, resPresupuesto] = await Promise.all([
+      const [resProyectoFull, resMetas, resCronograma, resPresupuesto] = await Promise.all([
+        api.get(`/api/v1/proyectos/${proyecto.id}/`),
         api.get(`/api/v1/proyectos/${proyecto.id}/metas-indicadores/`),
         api.get(`/api/v1/proyectos/${proyecto.id}/cronograma/`),
-        api.get(`/api/v1/proyectos/${proyecto.id}/presupuesto/resumen/`).catch(() => ({ data: null }))
+        api.get(`/api/v1/proyectos/${proyecto.id}/presupuesto/partidas/`).catch(() => ({ data: [] }))
       ]);
 
+      setSelectedProyecto(resProyectoFull.data);
       setMetas(resMetas.data?.results || resMetas.data || []);
       setCronograma(resCronograma.data?.results || resCronograma.data || []);
-      setPresupuesto(resPresupuesto.data);
+      setPresupuestoCompleto(resPresupuesto.data?.results || resPresupuesto.data || []);
     } catch (error) {
-      console.error("Error cargando detalles del expediente:", error);
+      console.error("Error cargando los datos detallados del expediente:", error);
+      showToast("error", "Error al sincronizar los campos del proyecto.");
     } finally {
       setLoadingSubRecursos(false);
     }
   };
 
-  // 3. ENVIAR DICTAMEN (APROBAR / OBSERVACIÓN)
+  const handleInputChange = (campo, valor) => {
+    setObservacionesCampos(prev => ({ ...prev, [campo]: valor }));
+  };
+
   const handleEvaluate = async () => {
-    if (actionType === "observar" && !comentario.trim()) {
-      showToast("error", "El comentario técnico es obligatorio para poder observar el proyecto.");
+    const camposConObservacion = Object.entries(observacionesCampos).reduce((acc, [key, val]) => {
+      if (val.trim() && key !== "observacion_general") acc[key] = val.trim();
+      return acc;
+    }, {});
+
+    if (actionType === "observar" && Object.keys(camposConObservacion).length === 0 && !observacionesCampos.observacion_general?.trim()) {
+      showToast("error", "Debes registrar al menos una observación detallada o un comentario general.");
       return;
     }
 
     try {
       setEvaluating(true);
       const endpoint = `/api/v1/proyectos/${selectedProyecto.id}/${actionType}/`;
-      
       const payload = {};
-      if (actionType === "observar") {
-        payload.comentario_tecnico = comentario;
+
+      if (actionType === "aprobar") {
+        payload.comentario = "El proyecto cumple con los requisitos normativos.";
+      } else if (actionType === "observar") {
+        let textoEstructurado = "";
+
+        if (observacionesCampos.observacion_general?.trim()) {
+          textoEstructurado += `RESUMEN GENERAL:\n${observacionesCampos.observacion_general.trim()}\n\n`;
+        }
+
+        textoEstructurado += "DETALLE DE OBSERVACIONES POR CAMPO:\n";
+        
+        Object.entries(camposConObservacion).forEach(([campo, textoObs]) => {
+          const nombreFormateado = campo.replace("_", " ").toUpperCase();
+          textoEstructurado += `- En [${nombreFormateado}]: ${textoObs}\n`;
+        });
+
+        payload.comentario_tecnico = textoEstructurado;
       }
 
       await api.post(endpoint, payload);
@@ -133,10 +179,9 @@ export default function RevisionProyectos() {
       fetchProyectos();
     } catch (error) {
       console.error("Error al evaluar:", error);
-      const msg = error.response?.data?.comentario_tecnico?.[0] || 
-                  error.response?.data?.detail || 
-                  "Error al procesar el dictamen en el servidor.";
-      showToast("error", msg);
+      const apiError = error.response?.data?.comentario_tecnico || error.response?.data?.detail;
+      const mensajeFinal = typeof apiError === 'object' ? (apiError.string || JSON.stringify(apiError)) : apiError;
+      showToast("error", mensajeFinal || "Error al procesar el dictamen.");
     } finally {
       setEvaluating(false);
     }
@@ -144,9 +189,53 @@ export default function RevisionProyectos() {
 
   const formatearFecha = (fechaString) => {
     if (!fechaString) return "-";
-    try {
-      return format(parseISO(fechaString), "dd/MM/yyyy HH:mm", { locale: es });
-    } catch { return "-"; }
+    try { return format(parseISO(fechaString), "dd/MM/yyyy HH:mm", { locale: es }); } catch { return "-"; }
+  };
+
+  // Renderizador estructural optimizado en dos columnas (Izquierda: Original, Derecha: Caja de Observación)
+  const renderFilaDeEvaluacion = (tituloCampo, valorOriginal, campoKey, placeholder = "Describa la observación...") => {
+    const esObservar = actionType === "observar";
+
+    return (
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+        {/* Encabezado del Bloque */}
+        <div className="bg-slate-50 border-b border-slate-200 px-3 py-1.5 flex items-center justify-between">
+          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">{tituloCampo}</span>
+          {esObservar && observacionesCampos[campoKey]?.trim() && (
+            <span className="bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded text-[9px] flex items-center gap-0.5">
+              <FiAlertCircle /> Con Observación
+            </span>
+          )}
+        </div>
+
+        {/* Cuerpo Dinámico: 2 Columnas si es observación, 1 Columna si es aprobación */}
+        <div className={`p-3 grid ${esObservar ? "grid-cols-1 md:grid-cols-2 gap-4" : "grid-cols-1"}`}>
+          {/* Columna Izquierda: Datos del Docente */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-semibold text-slate-400 block">Datos enviados por el docente:</span>
+            <div className="text-slate-800 p-2.5 bg-slate-50 rounded-lg border border-slate-100 font-medium whitespace-pre-line leading-relaxed text-xs">
+              {valorOriginal || <span className="text-slate-400 italic font-normal">No registrado por el autor</span>}
+            </div>
+          </div>
+
+          {/* Columna Derecha: Entrada para la Observación (Solo si se va a observar) */}
+          {esObservar && (
+            <div className="flex flex-col justify-between bg-red-50/30 p-2.5 rounded-lg border border-red-100/70">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-red-700 flex items-center gap-1 mb-1.5">
+                <FiAlertCircle /> Redactar observación específica
+              </label>
+              <textarea
+                className="w-full flex-1 text-xs px-2.5 py-1.5 border border-red-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] bg-white text-slate-700 resize-none min-h-[60px]"
+                rows="3"
+                placeholder={placeholder}
+                value={observacionesCampos[campoKey] || ""}
+                onChange={(e) => handleInputChange(campoKey, e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -157,73 +246,46 @@ export default function RevisionProyectos() {
         
         <main className="p-8 max-w-5xl w-full mx-auto space-y-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Panel de Departamento: Revisión RSU</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Evalúa, fiscaliza los sub-recursos y emite dictámenes para los planes de trabajo enviados.</p>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Panel de Departamento: Revisión Integral RSU</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Módulo de fiscalización granular para todos los campos declarados del plan de trabajo.</p>
           </div>
 
-          {/* TABLA PRINCIPAL DE PROYECTOS PARA REVISAR */}
+          {/* TABLA PRINCIPAL DE ENTRADA */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             {loading ? (
               <div className="p-12 text-center flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-medium">
                 <div className="w-6 h-6 border-2 border-[#b1122b] border-t-transparent rounded-full animate-spin"></div>
-                Buscando proyectos enviados por los docentes...
+                Cargando bandeja de revisión...
               </div>
             ) : proyectos.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 text-lg">
-                  <FiInbox />
-                </div>
-                <div>
-                  <p className="font-bold text-sm text-slate-700 m-0">No tienes proyectos pendientes de revisión</p>
-                  <p className="text-xs text-slate-400 mt-1">Buen trabajo. Todos los planes enviados ya fueron evaluados o filtrados.</p>
-                </div>
+                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 text-lg"><FiInbox /></div>
+                <p className="font-bold text-sm text-slate-700 m-0">No hay proyectos pendientes de revisión</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
-                    <th className="py-4 px-6 font-bold">Código / Proyecto</th>
-                    <th className="py-4 px-6 font-bold">Docente Coordinador</th>
-                    <th className="py-4 px-6 font-bold">Fecha de Envío</th>
-                    <th className="py-4 px-6 font-bold text-center">Evaluar Expediente</th>
+                    <th className="py-4 px-6 font-bold">Proyecto</th>
+                    <th className="py-4 px-6 font-bold">Coordinador</th>
+                    <th className="py-4 px-6 font-bold">Fecha Envío</th>
+                    <th className="py-4 px-6 font-bold text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {proyectos.map((proyecto) => (
                     <tr key={proyecto.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-4 px-6 max-w-sm">
-                        <div className="font-mono font-bold text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded w-max mb-1">
-                          {proyecto.codigo || 'PENDIENTE ASIGNAR'}
-                        </div>
+                        <div className="font-mono font-bold text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded w-max mb-1">{proyecto.codigo || 'S/C'}</div>
                         <div className="text-slate-800 font-semibold line-clamp-1">{proyecto.titulo}</div>
                       </td>
-                      <td className="py-4 px-6 text-slate-600 font-medium">
-                        {proyecto.docente_responsable_nombre || proyecto.docente_responsable || "Docente Responsable"}
-                      </td>
-                      <td className="py-4 px-6 text-slate-500">
-                        {proyecto.fecha_envio_revision ? formatearFecha(proyecto.fecha_envio_revision) : "Reciente"}
-                      </td>
+                      <td className="py-4 px-6 text-slate-600 font-medium">{proyecto.docente_responsable_nombre || "Docente"}</td>
+                      <td className="py-4 px-6 text-slate-500">{formatearFecha(proyecto.fecha_envio_revision)}</td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
-                            className="px-2.5 py-1.5 bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 font-bold rounded-lg transition-colors flex items-center gap-1"
-                            onClick={() => openModalVisualizacion(proyecto)}
-                            title="Ver informe completo"
-                          >
-                            <FiEye /> Ver
-                          </button>
-                          <button 
-                            className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold rounded-lg transition-colors flex items-center gap-1"
-                            onClick={() => openModalRevision(proyecto, 'aprobar')}
-                          >
-                            <FiCheckCircle /> Aprobar
-                          </button>
-                          <button 
-                            className="px-2.5 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 font-bold rounded-lg transition-colors flex items-center gap-1"
-                            onClick={() => openModalRevision(proyecto, 'observar')}
-                          >
-                            <FiXCircle /> Observar
-                          </button>
+                          <button className="px-2.5 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 font-bold rounded-lg flex items-center gap-1" onClick={() => openModalVisualizacion(proyecto)}><FiEye /> Ver</button>
+                          <button className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold rounded-lg flex items-center gap-1" onClick={() => openModalRevision(proyecto, 'aprobar')}><FiCheckCircle /> Aprobar</button>
+                          <button className="px-2.5 py-1.5 bg-red-50 text-red-700 border border-red-200 font-bold rounded-lg flex items-center gap-1" onClick={() => openModalRevision(proyecto, 'observar')}><FiXCircle /> Observar</button>
                         </div>
                       </td>
                     </tr>
@@ -235,186 +297,188 @@ export default function RevisionProyectos() {
         </main>
       </div>
 
-      {/* MODAL DE VISUALIZACIÓN: INFORME COMPLETO DEL PROYECTO */}
+      {/* MODAL DE VISUALIZACIÓN COMPLETA */}
       {modalVistaOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col">
-            {/* Cabecera */}
+          <div className="bg-white rounded-xl w-full max-w-4xl shadow-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <FiEye className="text-slate-500" /> Informe Completo del Proyecto
-              </h2>
-              <button
-                onClick={() => setModalVistaOpen(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <FiX />
-              </button>
+              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2"><FiEye /> Informe Completo del Expediente</h2>
+              <button onClick={() => setModalVistaOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600"><FiX /></button>
             </div>
-
-            {/* Contenido: Expediente Integral Completo */}
             <div className="flex-1 overflow-y-auto p-6">
-              {loadingDetalle ? (
-                <div className="text-center py-10 text-slate-400 font-medium animate-pulse">Cargando informe completo...</div>
-              ) : (
-                <ReporteExpediente matrizSeleccionada={proyectoDetalle} showPrintButton={false} />
-              )}
-            </div>
-
-            {/* Pie del modal */}
-            <div className="px-6 py-3 border-t border-slate-100 flex justify-end shrink-0">
-              <button
-                onClick={() => setModalVistaOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Cerrar
-              </button>
+              {loadingDetalle ? <div className="text-center py-10 animate-pulse">Cargando expediente...</div> : <ReporteExpediente matrizSeleccionada={proyectoDetalle} showPrintButton={false} />}
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DETALLADO DE DICTAMEN TÉCNICO */}
+      {/* MODAL DE DICTAMEN INTEGRAL CON VISTA PARALELA (ORIGINAL VS OBSERVACIÓN) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col transform transition-all animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-xl w-full max-w-5xl p-6 shadow-2xl border border-slate-100 h-[92vh] flex flex-col transform transition-all">
             
-            {/* Cabecera del Modal */}
-            <div className="mb-4">
+            <div className="mb-3 shrink-0">
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                {actionType === 'aprobar' ? (
-                  <><FiCheckCircle className="text-emerald-600" /> Aprobar Plan de Trabajo</>
-                ) : (
-                  <><FiXCircle className="text-[#b1122b]" /> Registrar Observaciones Técnicas</>
-                )}
+                {actionType === 'aprobar' ? <><FiCheckCircle className="text-emerald-600" /> Aprobar Plan de Trabajo</> : <><FiXCircle className="text-[#b1122b]" /> Formulario de Observaciones por Campo</>}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                Evaluando: <span className="text-slate-800 font-semibold">{selectedProyecto?.titulo}</span>
-              </p>
+              <p className="text-xs text-slate-500 mt-0.5">Analice los datos declarados a la izquierda y, si es necesario, redacte la objeción específica en la derecha.</p>
             </div>
 
-            {/* PESTAÑAS DE INSPECCIÓN DE SUB-RECURSOS */}
-            <div className="flex border-b border-slate-200 gap-2 mb-4">
-              <button 
-                onClick={() => setActiveTab("metas")}
-                className={`pb-2 px-2 font-bold text-xs flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'metas' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-              >
-                <FiTarget /> Metas e Indicadores
-              </button>
-              <button 
-                onClick={() => setActiveTab("cronograma")}
-                className={`pb-2 px-2 font-bold text-xs flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'cronograma' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-              >
-                <FiCalendar /> Cronograma
-              </button>
-              <button 
-                onClick={() => setActiveTab("presupuesto")}
-                className={`pb-2 px-2 font-bold text-xs flex items-center gap-1.5 border-b-2 transition-all ${activeTab === 'presupuesto' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-              >
-                <FiDollarSign /> Presupuesto
-              </button>
+            {/* CONTROLADORES DE PESTAÑAS */}
+            <div className="flex border-b border-slate-200 gap-1.5 mb-3 overflow-x-auto pb-1 shrink-0 scrollbar-thin">
+              <button onClick={() => setActiveTab("general")} className={`pb-2 px-2 font-bold text-xs flex items-center gap-1 border-b-2 whitespace-nowrap ${activeTab === 'general' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400'}`}><FiFileText /> 1. Identificación</button>
+              <button onClick={() => setActiveTab("estructura")} className={`pb-2 px-2 font-bold text-xs flex items-center gap-1 border-b-2 whitespace-nowrap ${activeTab === 'estructura' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400'}`}><FiTrendingUp /> 2. Cuerpo y Objetivos</button>
+              <button onClick={() => setActiveTab("poblacion")} className={`pb-2 px-2 font-bold text-xs flex items-center gap-1 border-b-2 whitespace-nowrap ${activeTab === 'poblacion' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400'}`}><FiMapPin /> 3. Ubicación y Actores</button>
+              <button onClick={() => setActiveTab("metas")} className={`pb-2 px-2 font-bold text-xs flex items-center gap-1 border-b-2 whitespace-nowrap ${activeTab === 'metas' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400'}`}><FiTarget /> 4. Indicadores</button>
+              <button onClick={() => setActiveTab("cronograma")} className={`pb-2 px-2 font-bold text-xs flex items-center gap-1 border-b-2 whitespace-nowrap ${activeTab === 'cronograma' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400'}`}><FiCalendar /> 5. Hitos</button>
+              <button onClick={() => setActiveTab("presupuesto")} className={`pb-2 px-2 font-bold text-xs flex items-center gap-1 border-b-2 whitespace-nowrap ${activeTab === 'presupuesto' ? 'border-[#b1122b] text-[#b1122b]' : 'border-transparent text-slate-400'}`}><FiDollarSign /> 6. Finanzas</button>
             </div>
 
-            {/* CONTENIDO DE LAS PESTAÑAS */}
-            <div className="flex-1 overflow-y-auto bg-slate-50 p-4 rounded-xl border border-slate-100 min-h-[180px] mb-4 text-xs">
-              {loadingSubRecursos ? (
-                <div className="text-center py-8 text-slate-400 font-medium animate-pulse">Cargando sub-recursos asignados en Django...</div>
+            {/* CONTENIDO INTERACTIVO DE DOBLE COLUMNA */}
+            <div className="flex-1 overflow-y-auto bg-slate-50 p-4 rounded-xl border border-slate-100 mb-3 space-y-4">
+              {loadingSubRecursos || !selectedProyecto ? (
+                <div className="text-center py-12 flex flex-col items-center justify-center gap-2 text-slate-400 font-medium">
+                  <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                  Sincronizando expediente completo desde la Base de Datos...
+                </div>
               ) : (
                 <>
+                  {/* PESTAÑA 1: IDENTIFICACIÓN Y DATOS GENERALES */}
+                  {activeTab === "general" && (
+                    <div className="space-y-4">
+                      {renderFilaDeEvaluacion("Título Oficial del Proyecto", selectedProyecto.titulo, "titulo", "Ej: El título es confuso o no refleja las actividades de RSU...")}
+                      {renderFilaDeEvaluacion("Código Interno", selectedProyecto.codigo, "codigo", "Ej: El formato del código no corresponde con el periodo actual...")}
+                      {renderFilaDeEvaluacion("Línea de Investigación Universitaria", selectedProyecto.linea_investigacion, "linea_investigacion", "Ej: La línea de investigación seleccionada no guarda coherencia con el problema...")}
+                      {renderFilaDeEvaluacion("Objetivos de Desarrollo Sostenible (ODS)", selectedProyecto.ods_vinculados, "ods_vinculados", "Ej: No se justifica la vinculación directa con la ODS marcada...")}
+                    </div>
+                  )}
+
+                  {/* PESTAÑA 2: CUERPO, JUSTIFICACIÓN Y OBJETIVOS */}
+                  {activeTab === "estructura" && (
+                    <div className="space-y-4">
+                      {renderFilaDeEvaluacion("Resumen Ejecutivo", selectedProyecto.resumen, "resumen", "Ej: El resumen carece de la metodología y duración estimada...")}
+                      {renderFilaDeEvaluacion("Planteamiento del Problema Social", selectedProyecto.planteamiento_problema, "planteamiento_problema", "Ej: No se adjuntan estadísticas ni diagnóstico real de la problemática...")}
+                      {renderFilaDeEvaluacion("Justificación del Impacto", selectedProyecto.justificacion, "justificacion", "Ej: Explicar mejor cómo se sostendrá el impacto después del término del proyecto...")}
+                      {renderFilaDeEvaluacion("Objetivo General", selectedProyecto.objetivo_general, "objetivo_general", "Ej: El objetivo no está redactado con un verbo en infinitivo medible...")}
+                      {renderFilaDeEvaluacion("Objetivos Específicos", selectedProyecto.objetivos_especificos, "objetivos_especificos", "Ej: Los objetivos específicos no cubren los pasos necesarios para el general...")}
+                    </div>
+                  )}
+
+                  {/* PESTAÑA 3: UBICACIÓN, ACTORES Y EQUIPO */}
+                  {activeTab === "poblacion" && (
+                    <div className="space-y-4">
+                      {renderFilaDeEvaluacion(
+                        "Ámbito Geográfico (Localización y Distrito)", 
+                        `Ubicación: ${selectedProyecto.localizacion || "-"} \nDistrito/Provincia: ${selectedProyecto.distrito_provincia || "-"}`, 
+                        "localizacion", 
+                        "Ej: La zona de intervención está fuera de la cobertura autorizada..."
+                      )}
+                      {renderFilaDeEvaluacion(
+                        "Población Beneficiaria Estimada", 
+                        `Directos: ${selectedProyecto.beneficiarios_directos || "0"} personas \nIndirectos: ${selectedProyecto.beneficiarios_indirectos || "0"} personas`, 
+                        "beneficiarios_directos", 
+                        "Ej: El número de beneficiarios directos no se condice con los talleres propuestos..."
+                      )}
+                      {renderFilaDeEvaluacion("Plana Docente / Comité Técnico", selectedProyecto.docentes_participantes, "docentes_participantes", "Ej: Las horas asignadas a los docentes exceden el máximo por reglamento...")}
+                      {renderFilaDeEvaluacion("Estudiantes Vinculados", selectedProyecto.estudiantes_participantes, "estudiantes_participantes", "Ej: Falta anexar los códigos de matrícula o las facultades de los alumnos...")}
+                      {renderFilaDeEvaluacion("Cooperación y Alianzas (Entidades Aliadas)", selectedProyecto.entidades_aliadas, "entidades_aliadas", "Ej: Se requiere adjuntar la carta de compromiso o convenio con la institución...")}
+                    </div>
+                  )}
+
+                  {/* PESTAÑA 4: METAS E INDICADORES DE LOGRO */}
                   {activeTab === "metas" && (
-                    <div className="space-y-3">
-                      {metas.length === 0 ? <p className="text-slate-400 italic">No ha registrado metas en este indicador.</p> : 
-                        metas.map(m => (
-                          <div key={m.id} className="bg-white p-3 rounded-lg border border-slate-200">
-                            <p className="font-bold text-slate-700">{m.meta_descripcion || "Meta parametrizada"}</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">Indicador: <span className="text-slate-600 font-medium">{m.indicador_nombre}</span> • Meta: {m.valor_meta} {m.unidad_medida}</p>
-                          </div>
-                        ))
-                      }
+                    <div className="space-y-4">
+                      {renderFilaDeEvaluacion(
+                        "Metas e Indicadores de Logro Declarados", 
+                        metas.length === 0 ? "Sin registros cargados." : metas.map(m => `• ${m.meta_descripcion}\n  Indicador: ${m.indicador_nombre} [Meta: ${m.valor_meta} ${m.unidad_medida}]`).join("\n\n"), 
+                        "metas_globales", 
+                        "Ej: Las metas planteadas son insuficientes para medir el impacto de los objetivos..."
+                      )}
                     </div>
                   )}
 
+                  {/* PESTAÑA 5: CRONOGRAMA DE HITOS */}
                   {activeTab === "cronograma" && (
-                    <div className="space-y-2">
-                      {cronograma.length === 0 ? <p className="text-slate-400 italic">No existen actividades mapeadas en el cronograma.</p> : 
-                        cronograma.map(c => (
-                          <div key={c.id} className="bg-white p-2.5 rounded-lg border border-slate-200 flex justify-between items-center">
-                            <div>
-                              <p className="font-semibold text-slate-700">{c.nombre || c.descripcion || "Acción sin título"}</p>
-                              <p className="text-[10px] text-slate-400">Plazo: {c.fecha_inicio || "S/F"} al {c.fecha_fin || "S/F"}</p>
-                            </div>
-                            <span className="px-2 py-0.5 font-mono text-[10px] bg-slate-100 rounded text-slate-500 font-bold">{c.estado_avance || "Pendiente"}</span>
-                          </div>
-                        ))
-                      }
+                    <div className="space-y-4">
+                      {renderFilaDeEvaluacion(
+                        "Cronograma de Actividades", 
+                        cronograma.length === 0 ? "Cronograma vacío." : cronograma.map(c => `• Actividad: ${c.nombre || c.descripcion}\n  Plazo: ${c.fecha_inicio} al ${c.fecha_fin}`).join("\n\n"), 
+                        "cronograma_global", 
+                        "Ej: El orden de los hitos es inconsistente o se cruza con periodos vacacionales..."
+                      )}
                     </div>
                   )}
 
+                  {/* PESTAÑA 6: PRESUPUESTO COMPLETO ANALÍTICO */}
                   {activeTab === "presupuesto" && (
-                    <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-3">
-                      <h4 className="font-bold text-slate-700 flex items-center gap-1 text-xs"><FiFileText className="text-slate-400"/> Resumen Financiero del Proyecto</h4>
-                      <div className="grid grid-cols-2 gap-4 pt-2">
-                        <div className="p-3 bg-slate-50 rounded-lg">
-                          <span className="text-[10px] uppercase font-bold text-slate-400">Monto Solicitado RSU</span>
-                          <p className="text-base font-bold text-slate-800 mt-0.5">S/. {presupuesto?.total_rsu || selectedProyecto?.monto_financiamiento || "0.00"}</p>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded-lg">
-                          <span className="text-[10px] uppercase font-bold text-slate-400">Fuente</span>
-                          <p className="text-base font-bold text-slate-800 mt-0.5">{selectedProyecto?.fuente_financiamiento || "Recursos RSU"}</p>
-                        </div>
-                      </div>
+                    <div className="space-y-4">
+                      {renderFilaDeEvaluacion(
+                        "Montos Totales y Financiamiento", 
+                        `Monto Solicitado: S/. ${selectedProyecto.monto_financiamiento || "0.00"}\nFuente: ${selectedProyecto.fuente_financiamiento || "Recursos RSU Ordinarios"}`, 
+                        "monto_financiamiento", 
+                        "Ej: El monto solicitado supera el tope presupuestal para proyectos de esta categoría..."
+                      )}
+                      {renderFilaDeEvaluacion(
+                        "Partidas: Bienes", 
+                        presupuestoCompleto.filter(p => p.tipo === "BIEN" || p.tipo_item === "BIEN").length === 0 ? "Ninguno" : presupuestoCompleto.filter(p => p.tipo === "BIEN" || p.tipo_item === "BIEN").map(p => `• ${p.descripcion} [Cant: ${p.cantidad}] -> S/. ${p.total || p.precio_total}`).join("\n"), 
+                        "partidas_bienes", 
+                        "Ej: Hay bienes de capital no permitidos en esta convocatoria..."
+                      )}
+                      {renderFilaDeEvaluacion(
+                        "Partidas: Servicios", 
+                        presupuestoCompleto.filter(p => p.tipo === "SERVICIO" || p.tipo_item === "SERVICIO").length === 0 ? "Ninguno" : presupuestoCompleto.filter(p => p.tipo === "SERVICIO" || p.tipo_item === "SERVICIO").map(p => `• ${p.descripcion} -> S/. ${p.total || p.precio_total}`).join("\n"), 
+                        "partidas_servicios", 
+                        "Ej: Los montos por consultoría/servicios externos no están debidamente cotizados..."
+                      )}
                     </div>
                   )}
                 </>
               )}
             </div>
 
-            {/* SECCIÓN DE DICTAMEN FINAL (ACCIONES) */}
-            {actionType === 'observar' ? (
-              <div className="mb-4 space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Comentario Técnico Obligatorio <span className="text-red-500">*</span>
+            {/* COMENTARIO TÉCNICO DE CIERRE */}
+            {actionType === 'observar' && selectedProyecto && (
+              <div className="mb-3 space-y-1 border-t pt-2 shrink-0">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  Observación General Adicional / Conclusión del Dictamen
                 </label>
                 <textarea
-                  className="w-full text-xs px-3 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] resize-none transition-colors"
-                  rows="3"
-                  placeholder="Especifica claramente qué metas o presupuestos están mal formulados para que el docente pueda corregirlos..."
-                  value={comentario}
-                  onChange={(e) => setComentario(e.target.value)}
+                  className="w-full text-xs px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] bg-white text-slate-700 resize-none"
+                  rows="2"
+                  placeholder="Escriba un dictamen de cierre o resumen de las correcciones que se le solicitan al docente..."
+                  value={observacionesCampos.observacion_general || ""}
+                  onChange={(e) => handleInputChange("observacion_general", e.target.value)}
                 />
-              </div>
-            ) : (
-              <div className="mb-4 bg-emerald-50 text-emerald-800 p-3.5 rounded-lg border border-emerald-100 flex gap-2.5 text-xs">
-                <FiInfo className="text-base shrink-0 mt-0.5 text-emerald-600" />
-                <p className="leading-relaxed">
-                  ¿Confirmas que el presupuesto, metas y actividades cumplen con las normativas vigentes de RSU? Al dar el visto bueno, el docente quedará habilitado para iniciar la ejecución física del plan de trabajo.
-                </p>
               </div>
             )}
 
-            {/* Botones de acción inferiores */}
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            {/* BOTONES DE ACCIÓN */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 shrink-0">
               <button
-                className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
                 onClick={() => setModalOpen(false)}
                 disabled={evaluating}
+                className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
-                className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors shadow-sm flex items-center gap-1.5 ${
-                  actionType === 'aprobar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#b1122b] hover:bg-[#8e0e22]'
-                }`}
                 onClick={handleEvaluate}
-                disabled={evaluating}
+                disabled={evaluating || !selectedProyecto}
+                className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-all flex items-center gap-1.5 shadow-sm ${actionType === 'aprobar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#b1122b] hover:bg-[#960f24]'} disabled:opacity-50`}
               >
                 {evaluating ? (
                   <>
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Procesando...
                   </>
+                ) : actionType === 'aprobar' ? (
+                  <>
+                    <FiCheckCircle /> Confirmar Aprobación
+                  </>
                 ) : (
-                  actionType === 'aprobar' ? 'Confirmar Aprobación' : 'Enviar Observación'
+                  <>
+                    <FiXCircle /> Emitir Observaciones
+                  </>
                 )}
               </button>
             </div>
