@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   FiClock, FiUpload, FiFilter, FiBookOpen, FiCheck, FiTarget,
-  FiTrendingUp, FiFolder, FiChevronRight, FiInbox, FiPlayCircle, FiRotateCcw
+  FiTrendingUp, FiFolder, FiChevronRight, FiInbox, FiPlayCircle, FiRotateCcw,
+  FiLink, FiExternalLink, FiFile
 } from "react-icons/fi";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { actividadesService } from "../api/actividadesService"; // Importando el nuevo servicio independiente
 import { useToast } from "../context/ToastContext";
+
+// URL base del backend para construir rutas relativas de archivos
+const BACKEND_URL = "http://localhost:8000";
 
 // Definición de transiciones cíclicas y unidireccionales de estado (Máquina de Estados)
 const SIGUIENTE_ESTADO = {
@@ -28,6 +32,9 @@ export default function Actividades() {
 
   // Estado del Filtro de Actividades
   const [filtroEstado, setFiltroEstado] = useState("todos");
+
+  // Estado local para los inputs de URL de evidencia (por actividad)
+  const [urlInputs, setUrlInputs] = useState({});
 
   // 2. CARGA INICIAL DESDE BACKEND: Lista de Proyectos Aprobados del Docente
   useEffect(() => {
@@ -70,6 +77,13 @@ export default function Actividades() {
       setActividades(listaActividades);
       setMetasIndicadores(dataProyectoFull?.metas_indicadores || []);
 
+      // Inicializar los inputs de URL con las URLs ya guardadas
+      const urlsIniciales = {};
+      listaActividades.forEach(act => {
+        if (act.url_evidencia) urlsIniciales[act.id] = act.url_evidencia;
+      });
+      setUrlInputs(urlsIniciales);
+
     } catch (error) {
       console.error("Error al abrir proyecto:", error);
       showToast("error", "Ocurrió un problema al descargar los indicadores y el plan de trabajo.");
@@ -80,6 +94,14 @@ export default function Actividades() {
 
   // 4. PERSISTENCIA EN BACKEND: CAMBIAR ESTADO SECUENCIALMENTE
   const handleCambiarEstado = async (actividadId, estadoActual) => {
+    // NUEVO: Confirmación antes de reiniciar
+    if (estadoActual === 'completada') {
+      const confirmar = window.confirm(
+        "¿Estás seguro de reiniciar esta actividad a estado Pendiente?\nSe perderá el avance registrado."
+      );
+      if (!confirmar) return;
+    }
+
     try {
       const proximoEstado = SIGUIENTE_ESTADO[estadoActual] || 'pendiente';
       const payload = { estado: proximoEstado };
@@ -124,6 +146,27 @@ export default function Actividades() {
     }
   };
 
+  // 6. NUEVO: GUARDAR URL DE EVIDENCIA
+  const handleGuardarUrl = async (actividadId) => {
+    const url = urlInputs[actividadId]?.trim();
+    if (!url) return;
+    try {
+      const dataActualizada = await actividadesService.patchActividad(
+        proyectoSeleccionado.id,
+        actividadId,
+        { url_evidencia: url }
+      );
+      setActividades(prev => {
+        const actual = Array.isArray(prev) ? prev : [];
+        return actual.map(act => act.id === actividadId ? { ...act, ...dataActualizada } : act);
+      });
+      showToast("success", "URL de evidencia guardada correctamente.");
+    } catch (error) {
+      console.error("Error al guardar URL:", error);
+      showToast("error", "No se pudo guardar la URL de evidencia. El campo puede no estar disponible en el backend.");
+    }
+  };
+
   // Filtrado In-Memory con protección total anti-crashing
   const actividadesFiltradas = Array.isArray(actividades)
     ? actividades.filter(act => {
@@ -131,6 +174,29 @@ export default function Actividades() {
         return true;
       })
     : [];
+
+  // NUEVO: Cálculo de progreso global de actividades
+  const totalActividades = Array.isArray(actividades) ? actividades.length : 0;
+  const actividadesCompletadas = Array.isArray(actividades)
+    ? actividades.filter(act => act.estado === 'completada').length
+    : 0;
+  const porcentajeProgreso = totalActividades > 0
+    ? Math.round((actividadesCompletadas / totalActividades) * 100)
+    : 0;
+
+  // Helper: construir URL absoluta para archivos de evidencia
+  const construirUrlArchivo = (path) => {
+    if (!path) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return `${BACKEND_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  // Helper: obtener nombre del archivo desde una URL o path
+  const obtenerNombreArchivo = (path) => {
+    if (!path) return 'Ver archivo';
+    const partes = path.split('/');
+    return partes[partes.length - 1] || 'Ver archivo';
+  };
 
   // Helper de estilos: Badges de Estado
   const obtenerBadgeEstado = (estado) => {
@@ -294,6 +360,38 @@ export default function Actividades() {
                     )}
                   </div>
 
+                  {/* NUEVO: BARRA DE PROGRESO GLOBAL DE ACTIVIDADES */}
+                  {totalActividades > 0 && (
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <FiTrendingUp className={porcentajeProgreso === 100 ? 'text-emerald-500' : 'text-[#7B1E3A]'} />
+                          Progreso General de Actividades
+                        </span>
+                        <span className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full ${
+                          porcentajeProgreso === 100
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-[#7B1E3A]/10 text-[#7B1E3A]'
+                        }`}>
+                          {actividadesCompletadas} de {totalActividades} — {porcentajeProgreso}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className={`h-2.5 rounded-full transition-all duration-500 ${
+                            porcentajeProgreso === 100 ? 'bg-emerald-500' : 'bg-[#7B1E3A]'
+                          }`}
+                          style={{ width: `${porcentajeProgreso}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        {porcentajeProgreso === 100
+                          ? '🎉 ¡Todas las actividades han sido completadas!'
+                          : `${totalActividades - actividadesCompletadas} actividad(es) pendientes de completar.`}
+                      </p>
+                    </div>
+                  )}
+
                   {/* BARRA DE FILTROS */}
                   <div className="flex items-center gap-2 justify-end">
                     <span className="text-xs text-slate-400 flex items-center gap-1"><FiFilter /> Filtrar por estado:</span>
@@ -322,33 +420,94 @@ export default function Actividades() {
                         {actividadesFiltradas.map((act) => (
                           <div 
                             key={act.id} 
-                            className={`p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-colors ${
+                            className={`p-4 flex flex-col gap-3 transition-colors ${
                               act.estado === 'completada' ? 'bg-emerald-50/10' : act.estado === 'en_ejecucion' ? 'bg-blue-50/10' : ''
                             }`}
                           >
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className={`text-xs font-bold text-slate-800 ${act.estado === 'completada' ? 'line-through text-slate-400' : ''}`}>
-                                  {act.nombre}
-                                </h4>
-                                {obtenerBadgeEstado(act.estado)}
+                            {/* Fila superior: info + botones de acción */}
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <h4 className={`text-xs font-bold text-slate-800 ${act.estado === 'completada' ? 'line-through text-slate-400' : ''}`}>
+                                    {act.nombre}
+                                  </h4>
+                                  {obtenerBadgeEstado(act.estado)}
+                                </div>
+                                <p className="text-[11px] text-slate-500">{act.descripcion || "Sin descripción."}</p>
+                                <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5">
+                                  <span>📅 Límite: {act.fecha}</span>
+                                  {act.responsable && <span>• 👤 Resp: {act.responsable}</span>}
+                                </div>
                               </div>
-                              <p className="text-[11px] text-slate-500">{act.descripcion || "Sin descripción."}</p>
-                              <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5">
-                                <span>📅 Límite: {act.fecha}</span>
-                                {act.responsable && <span>• 👤 Resp: {act.responsable}</span>}
+                              
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                {/* Subida de Evidencias */}
+                                <input type="file" onChange={(e) => handleSubirEvidencia(act.id, e)} className="hidden" id={`file-${act.id}`} />
+                                <label htmlFor={`file-${act.id}`} className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 cursor-pointer hover:bg-slate-50 shadow-sm transition-colors flex items-center gap-1">
+                                  <FiUpload className="text-slate-400" /> {act.archivo_evidencia ? "Modificar" : "Evidencia"}
+                                </label>
+                                
+                                {/* Botón de acción secuencial */}
+                                {obtenerBotonAccion(act)}
                               </div>
                             </div>
-                            
-                            <div className="flex items-center gap-2 self-end sm:self-auto">
-                              {/* Subida de Evidencias */}
-                              <input type="file" onChange={(e) => handleSubirEvidencia(act.id, e)} className="hidden" id={`file-${act.id}`} />
-                              <label htmlFor={`file-${act.id}`} className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 cursor-pointer hover:bg-slate-50 shadow-sm transition-colors flex items-center gap-1">
-                                <FiUpload className="text-slate-400" /> {act.archivo_evidencia ? "Modificar" : "Evidencia"}
-                              </label>
+
+                            {/* Fila inferior: archivo subido + URL de evidencia */}
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1 border-t border-slate-100/80">
                               
-                              {/* Botón de acción secuencial */}
-                              {obtenerBotonAccion(act)}
+                              {/* NUEVO: Link al archivo ya subido */}
+                              {act.archivo_evidencia ? (
+                                <a
+                                  href={construirUrlArchivo(act.archivo_evidencia)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-[11px] text-slate-600 hover:text-[#7B1E3A] font-medium transition-colors group"
+                                  title="Ver archivo de evidencia"
+                                >
+                                  <FiFile className="text-slate-400 group-hover:text-[#7B1E3A] transition-colors" />
+                                  <span className="underline underline-offset-2 truncate max-w-[160px]">
+                                    {obtenerNombreArchivo(act.archivo_evidencia)}
+                                  </span>
+                                  <FiExternalLink className="text-slate-400 text-[10px]" />
+                                </a>
+                              ) : (
+                                <span className="text-[11px] text-slate-300 italic flex items-center gap-1">
+                                  <FiFile className="text-slate-300" /> Sin archivo subido
+                                </span>
+                              )}
+
+                              {/* NUEVO: Input de URL de evidencia (Drive, etc.) */}
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <FiLink className="text-slate-400 text-xs shrink-0" />
+                                {act.url_evidencia && urlInputs[act.id] === act.url_evidencia ? (
+                                  // Mostrar como link clickeable cuando ya está guardada y no se editó
+                                  <a
+                                    href={act.url_evidencia}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[11px] text-blue-600 hover:text-blue-800 underline underline-offset-2 truncate max-w-[200px] font-medium flex items-center gap-1"
+                                    title={act.url_evidencia}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span className="truncate">{act.url_evidencia}</span>
+                                    <FiExternalLink className="text-[10px] shrink-0" />
+                                  </a>
+                                ) : null}
+                                <input
+                                  type="url"
+                                  placeholder="URL de evidencia (Drive, etc.)"
+                                  value={urlInputs[act.id] || ''}
+                                  onChange={(e) => setUrlInputs(prev => ({ ...prev, [act.id]: e.target.value }))}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleGuardarUrl(act.id);
+                                    }
+                                  }}
+                                  onBlur={() => handleGuardarUrl(act.id)}
+                                  className="flex-1 min-w-0 text-[11px] border border-slate-200 rounded-md px-2 py-1 text-slate-600 placeholder-slate-300 focus:outline-none focus:border-[#7B1E3A] focus:ring-1 focus:ring-[#7B1E3A]/20 transition-all bg-slate-50"
+                                />
+                              </div>
                             </div>
                           </div>
                         ))}

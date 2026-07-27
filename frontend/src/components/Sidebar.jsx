@@ -9,7 +9,8 @@ import {
   FiBell, 
   FiCheckSquare, 
   FiPieChart, 
-  FiUsers 
+  FiUsers,
+  FiMap
 } from "react-icons/fi";
 
 export default function Sidebar() {
@@ -88,6 +89,21 @@ export default function Sidebar() {
             </Link>
             <Link className={getLinkClass("/reportes")} to="/informes">
               <FiFileText className="text-lg" /> Reportes FIPS
+            </Link>
+          </>
+        )}
+
+        {/* MENÚ: JEFATURA RSU */}
+        {userRole === "jefatura rsu" && (
+          <>
+            <Link className={getLinkClass("/dashboard")} to="/dashboard">
+              <FiGrid className="text-lg" /> Dashboard
+            </Link>
+            <Link className={getLinkClass("/proyectos-jefatura")} to="/proyectos-jefatura">
+              <FiFolder className="text-lg" /> Proyectos RSU
+            </Link>
+            <Link className={getLinkClass("/matriz-operativa")} to="/matriz-operativa">
+              <FiMap className="text-lg" /> Matriz Operativa
             </Link>
           </>
         )}

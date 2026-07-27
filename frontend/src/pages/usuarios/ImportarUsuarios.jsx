@@ -222,33 +222,30 @@ export default function ImportarUsuarios() {
             </button>
           </div>
 
+          {/* AYUDA Y PLANTILLA */}
+          {!archivoCargado && (
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm text-sm text-blue-800 space-y-2">
+              <p className="font-bold">El archivo Excel debe contener las siguientes columnas EN ORDEN:</p>
+              <ul className="list-disc pl-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1">
+                <li>Columna A: Nombres</li>
+                <li>Columna B: Apellidos</li>
+                <li>Columna C: Correo institucional</li>
+                <li>Columna D: Contraseña</li>
+                <li>Columna E: Celular (opcional)</li>
+                <li>Columna F: Rol (ej: Docente)</li>
+                <li>Columna G: Facultad</li>
+                <li>Columna H: Escuela (opcional)</li>
+                <li>Columna I: Departamento (opcional)</li>
+              </ul>
+            </div>
+          )}
+
           {/* INPUT EXCEL */}
           {!archivoCargado && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 hover:border-[#7B1E3A] p-12 text-center transition-colors shadow-sm flex flex-col items-center justify-center relative cursor-pointer">
-                <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                <FiUploadCloud className="text-5xl text-slate-400 mb-4" />
-                <p className="text-base font-semibold text-slate-700 m-0">Arrastra tu hoja de usuarios aquí</p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="text-xs text-slate-600 space-y-1.5">
-                  <p className="font-semibold text-slate-700 m-0">El Excel debe tener estas columnas, en este orden:</p>
-                  <p className="m-0">
-                    Nombres, Apellidos, Correo institucional, Contraseña, Celular, Rol, Facultad, Escuela, Departamento
-                  </p>
-                  <p className="m-0 text-slate-500">
-                    Rol, Facultad, Escuela y Departamento deben coincidir textualmente (sin distinguir mayúsculas) con los catálogos del sistema.
-                  </p>
-                </div>
-                <a
-                  href="/plantillas/Plantilla_Usuarios_FIPS.xlsx"
-                  download
-                  className="h-10 px-4 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-300 flex items-center gap-2 transition-colors shadow-sm shrink-0"
-                >
-                  <FiDownload /> Descargar plantilla
-                </a>
-              </div>
+            <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 hover:border-[#7B1E3A] p-12 text-center transition-colors shadow-sm flex flex-col items-center justify-center relative cursor-pointer mt-4">
+              <input type="file" accept=".xlsx, .xls" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+              <FiUploadCloud className="text-5xl text-slate-400 mb-4" />
+              <p className="text-base font-semibold text-slate-700 m-0">Arrastra tu hoja de usuarios aquí</p>
             </div>
           )}
 

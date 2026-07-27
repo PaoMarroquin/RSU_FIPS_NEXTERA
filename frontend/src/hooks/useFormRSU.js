@@ -8,9 +8,9 @@ const mockInitialData = {
   // Paso 1: Datos Generales
   facultad: '', escuela: '', departamento: '', semestre: '',
   periodo: null, periodo_nombre: '',
+  anio_carrera: null, es_tesis_quinto_anio: false,
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
-  es_tesis_quinto_anio: false,
   beneficiarios: '', 
   eje_rsu: null, ejes_subitems: [], eje_detalle: "",
   tiposActividad: [],
@@ -237,8 +237,10 @@ export const useFormRSU = () => {
   const enviarProyectoBackend = async (modo = 'BORRADOR') => {
     // 1. Validar campos estrictamente obligatorios requeridos por el backend
     const camposObligatorios = [
+      formData.periodo,
       formData.facultad, formData.escuela, formData.departamento, 
-      formData.semestre, formData.titulo, formData.eje_rsu, formData.ods
+      //formData.semestre, 
+      formData.titulo, formData.eje_rsu, formData.ods
     ];
     
     // Verificamos que los IDs no sean nulos/cero y que los strings/arrays tengan contenido
@@ -246,11 +248,11 @@ export const useFormRSU = () => {
       campo !== null && campo !== '' && campo !== 0 && (Array.isArray(campo) ? campo.length > 0 : true)
     );
 
-    if (!cumpleObligatorios) {
+    /*if (!cumpleObligatorios) {
       console.error("Error: Faltan campos obligatorios (facultad, escuela, departamento, semestre_academico, titulo, eje_rsu, ods)");
       showToast('error', "Por favor, completa los campos obligatorios del Paso 1 y Paso 4 (ODS) antes de guardar.");
       return;
-    }
+    }*/
 
     setIsSubmitting(true);
 
@@ -261,6 +263,7 @@ export const useFormRSU = () => {
         escuela: parseInt(formData.escuela, 10),
         departamento: parseInt(formData.departamento, 10),
         semestre_academico: formData.semestre,
+        //semestre_academico: formData.periodo_nombre,
         titulo: formData.titulo,
         nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1), // Mínimo 1
         nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0), // Mínimo 0
@@ -333,7 +336,7 @@ export const useFormRSU = () => {
           .map((crono, i) => {
             // Diccionario local para traducir lo que venga del Formulario a lo que acepta Django
             const mapeoEstadosBackend = {
-              "no iniciado": "pendiente",
+              "no iniciado": "no_iniciado",
               "pendiente": "pendiente",
               "en proceso": "en_proceso",
               "en_proceso": "en_proceso",
@@ -345,7 +348,7 @@ export const useFormRSU = () => {
             const estadoLimpio = (crono.estado_avance || "pendiente").toLowerCase().trim();
             
             // Si por alguna razón el texto no coincide, Django usará 'pendiente' por defecto
-            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "no iniciado";
+            const estadoValidoParaDjango = mapeoEstadosBackend[estadoLimpio] || "no_iniciado";
 
             return {
               descripcion: crono.descripcion, 
@@ -370,8 +373,8 @@ export const useFormRSU = () => {
         rec_mat_otros: formData.recursos?.rec_mat_otros || "",
 
         periodo: parseInt(formData.periodo, 10),
-        anio_carrera: 5,
-        es_tesis_quinto_anio: formData.es_tesis_quinto_anio,
+        anio_carrera: formData.anio_carrera ? parseInt(formData.anio_carrera, 10) : null,
+        es_tesis_quinto_anio: formData.es_tesis_quinto_anio || false,
         ods: (formData.ods && formData.ods.length > 0) ? formData.ods : [0],
         
         asignaturas: (formData.asignaturas || "").split(',').map(a => ({ nombre_asignatura: a.trim() })).filter(a => a.nombre_asignatura !== ""),

@@ -11,11 +11,11 @@ export default function DatosGenerales({ data, updateData }) {
     if (type === 'date' && value) {
       if (name === 'fechaTermino' && data.fechaInicio && value < data.fechaInicio) {
         alert('⚠️ La fecha de término no puede ser anterior a la fecha de inicio.');
-        return; 
+        return;
       }
       if (name === 'fechaInicio' && data.fechaTermino && value > data.fechaTermino) {
         alert('⚠️ La fecha de inicio no puede ser posterior a la fecha de término.');
-        return; 
+        return;
       }
     }
 
@@ -173,35 +173,33 @@ export default function DatosGenerales({ data, updateData }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 py-2">
-            <input
-              type="checkbox"
-              id="es_tesis_quinto_anio"
-              name="es_tesis_quinto_anio"
-              className="h-4 w-4 rounded border-slate-300 text-[#b1122b] focus:ring-[#b1122b]/20 transition-all cursor-pointer accent-[#b1122b]"
-              checked={!!data.es_tesis_quinto_anio}
-              onChange={handleChange}
-            />
-            <label
-              htmlFor="es_tesis_quinto_anio"
-              className="text-sm font-semibold text-slate-600 cursor-pointer select-none"
-            >
-              ¿Es tesis de 5to año?
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600">
+              Año de Carrera
             </label>
+            <select
+              name="anio_carrera"
+              value={data.anio_carrera || ''}
+              onChange={handleChange}
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+            >
+              <option value="">Seleccione un año</option>
+              <option value="1">1° Año</option>
+              <option value="2">2° Año</option>
+              <option value="3">3° Año</option>
+              <option value="4">4° Año</option>
+              <option value="5">5° Año</option>
+            </select>
           </div>
 
-          <PaginatedSelect
-            label="Periodo Académico"
-            name="periodo"
-            value={data.periodo}
-            selectedName={data.periodo_nombre}
-            fetchFn={academicService.getPeriodos}
-            placeholder="Seleccione el periodo"
-            onChange={(e, nombre) => {
-              handleChange(e);
-              updateData('periodo_nombre', nombre);
-            }}
-          />
+          {data.anio_carrera === '5' && (
+            <div className="md:col-span-2">
+              <CheckboxItem
+                label="Este proyecto es tesis de 5to año"
+                name="es_tesis_quinto_anio"
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-1 md:col-span-2">
             <label className="text-xs font-semibold text-slate-600">Asignatura(s) participante(s) <span className="text-red-500">*</span></label>
@@ -430,7 +428,20 @@ export default function DatosGenerales({ data, updateData }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Fecha de Inicio <span className="text-red-500">*</span></label>
-            <input type="date" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="fechaInicio" value={data.fechaInicio} onChange={handleChange} />
+            <input
+              type="date"
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${(data.fechaInicio && data.fechaTermino && data.fechaInicio > data.fechaTermino)
+                ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                }`}
+              name="fechaInicio"
+              value={data.fechaInicio || ""}
+              max={data.fechaTermino || undefined}
+              onChange={handleChange}
+            />
+            {(data.fechaInicio && data.fechaTermino && data.fechaInicio > data.fechaTermino) && (
+              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Mayor a la fecha de término</span>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Fecha de Evaluación de Avance</label>
@@ -438,7 +449,20 @@ export default function DatosGenerales({ data, updateData }) {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Fecha de Término <span className="text-red-500">*</span></label>
-            <input type="date" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="fechaTermino" value={data.fechaTermino} onChange={handleChange} />
+            <input
+              type="date"
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${(data.fechaTermino && data.fechaInicio && data.fechaTermino < data.fechaInicio)
+                ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                }`}
+              name="fechaTermino"
+              value={data.fechaTermino || ""}
+              min={data.fechaInicio || undefined}
+              onChange={handleChange}
+            />
+            {(data.fechaTermino && data.fechaInicio && data.fechaTermino < data.fechaInicio) && (
+              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Menor a la fecha de inicio</span>
+            )}
           </div>
         </div>
 

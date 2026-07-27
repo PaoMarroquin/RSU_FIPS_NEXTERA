@@ -202,7 +202,7 @@ class GoogleAuthView(APIView):
         try:
             usuario = Usuario.objects.select_related('rol').get(correo_institucional=email)
             update_fields = ['ultimo_acceso']
-            if usuario.nombres != nombre:
+            if not usuario.nombres:
                 usuario.nombres = nombre
                 update_fields.append('nombres')
             usuario.ultimo_acceso = timezone.now()
