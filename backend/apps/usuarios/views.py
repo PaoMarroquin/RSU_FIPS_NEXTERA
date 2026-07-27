@@ -12,7 +12,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.utils.permissions import IsOwnerOrAdmin
+from apps.utils.permissions import IsAdministrador, IsDepartamento, IsOwnerOrAdmin
 from .models import (
     AuditoriaUsuario,
     DepartamentoAcademico,
@@ -250,7 +250,7 @@ class UsuarioListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAdminUser()]
+            return [IsAuthenticated(), (IsAdministrador | IsDepartamento)()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
