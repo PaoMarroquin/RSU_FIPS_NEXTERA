@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axiosConfig';
 import { FiLoader } from 'react-icons/fi';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../shared/context/ToastContext';
 
 import NuevoProyecto from './NuevoProyecto';
 

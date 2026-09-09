@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ToastProvider } from "./context/ToastContext";
+import { ToastProvider } from "./shared/context/ToastContext";
 import Toast from "./components/Toast";
 
 import Login from "./pages/Login";

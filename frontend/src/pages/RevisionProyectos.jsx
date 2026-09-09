@@ -9,7 +9,7 @@ import {
 } from "react-icons/fi";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { useToast } from "../context/ToastContext";
+import { useToast } from "../shared/context/ToastContext";
 import ReporteExpediente from "../components/reports/ReporteExpediente";
 
 export default function RevisionProyectos() {

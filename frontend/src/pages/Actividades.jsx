@@ -7,7 +7,7 @@ import {
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { actividadesService } from "../api/actividadesService"; // Importando el nuevo servicio independiente
-import { useToast } from "../context/ToastContext";
+import { useToast } from "../shared/context/ToastContext";
 
 // URL base del backend para construir rutas relativas de archivos
 const BACKEND_URL = "http://localhost:8000";

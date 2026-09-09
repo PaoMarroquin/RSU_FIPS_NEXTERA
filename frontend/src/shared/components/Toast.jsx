@@ -1,6 +1,6 @@
 import React from "react";
 import { FiCheckCircle, FiAlertCircle } from "react-icons/fi";
-import { useToast } from "../context/ToastContext";
+import { useToast } from "../shared/context/ToastContext";
 
 export default function Toast() {
   const { toast } = useToast();

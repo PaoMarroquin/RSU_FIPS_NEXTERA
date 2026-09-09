@@ -3,7 +3,7 @@ import { FiUser, FiPhone, FiUpload, FiFileText, FiAward } from "react-icons/fi";
 import { authService } from "../api/authService"; // Servicio real
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { useToast } from "../context/ToastContext";
+import { useToast } from "../shared/context/ToastContext";
 
 export default function MiPerfil() {
   // Estado 1:1 con tu backend Django

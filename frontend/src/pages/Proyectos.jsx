@@ -7,7 +7,7 @@ import ConfirmModal from "../components/ConfirmModal";
 import ReporteExpediente from "../components/reports/ReporteExpediente";
 import api from '../api/axiosConfig';
 import { proyectoService } from '../api/proyectoService';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../shared/context/ToastContext';
 
 import {
   FiSearch,
