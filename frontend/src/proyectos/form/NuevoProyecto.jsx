@@ -1,0 +1,97 @@
+import React from "react";
+import { useNavigate } from 'react-router-dom';
+import { useFormRSU } from "./hooks/useFormRSU";
+import Layout from "../../shared/layout/Layout"; // El orquestador global
+
+// Componentes locales del dominio (ajusta la ruta si los ubicaste diferente)
+import Stepper from "./components/Stepper";
+import FormFooter from "./components/FormFooter";
+import DatosGenerales from "./components/forms/DatosGenerales";
+import Fundamentacion from "./components/forms/Fundamentacion";
+import Diagnostico from "./components/forms/Diagnostico";
+import Objetivos from "./components/forms/Objetivos";
+import Resultados from "./components/forms/Resultados";
+import Actividades from "./components/forms/Actividades";
+import Cronograma from "./components/forms/Cronograma";
+import Recursos from "./components/forms/Recursos";
+import Financiamiento from "./components/forms/Financiamiento";
+
+export default function NuevoProyecto() {
+  const {
+    step,
+    formData,
+    pasosCompletados,
+    updateData,
+    nextStep,
+    prevStep,
+    goToStep,
+    handleCancelar,
+    enviarProyectoBackend,
+    isSubmitting
+  } = useFormRSU();
+  
+  const navigate = useNavigate();
+
+  const handleCancelarYGuardarBorrador = () => {
+      // El hook useFormRSU ya se encarga de limpiar el storage
+      handleCancelar(); 
+  };
+
+  const handleFinalizarYEnviar = async () => {
+    const exito = await enviarProyectoBackend('EN_REVISION');
+    if (exito) {
+      navigate('/proyectos'); 
+    }
+  };
+  
+  const handleGuardarBorrador = async () => {
+    const exito = await enviarProyectoBackend('BORRADOR');
+    if (exito) {
+      navigate('/proyectos'); 
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="max-w-5xl mx-auto space-y-6 pb-24 px-4 pt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 m-0">Nuevo Proyecto RSU</h1>
+            <p className="text-slate-500 text-sm m-0 mt-1">Formato Oficial OURS - Universidad Nacional de San Agustín</p>
+          </div>
+          <button
+            className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
+            onClick={handleCancelarYGuardarBorrador}
+          >
+            Cancelar
+          </button>
+        </div>
+
+        <Stepper currentStep={step} pasosCompletados={pasosCompletados} goToStep={goToStep} />
+        
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-6 md:p-8 min-h-[500px]">
+          <div className="mt-6">
+            {step === 1 && <DatosGenerales data={formData} updateData={updateData} />}
+            {step === 2 && <Fundamentacion data={formData} updateData={updateData} />}
+            {step === 3 && <Diagnostico data={formData} updateData={updateData} />}
+            {step === 4 && <Objetivos data={formData} updateData={updateData} />}
+            {step === 5 && <Resultados data={formData} updateData={updateData} />}
+            {step === 6 && <Actividades data={formData} updateData={updateData} />}
+            {step === 7 && <Cronograma data={formData} updateData={updateData} />}
+            {step === 8 && <Recursos data={formData} updateData={updateData} />}
+            {step === 9 && <Financiamiento data={formData} updateData={updateData} />}
+          </div>
+        </div>
+      </div>
+
+      <FormFooter
+        step={step}
+        nextStep={nextStep}
+        prevStep={prevStep}
+        enviarProyectoBackend={handleFinalizarYEnviar} 
+        guardarBorrador={handleGuardarBorrador}
+        isSubmitting={isSubmitting}
+      />
+    </Layout>
+  );
+}

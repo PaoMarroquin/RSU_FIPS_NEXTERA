@@ -6,12 +6,12 @@ import Login from "./usuario/login/Login";
 import Dashboard from "./proyectos/dashboard/Dashboard";
 import Proyectos from "./proyectos/listar/Proyectos";
 //import Actividades from "./pages/Actividades";
-//import NuevoProyecto from "./pages/NuevoProyecto";
+import NuevoProyecto from "./proyectos/form/NuevoProyecto";
+import EditarProyecto from './proyectos/form/EditarProyecto';
 //import Informes from "./pages/Informes";
 //import Repositorio from "./pages/Repositorio";
 //import RevisionProyectos from "./pages/RevisionProyectos";
 //import Configuracion from "./pages/Configuracion";
-//import EditarProyecto from './pages/EditarProyecto';
 //import Notificaciones from './pages/Notificaciones';
 //import ListaUsuarios from './pages/usuarios/ListaUsuarios';
 //import CrearUsuarios from './pages/usuarios/CrearUsuarios';
@@ -29,6 +29,8 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/proyectos" element={<Proyectos />} />
+          <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
+          <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
@@ -36,9 +38,7 @@ function App() {
 }
 /*
           
-          <Route path="/proyectos" element={<Proyectos />} />
-          <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
-          <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
+          <Route path="/proyectos" element={<Proyectos />} />   
           <Route path="/evaluacion" element={<RevisionProyectos />} />
           <Route path="/actividades" element={<Actividades />} />
           <Route path="/informes" element={<Informes />} />
