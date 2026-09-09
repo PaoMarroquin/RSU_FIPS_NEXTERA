@@ -13,10 +13,8 @@ import Informes from "./proyectos/informes/Informes";
 import Repositorio from "./proyectos/repositorio/Repositorio";
 import Notificaciones from './proyectos/notificaciones/Notificaciones';
 //import Configuracion from "./pages/Configuracion";
-//import ListaUsuarios from './pages/usuarios/ListaUsuarios';
-//import CrearUsuarios from './pages/usuarios/CrearUsuarios';
-//import EditarUsuarios from './pages/usuarios/EditarUsuarios';
-//import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
+import GestionUsuarios from './usuario/gestion/GestionUsuarios'
+import ImportarUsuarios from './usuario/importar/ImportarUsuarios'
 import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
 import ProyectosJefatura from './proyectos/jefatura/ProyectosJefatura';
 
@@ -36,6 +34,8 @@ function App() {
           <Route path="/informes" element={<Informes />} />
           <Route path="/repositorio" element={<Repositorio />} />
           <Route path="/notificaciones" element={<Notificaciones />} />
+          <Route path="/usuarios" element={<GestionUsuarios />} />
+          <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
           <Route path="/matriz-operativa" element={<MatrizOperativa />} />
           <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />
         </Routes>
@@ -47,7 +47,7 @@ function App() {
           <Route path="/configuracion" element={<Configuracion />} />
           <Route path="/usuarios" element={<ListaUsuarios />} />
           <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
-          <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
+          
           <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />         
 */
 export default App;
