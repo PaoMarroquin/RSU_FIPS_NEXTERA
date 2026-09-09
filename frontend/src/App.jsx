@@ -18,7 +18,7 @@ import Notificaciones from './proyectos/notificaciones/Notificaciones';
 //import EditarUsuarios from './pages/usuarios/EditarUsuarios';
 //import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
 import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
-//import ProyectosJefatura from './pages/ProyectosJefatura';
+import ProyectosJefatura from './proyectos/jefatura/ProyectosJefatura';
 
 function App() {
   return (
@@ -37,23 +37,17 @@ function App() {
           <Route path="/repositorio" element={<Repositorio />} />
           <Route path="/notificaciones" element={<Notificaciones />} />
           <Route path="/matriz-operativa" element={<MatrizOperativa />} />
+          <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
   );
 }
 /*
-          
-          
-          
-          
-          
           <Route path="/configuracion" element={<Configuracion />} />
           <Route path="/usuarios" element={<ListaUsuarios />} />
           <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
           <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
-          <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
-          
-          <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />  
+          <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />         
 */
 export default App;
