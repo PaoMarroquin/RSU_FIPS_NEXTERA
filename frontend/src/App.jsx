@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ToastProvider } from "./shared/context/ToastContext";
-import Toast from "./components/Toast";
+import Toast from "./shared/components/Toast";
 
-import Login from "./pages/Login";
+import Login from "./usuario/login/Login";
 import Dashboard from "./pages/Dashboard";
 import Proyectos from "./pages/Proyectos";
 import Actividades from "./pages/Actividades";
@@ -27,6 +27,13 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
+          
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
+  );
+}
+/*
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/proyectos" element={<Proyectos />} />
           <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
@@ -42,11 +49,6 @@ function App() {
           <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
           <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
           <Route path="/matriz-operativa" element={<MatrizOperativa />} />
-          <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />
-        </Routes>
-      </BrowserRouter>
-    </ToastProvider>
-  );
-}
-
+          <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />  
+*/
 export default App;

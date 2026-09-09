@@ -5,7 +5,7 @@ import { authService } from "../api/authService";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { useNotificaciones } from "../hooks/useNotificaciones";
-import { getTipoConfig } from "../utils/notificacionTipos";
+import { getTipoConfig } from "../shared/utils/notificacionTipos";
 
 export default function Topbar() {
   const navigate = useNavigate();

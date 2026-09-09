@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { FiCheckSquare, FiBell } from "react-icons/fi";
 import { useNotificaciones } from "../hooks/useNotificaciones";
-import { getTipoConfig } from "../utils/notificacionTipos";
+import { getTipoConfig } from "../shared/utils/notificacionTipos";
 
 const FILTROS = [
   { id: 'todas', label: 'Todas' },
