@@ -4,7 +4,7 @@ import Toast from "./shared/components/Toast";
 
 import Login from "./usuario/login/Login";
 import Dashboard from "./proyectos/dashboard/Dashboard";
-//import Proyectos from "./pages/Proyectos";
+import Proyectos from "./proyectos/listar/Proyectos";
 //import Actividades from "./pages/Actividades";
 //import NuevoProyecto from "./pages/NuevoProyecto";
 //import Informes from "./pages/Informes";
@@ -28,6 +28,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/proyectos" element={<Proyectos />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
