@@ -11,8 +11,8 @@ import Actividades from "./proyectos/actividades/Actividades";
 import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
 import Informes from "./proyectos/informes/Informes";
 import Repositorio from "./proyectos/repositorio/Repositorio";
+import Notificaciones from './proyectos/notificaciones/Notificaciones';
 //import Configuracion from "./pages/Configuracion";
-//import Notificaciones from './pages/Notificaciones';
 //import ListaUsuarios from './pages/usuarios/ListaUsuarios';
 //import CrearUsuarios from './pages/usuarios/CrearUsuarios';
 //import EditarUsuarios from './pages/usuarios/EditarUsuarios';
@@ -35,6 +35,7 @@ function App() {
           <Route path="/evaluacion" element={<RevisionProyectos />} />
           <Route path="/informes" element={<Informes />} />
           <Route path="/repositorio" element={<Repositorio />} />
+          <Route path="/notificaciones" element={<Notificaciones />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
@@ -45,7 +46,7 @@ function App() {
           
           
           
-          <Route path="/notificaciones" element={<Notificaciones />} />
+          
           <Route path="/configuracion" element={<Configuracion />} />
           <Route path="/usuarios" element={<ListaUsuarios />} />
           <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />

@@ -7,7 +7,7 @@ export const notificacionApi = {
   },
 
   marcarNotificacionLeida: async (id) => {
-    const response = await api.post(`/api/v1/notificaciones/${id}/leer/`);
+    const response = await api.patch(`/api/v1/notificaciones/${id}/leer/`);
     return response.data;
   },
 };
