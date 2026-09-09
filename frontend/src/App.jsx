@@ -3,22 +3,22 @@ import { ToastProvider } from "./shared/context/ToastContext";
 import Toast from "./shared/components/Toast";
 
 import Login from "./usuario/login/Login";
-import Dashboard from "./pages/Dashboard";
-import Proyectos from "./pages/Proyectos";
-import Actividades from "./pages/Actividades";
-import NuevoProyecto from "./pages/NuevoProyecto";
-import Informes from "./pages/Informes";
-import Repositorio from "./pages/Repositorio";
-import RevisionProyectos from "./pages/RevisionProyectos";
-import Configuracion from "./pages/Configuracion";
-import EditarProyecto from './pages/EditarProyecto';
-import Notificaciones from './pages/Notificaciones';
-import ListaUsuarios from './pages/usuarios/ListaUsuarios';
-import CrearUsuarios from './pages/usuarios/CrearUsuarios';
-import EditarUsuarios from './pages/usuarios/EditarUsuarios';
-import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
-import MatrizOperativa from './pages/MatrizOperativa';
-import ProyectosJefatura from './pages/ProyectosJefatura';
+import Dashboard from "./proyectos/dashboard/Dashboard";
+//import Proyectos from "./pages/Proyectos";
+//import Actividades from "./pages/Actividades";
+//import NuevoProyecto from "./pages/NuevoProyecto";
+//import Informes from "./pages/Informes";
+//import Repositorio from "./pages/Repositorio";
+//import RevisionProyectos from "./pages/RevisionProyectos";
+//import Configuracion from "./pages/Configuracion";
+//import EditarProyecto from './pages/EditarProyecto';
+//import Notificaciones from './pages/Notificaciones';
+//import ListaUsuarios from './pages/usuarios/ListaUsuarios';
+//import CrearUsuarios from './pages/usuarios/CrearUsuarios';
+//import EditarUsuarios from './pages/usuarios/EditarUsuarios';
+//import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
+//import MatrizOperativa from './pages/MatrizOperativa';
+//import ProyectosJefatura from './pages/ProyectosJefatura';
 
 function App() {
   return (
@@ -27,14 +27,14 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
-          
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
   );
 }
 /*
-          <Route path="/dashboard" element={<Dashboard />} />
+          
           <Route path="/proyectos" element={<Proyectos />} />
           <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
           <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />

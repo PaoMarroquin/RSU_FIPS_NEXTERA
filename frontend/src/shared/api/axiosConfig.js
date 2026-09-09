@@ -17,6 +17,28 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+let refreshPromise = null;
+
+export function refreshAccessToken() {
+  if (!refreshPromise) {
+    const refreshToken = tokenStore.getRefreshToken();
+    if (!refreshToken) {
+      return Promise.reject(new Error('No hay refresh token'));
+    }
+    refreshPromise = axios
+      .post(`${BASE_URL}/api/v1/auth/token/refresh/`, { refresh: refreshToken })
+      .then((res) => {
+        tokenStore.setAccessToken(res.data.access);
+        if (res.data.refresh) tokenStore.setRefreshToken(res.data.refresh);
+        return res.data.access;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -33,14 +55,8 @@ api.interceptors.response.use(
       }
 
       try {
-        const res = await axios.post(`${BASE_URL}/api/v1/auth/token/refresh/`, {
-          refresh: refreshToken,
-        });
-
-        tokenStore.setAccessToken(res.data.access);
-        if (res.data.refresh) tokenStore.setRefreshToken(res.data.refresh);
-
-        originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
+        const newAccessToken = await refreshAccessToken();
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         tokenStore.clear();

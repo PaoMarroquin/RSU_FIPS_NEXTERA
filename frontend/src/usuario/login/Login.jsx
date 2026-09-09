@@ -24,27 +24,18 @@ export default function Login() {
   // Auto-login: verifica tokens activos antes de renderizar el formulario
   useEffect(() => {
     const verificarSesion = async () => {
-      // 1. Si ya existe access token en memoria
       if (tokenStore.getAccessToken()) {
         navigate('/dashboard', { replace: true });
         return;
       }
 
-      // 2. Si no hay en memoria, intentar refrescar usando el refresh_token guardado
       const refreshToken = tokenStore.getRefreshToken();
       if (refreshToken) {
         try {
-          const response = await authApi.refreshToken(refreshToken);
-          if (response?.access) {
-            tokenStore.setAccessToken(response.access);
-            if (response.refresh) {
-              tokenStore.setRefreshToken(response.refresh);
-            }
-            navigate('/dashboard', { replace: true });
-            return;
-          }
+          await refreshAccessToken(); // ← ahora comparte el mismo lock que axiosConfig
+          navigate('/dashboard', { replace: true });
+          return;
         } catch (err) {
-          // Refresh token vencido o inválido
           tokenStore.clear();
         }
       }
