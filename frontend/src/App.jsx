@@ -9,7 +9,7 @@ import NuevoProyecto from "./proyectos/form/NuevoProyecto";
 import EditarProyecto from './proyectos/form/EditarProyecto';
 import Actividades from "./proyectos/actividades/Actividades";
 import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
-//import Informes from "./pages/Informes";
+import Informes from "./proyectos/informes/Informes";
 //import Repositorio from "./pages/Repositorio";
 //import Configuracion from "./pages/Configuracion";
 //import Notificaciones from './pages/Notificaciones';
@@ -33,6 +33,7 @@ function App() {
           <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
           <Route path="/actividades" element={<Actividades />} />
           <Route path="/evaluacion" element={<RevisionProyectos />} />
+          <Route path="/informes" element={<Informes />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
@@ -41,7 +42,7 @@ function App() {
 /*
           
           
-          <Route path="/informes" element={<Informes />} />
+          
           <Route path="/repositorio" element={<Repositorio />} />
           <Route path="/notificaciones" element={<Notificaciones />} />
           <Route path="/configuracion" element={<Configuracion />} />
