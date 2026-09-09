@@ -12,7 +12,7 @@ import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
 import Informes from "./proyectos/informes/Informes";
 import Repositorio from "./proyectos/repositorio/Repositorio";
 import Notificaciones from './proyectos/notificaciones/Notificaciones';
-//import Configuracion from "./pages/Configuracion";
+import Configuracion from "./usuario/configuracion/MiPerfil";
 import GestionUsuarios from './usuario/gestion/GestionUsuarios'
 import ImportarUsuarios from './usuario/importar/ImportarUsuarios'
 import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
@@ -36,6 +36,7 @@ function App() {
           <Route path="/notificaciones" element={<Notificaciones />} />
           <Route path="/usuarios" element={<GestionUsuarios />} />
           <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
+          <Route path="/configuracion" element={<Configuracion />} />    
           <Route path="/matriz-operativa" element={<MatrizOperativa />} />
           <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />
         </Routes>
@@ -43,11 +44,4 @@ function App() {
     </ToastProvider>
   );
 }
-/*
-          <Route path="/configuracion" element={<Configuracion />} />
-          <Route path="/usuarios" element={<ListaUsuarios />} />
-          <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
-          
-          <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />         
-*/
 export default App;
