@@ -2,17 +2,6 @@ from rest_framework import permissions
 from apps.usuarios.models import Rol
 
 
-class IsCoordinadorRSU(permissions.BasePermission):
-    """Allows access only to users with 'Coordinador RSU' or 'Administrador' role."""
-    def has_permission(self, request, view):
-        return (
-            request.user and
-            request.user.is_authenticated and
-            request.user.rol and
-            request.user.rol.nombre in [Rol.COORDINADOR, Rol.ADMINISTRADOR]
-        )
-
-
 class IsDocente(permissions.BasePermission):
     """Allows access only to users with 'Docente' role."""
     def has_permission(self, request, view):
@@ -21,17 +10,6 @@ class IsDocente(permissions.BasePermission):
             request.user.is_authenticated and
             request.user.rol and
             request.user.rol.nombre == Rol.DOCENTE
-        )
-
-
-class IsComite(permissions.BasePermission):
-    """Allows access only to users with 'Comite' role."""
-    def has_permission(self, request, view):
-        return (
-            request.user and
-            request.user.is_authenticated and
-            request.user.rol and
-            request.user.rol.nombre == Rol.COMITE
         )
 
 
@@ -48,14 +26,37 @@ class IsAdministrador(permissions.BasePermission):
         )
 
 
-class IsAutoridadUniversitaria(permissions.BasePermission):
-    """Allows access only to users with 'Autoridad Universitaria' role (solo consulta)."""
+class IsDocenteOrAdmin(permissions.BasePermission):
+    """Allows access to Docente or Administrador (used for creating proyectos)."""
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_staff:
+            return True
+        if request.user.rol and request.user.rol.nombre in [Rol.DOCENTE, Rol.ADMINISTRADOR]:
+            return True
+        return False
+
+
+class IsJefaturaRSU(permissions.BasePermission):
+    """Allows access only to Jefatura RSU."""
     def has_permission(self, request, view):
         return (
             request.user and
             request.user.is_authenticated and
             request.user.rol and
-            request.user.rol.nombre == Rol.AUTORIDAD
+            request.user.rol.nombre == Rol.JEFATURA
+        )
+
+
+class IsDepartamento(permissions.BasePermission):
+    """Allows access only to Departamento."""
+    def has_permission(self, request, view):
+        return (
+            request.user and
+            request.user.is_authenticated and
+            request.user.rol and
+            request.user.rol.nombre == Rol.DEPARTAMENTO
         )
 
 
@@ -63,17 +64,15 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     Safe methods are always allowed.
     Write methods (PATCH/PUT) require the user to be the object owner
-    OR to hold an administrative role (Administrador / Coordinador RSU / Comité RSU).
-    DELETE is intentionally excluded here: the view's queryset already
-    filters to owner-only results, producing a 404 for non-owners.
+    OR to hold an administrative role (Administrador / Jefatura RSU / Departamento).
     """
-    _ROLES_ADMIN = [Rol.ADMINISTRADOR, Rol.COORDINADOR, Rol.COMITE]
+    _ROLES_REVISION = [Rol.ADMINISTRADOR, Rol.JEFATURA, Rol.DEPARTAMENTO]
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        if request.user.rol and request.user.rol.nombre in self._ROLES_ADMIN:
+        if request.user.is_staff or (request.user.rol and request.user.rol.nombre in self._ROLES_REVISION):
             return True
 
         if hasattr(obj, 'docente_responsable'):

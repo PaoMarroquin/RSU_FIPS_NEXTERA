@@ -31,7 +31,24 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/metas-indicadores/', views.MetaIndicadorProyectoListCreateView.as_view(), name='meta-indicador-list'),
     path('proyectos/<int:proyecto_pk>/metas-indicadores/<int:pk>/', views.MetaIndicadorProyectoDetailView.as_view(), name='meta-indicador-detail'),
 
+    # Registro de avances y evidencias ───────────────────────────────
+    path('proyectos/<int:proyecto_pk>/avances/', views.AvanceActividadListCreateView.as_view(), name='avance-list'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:pk>/', views.AvanceActividadDetailView.as_view(), name='avance-detail'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:pk>/observar/', views.AvanceObservarView.as_view(), name='avance-observar'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:pk>/corregir/', views.AvanceCorregirView.as_view(), name='avance-corregir'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/', views.EvidenciaAvanceListCreateView.as_view(), name='evidencia-list'),
+    path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/<int:pk>/', views.EvidenciaAvanceDetailView.as_view(), name='evidencia-detail'),
+
     # ── Reportes ──────────────────────────────────────────────────────────────
     path('reportes/general/', ReporteGeneralView.as_view(), name='reporte-general'),
     path('reportes/facultad/<int:facultad_pk>/', ReporteFacultadView.as_view(), name='reporte-facultad'),
+
+    # ── Módulo 4: Revisión y Aprobación ───────────────────────────────────────
+    path('proyectos/para-revisar/', views.ProyectosParaRevisarView.as_view(), name='proyecto-para-revisar'),
+    path('proyectos/<int:pk>/aprobar/', views.ProyectoAprobarView.as_view(), name='proyecto-aprobar'),
+    path('proyectos/<int:pk>/observar/', views.ProyectoObservarView.as_view(), name='proyecto-observar'),
+
+    # ── Módulo 4: Notificaciones ──────────────────────────────────────────────
+    path('notificaciones/', views.NotificacionListView.as_view(), name='notificacion-list'),
+    path('notificaciones/<int:pk>/leer/', views.NotificacionLeerView.as_view(), name='notificacion-leer'),
 ]

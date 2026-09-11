@@ -6,6 +6,8 @@ from .models import (
     ActividadProyecto, CronogramaAccion,
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
     FuenteFinanciamiento, TipoBeneficiario, ProyectoEjeSubitem,
+    RevisionProyecto, Notificacion, HistorialEstadoProyecto,
+    AvanceActividad, EvidenciaAvance,
 )
 from apps.planificacion.models import ODS, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
@@ -47,7 +49,8 @@ class ActividadProyectoSerializer(serializers.ModelSerializer):
         model = ActividadProyecto
         fields = [
             'id', 'nombre', 'descripcion', 'curso_vinculado',
-            'responsable', 'fecha', 'evidencia_esperada', 'orden',
+            'responsable', 'fecha', 'evidencia_esperada', 'estado', 'orden',
+            'url_evidencia', 'archivo_evidencia',
         ]
 
 
@@ -63,18 +66,8 @@ class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
         fields = ['id', 'archivo', 'nombre', 'uploaded_at']
 
 
-class FuenteFinanciamientoSerializer(serializers.ModelSerializer):
-    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
-
-    class Meta:
-        model = FuenteFinanciamiento
-        fields = ['id', 'fuente', 'fuente_display', 'monto', 'descripcion', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
-
-
 class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
     monto_presupuestado = serializers.SerializerMethodField(read_only=True)
-    fuente_detalle = FuenteFinanciamientoSerializer(source='fuente', read_only=True)
     categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
     tipo_recurso_display = serializers.CharField(source='get_tipo_recurso_display', read_only=True)
 
@@ -85,7 +78,7 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
             'tipo_recurso', 'tipo_recurso_display',
             'descripcion', 'unidad', 'cantidad',
             'costo_unitario', 'monto_presupuestado', 'monto_ejecutado',
-            'fuente', 'fuente_detalle', 'orden',
+            'fuente', 'orden',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -95,12 +88,12 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
 
     def validate_cantidad(self, value):
         if value < 1:
-            raise serializers.ValidationError('La cantidad debe ser al menos 1.')
+            raise serializers.ValidationError({'cantidad': 'La cantidad debe ser al menos 1.'})
         return value
 
     def validate_costo_unitario(self, value):
-        if value <= 0:
-            raise serializers.ValidationError('El costo unitario debe ser mayor a 0.')
+        if value < 0:
+            raise serializers.ValidationError({'costo_unitario': 'El costo unitario no puede ser negativo.'})
         return value
 
     def validate(self, attrs):
@@ -111,6 +104,15 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
                 'descripcion': 'La descripción es obligatoria cuando la categoría es "Otros".'
             })
         return attrs
+
+class FuenteFinanciamientoSerializer(serializers.ModelSerializer):
+    fuente_display = serializers.CharField(source='get_fuente_display', read_only=True)
+    partidas = PartidaPresupuestariaSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = FuenteFinanciamiento
+        fields = ['id', 'fuente', 'fuente_display', 'monto', 'descripcion', 'partidas', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 
 class TipoBeneficiarioSerializer(serializers.ModelSerializer):
@@ -130,6 +132,7 @@ class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
             'porcentaje_avance',
             'metodo_verificacion', 'fuente_verificacion', 'orden',
         ]
+        read_only_fields = ['id']
 
     def get_porcentaje_avance(self, obj):
         """Calcula el avance respecto a la meta. Retorna None si no hay datos suficientes."""
@@ -152,6 +155,75 @@ class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
         return attrs
 
 
+# ── HU-05: Registro de avances y evidencias ──────────────────────────────────
+
+class EvidenciaAvanceSerializer(serializers.ModelSerializer):
+    """T-87: evidencia de un avance (archivo PDF/JPG/JPEG/PNG o enlace de Drive)."""
+    class Meta:
+        model = EvidenciaAvance
+        fields = ['id', 'tipo', 'archivo', 'enlace_drive', 'nombre', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+    def validate(self, attrs):
+        # CA-04: coherencia archivo XOR enlace según el tipo declarado.
+        tipo = attrs.get('tipo', getattr(self.instance, 'tipo', None))
+        archivo = attrs.get('archivo', getattr(self.instance, 'archivo', None))
+        enlace = attrs.get('enlace_drive', getattr(self.instance, 'enlace_drive', None))
+        if tipo == 'archivo':
+            if not archivo:
+                raise serializers.ValidationError({'archivo': 'Debe adjuntar un archivo (PDF/JPG/JPEG/PNG).'})
+            if enlace:
+                raise serializers.ValidationError({'enlace_drive': 'No use enlace cuando el tipo es "archivo".'})
+        elif tipo == 'enlace':
+            if not enlace:
+                raise serializers.ValidationError({'enlace_drive': 'Debe indicar un enlace de Google Drive.'})
+            if archivo:
+                raise serializers.ValidationError({'archivo': 'No adjunte archivo cuando el tipo es "enlace".'})
+        return attrs
+
+
+class AvanceActividadSerializer(serializers.ModelSerializer):
+    """T-86: avance de una actividad, con sus evidencias vigentes (no eliminadas)."""
+    evidencias = serializers.SerializerMethodField(read_only=True)
+    autor_nombre = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = AvanceActividad
+        fields = [
+            'id', 'actividad', 'descripcion', 'estado_actividad', 'observaciones',
+            'estado_revision', 'comentario_revision',
+            'autor', 'autor_nombre', 'revisor', 'created_at', 'revisado_en',
+            'evidencias',
+        ]
+        read_only_fields = [
+            'id', 'estado_revision', 'comentario_revision',
+            'autor', 'revisor', 'created_at', 'revisado_en',
+        ]
+
+    def get_evidencias(self, obj):
+        qs = obj.evidencias.filter(eliminada=False)
+        return EvidenciaAvanceSerializer(qs, many=True, context=self.context).data
+
+    def get_autor_nombre(self, obj):
+        if obj.autor_id:
+            return f'{obj.autor.nombres} {obj.autor.apellidos}'.strip()
+        return None
+
+    def validate_descripcion(self, value):
+        if not value or not str(value).strip():
+            raise serializers.ValidationError('La descripción del avance es obligatoria.')
+        return value
+
+    def validate(self, attrs):
+        # T-88: la actividad debe pertenecer al proyecto de la URL.
+        proyecto_pk = self.context.get('proyecto_pk')
+        actividad = attrs.get('actividad')
+        if actividad is not None and proyecto_pk is not None and actividad.proyecto_id != int(proyecto_pk):
+            raise serializers.ValidationError(
+                {'actividad': 'La actividad no pertenece a este proyecto.'})
+        return attrs
+
+
 class ProyectoEjeSubitemSerializer(serializers.ModelSerializer):
     sub_eje_clave  = serializers.CharField(source='sub_eje.clave', read_only=True)
     sub_eje_nombre = serializers.CharField(source='sub_eje.nombre', read_only=True)
@@ -159,6 +231,43 @@ class ProyectoEjeSubitemSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProyectoEjeSubitem
         fields = ['id', 'sub_eje', 'sub_eje_clave', 'sub_eje_nombre', 'detalle']
+
+
+class RevisionProyectoSerializer(serializers.ModelSerializer):
+    revisor_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RevisionProyecto
+        fields = [
+            'id', 'decision', 'comentario_tecnico', 'revisor_nombre',
+            'estado_anterior', 'estado_nuevo', 'created_at'
+        ]
+        
+    def get_revisor_nombre(self, obj):
+        return f"{obj.revisor.nombres} {obj.revisor.apellidos}".strip()
+
+
+class HistorialEstadoProyectoSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HistorialEstadoProyecto
+        fields = [
+            'id', 'estado_anterior', 'estado_nuevo', 'comentario',
+            'usuario_nombre', 'created_at'
+        ]
+
+    def get_usuario_nombre(self, obj):
+        return f"{obj.usuario.nombres} {obj.usuario.apellidos}".strip()
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacion
+        fields = [
+            'id', 'proyecto', 'tipo', 'titulo', 'mensaje',
+            'leida', 'leida_en', 'created_at'
+        ]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -172,7 +281,13 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     actividades = ActividadProyectoSerializer(many=True, required=False)
     cronograma = CronogramaAccionSerializer(many=True, required=False)
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
+    metas_indicadores = MetaIndicadorProyectoSerializer(many=True, required=False)
     ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
+    fuentes_financiamiento = FuenteFinanciamientoSerializer(many=True, read_only=True)
+    
+    # History and Reviews (Read-only)
+    revisiones = RevisionProyectoSerializer(many=True, read_only=True)
+    historial_estados = HistorialEstadoProyectoSerializer(many=True, read_only=True)
 
     # Read-only display fields
     beneficiarios_info = serializers.SerializerMethodField(read_only=True)
@@ -194,12 +309,14 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     tipo_actividad_display = serializers.SerializerMethodField(read_only=True)
     fuente_financiamiento_display = serializers.CharField(
         source='get_fuente_financiamiento_display', read_only=True)
+    porcentaje_ejecucion = serializers.DecimalField(
+        max_digits=5, decimal_places=2, read_only=True)
 
     class Meta:
         model = ProyectoRSU
         fields = [
             # ── Identificación ────────────────────────────────────────────
-            'id', 'codigo', 'estado',
+            'id', 'codigo', 'estado', 'porcentaje_ejecucion',
             'es_continuacion', 'proyecto_origen', 'continuaciones_count',
 
             # ── Sección I - Datos Generales ───────────────────────────────
@@ -224,8 +341,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             # 1.11 - 1.18
             'tipo_actividad', 'tipo_actividad_display', 'tipo_actividad_otro',
-            'meta_cuantitativa',
-            'indicador',
+            'metas_indicadores',
             'fecha_inicio',
             'fecha_evaluacion_avance',
             'fecha_termino',
@@ -269,6 +385,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             # ── Sección IX - Financiamiento ───────────────────────────────
             'monto_financiamiento',
             'fuente_financiamiento', 'fuente_financiamiento_display',
+            'fuentes_financiamiento',
             'descripcion_gastos',
             'observaciones_financiamiento',
             'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',
@@ -291,17 +408,21 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'conclusiones', 'recomendaciones',
             'lecciones_aprendidas', 'medio_difusion',
             'documentos_sustento',
+
+            # ── Fechas y Estado ───────────────────────────────────────────
             'created_at', 'updated_at',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
+
+            # ── Historial y Revisiones (Módulo 4) ─────────────────────────
+            'revisiones', 'historial_estados',
         ]
         read_only_fields = [
-            'codigo', 'estado', 'docente_responsable',
-            'es_continuacion', 'proyecto_origen',
+            'codigo', 'estado', 'created_at', 'updated_at',
+            'docente_responsable', 'es_continuacion', 'proyecto_origen',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
             'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',
-            'created_at', 'updated_at',
         ]
 
     def get_beneficiarios_info(self, obj):
@@ -365,8 +486,11 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 {'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'})
 
     def _validate_benef_otro(self, attrs):
-        beneficiarios = self._get(attrs, 'beneficiarios')
-        if beneficiarios is None:
+        if 'beneficiarios' in attrs:
+            beneficiarios = attrs['beneficiarios']
+        elif self.instance is not None:
+            beneficiarios = self.instance.beneficiarios.all()
+        else:
             return
         codigos = [b.codigo for b in beneficiarios]
         if 'otro' in codigos:
@@ -382,32 +506,10 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'eje_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'})
 
-    def _validate_unicidad(self, attrs):
-        if self.instance is not None:
-            return
-        escuela = attrs.get('escuela')
-        periodo = attrs.get('periodo')
-        anio_carrera = attrs.get('anio_carrera')
-        if not (escuela and periodo and anio_carrera):
-            return
-        existe = ProyectoRSU.objects.filter(
-            escuela=escuela, periodo=periodo, anio_carrera=anio_carrera,
-            es_continuacion=False,
-        ).exclude(estado='rechazado').exists()
-        if existe:
-            label = dict(ProyectoRSU.ANIOS).get(anio_carrera, str(anio_carrera))
-            raise serializers.ValidationError({
-                'anio_carrera': (
-                    f'Ya existe un proyecto para {label} en la escuela y periodo seleccionados. '
-                    f'Solo se permite uno por año académico por semestre.'
-                )
-            })
-
     def validate(self, attrs):
         self._validate_facultad_relations(attrs)
         self._validate_benef_otro(attrs)
         self._validate_eje_rsu(attrs)
-        self._validate_unicidad(attrs)
         return attrs
 
     def _save_nested_flat(self, proyecto, data_map, replace=False):
@@ -418,6 +520,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'actividades':           ActividadProyecto,
             'cronograma':            CronogramaAccion,
             'documentos_sustento':   DocumentoSustentoProyecto,
+            'metas_indicadores':     MetaIndicadorProyecto,
         }
         for attr, items in data_map.items():
             if items is None:
@@ -442,6 +545,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         actividades_data   = validated_data.pop('actividades', [])
         cronograma_data    = validated_data.pop('cronograma', [])
         documentos_data    = validated_data.pop('documentos_sustento', [])
+        metas_data         = validated_data.pop('metas_indicadores', [])
         ods_data           = validated_data.pop('ods', [])
         beneficiarios_data = validated_data.pop('beneficiarios', [])
         subitems_data      = validated_data.pop('ejes_subitems', [])
@@ -462,6 +566,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'actividades':           actividades_data,
                 'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
+                'metas_indicadores':     metas_data,
             }, replace=False)
             self._save_ejes_subitems(proyecto, subitems_data, replace=False)
 
@@ -477,6 +582,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         actividades_data   = validated_data.pop('actividades', None)
         cronograma_data    = validated_data.pop('cronograma', None)
         documentos_data    = validated_data.pop('documentos_sustento', None)
+        metas_data         = validated_data.pop('metas_indicadores', None)
         ods_data           = validated_data.pop('ods', None)
         beneficiarios_data = validated_data.pop('beneficiarios', None)
         subitems_data      = validated_data.pop('ejes_subitems', None)
@@ -498,6 +604,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'actividades':           actividades_data,
                 'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
+                'metas_indicadores':     metas_data,
             }, replace=True)
             self._save_ejes_subitems(instance, subitems_data, replace=True)
 

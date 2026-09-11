@@ -48,19 +48,15 @@ class DepartamentoAcademico(models.Model):
 
 class Rol(models.Model):
     ADMINISTRADOR = 'Administrador'
-    COORDINADOR   = 'Coordinador'
-    COMITE        = 'Comite'
     DOCENTE       = 'Docente'
-    AUTORIDAD     = 'Autoridad'
-    ESTUDIANTE    = 'Estudiante'
+    DEPARTAMENTO  = 'Departamento'
+    JEFATURA      = 'Jefatura RSU'
 
     ROLES = [
         (ADMINISTRADOR, 'Administrador'),
-        (COORDINADOR,   'Coordinador RSU'),
-        (COMITE,        'Comité RSU'),
         (DOCENTE,       'Docente'),
-        (AUTORIDAD,     'Autoridad Universitaria'),
-        (ESTUDIANTE,    'Estudiante'),
+        (DEPARTAMENTO,  'Departamento'),
+        (JEFATURA,      'Jefatura RSU'),
     ]
 
     nombre      = models.CharField(max_length=50, unique=True, choices=ROLES)
@@ -108,6 +104,8 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
                                              null=True, blank=True, related_name='usuarios')
     estado               = models.CharField(max_length=20, default='activo',
                                             choices=[('activo', 'Activo'), ('inactivo', 'Inactivo')])
+    is_active            = models.BooleanField(default=True,
+                                               help_text='Indica si el usuario puede hacer login')
     firma_digital        = models.ImageField(
                                              upload_to='firmas/', null=True, blank=True,
                                              help_text='Firma digital del usuario (JPG/PNG)')
