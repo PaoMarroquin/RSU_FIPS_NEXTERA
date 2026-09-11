@@ -1,3 +1,24 @@
+"""
+Pruebas de la API de proyectos RSU.
+
+Cubren el ciclo de vida completo y las reglas de negocio del modulo.
+
+Casos cubiertos:
+- Alta y edicion del proyecto, y bloqueo de la edicion fuera de borrador u
+  observado.
+- Visibilidad por rol: cada rol solo ve lo que le corresponde.
+- Validaciones del ANEXO 4: coherencia facultad/escuela/departamento,
+  detalle obligatorio de "otro", tipo de actividad valido.
+- Sub-recursos: actividades, cronograma, presupuesto y metas e indicadores.
+- Documentos de sustento: formato y tamano permitidos.
+- Seguimiento (HU-05): registro de avances, evidencias, recalculo del
+  porcentaje de ejecucion y caracter no editable del historial.
+
+Conecta con:
+- apps/proyectos/views.py y serializers.py: comportamiento bajo prueba.
+- apps/usuarios/models.py y apps/planificacion/models.py: datos de apoyo que
+  se crean en setUp.
+"""
 import tempfile
 from decimal import Decimal
 from django.urls import reverse

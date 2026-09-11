@@ -1,3 +1,15 @@
+"""
+Registro de los modelos de planificacion en el panel de administracion.
+
+Permite cargar y corregir catalogos (periodos, ejes RSU, sub-items, ODS,
+lineas estrategicas) y revisar las matrices operativas. La matriz se edita
+con inlines para que objetivos y actividades sugeridas se gestionen desde la
+misma pantalla.
+
+Conecta con:
+- apps/planificacion/models.py: modelos que registra.
+- config/urls.py: expone el panel en /admin/.
+"""
 from django.contrib import admin
 from .models import (
     PeriodoAcademico,

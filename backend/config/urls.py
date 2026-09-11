@@ -1,18 +1,26 @@
 """
-URL configuration for config project.
+Enrutador raiz del backend RSU.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Publica toda la API bajo el prefijo /api/v1/ y monta los tres modulos
+funcionales del sistema, ademas del panel de administracion de Django y la
+documentacion OpenAPI generada con drf-spectacular.
+
+Rutas principales:
+- /admin/                 panel de administracion de Django
+- /api/v1/                usuarios, planificacion y proyectos
+- /api/v1/schema/         esquema OpenAPI en formato JSON
+- /api/v1/docs/           interfaz Swagger
+- /api/v1/redoc/          interfaz Redoc
+
+En modo DEBUG tambien sirve los archivos subidos (MEDIA_ROOT) para poder
+probar firmas, documentos de sustento y evidencias sin un servidor de
+archivos aparte.
+
+Conecta con:
+- apps/usuarios/urls.py: autenticacion, usuarios y catalogos institucionales.
+- apps/planificacion/urls.py: periodos, ejes RSU, ODS y matriz operativa.
+- apps/proyectos/urls.py: proyectos RSU, revision, seguimiento e informes.
+- config/settings.py: de donde toma DEBUG, MEDIA_URL y MEDIA_ROOT.
 """
 from django.contrib import admin
 from django.urls import path, include

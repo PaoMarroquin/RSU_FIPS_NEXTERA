@@ -1,9 +1,32 @@
+"""
+Permisos de DRF reutilizables, basados en el rol del usuario.
+
+Centraliza las reglas de "quien puede hacer que" para no repetir
+comprobaciones de rol en cada vista. Todas las clases leen
+`request.user.rol.nombre` y lo comparan contra las constantes del modelo Rol,
+de modo que renombrar un rol solo obliga a tocar apps/usuarios/models.py.
+
+Los cuatro roles del sistema son Administrador, Docente, Departamento y
+Jefatura RSU. `is_staff` siempre equivale a Administrador.
+
+Permisos disponibles:
+- IsDocente, IsAdministrador, IsJefaturaRSU, IsDepartamento: exigen un rol
+  concreto.
+- IsDocenteOrAdmin: creacion de proyectos.
+- IsOwnerOrReadOnly, IsOwnerOrAdmin: permisos a nivel de objeto.
+
+Conecta con:
+- apps/usuarios/models.py: constantes de Rol contra las que se compara.
+- apps/proyectos/views.py, apps/proyectos/views_reportes.py y
+  apps/planificacion/views.py: vistas que declaran estos permisos.
+"""
 from rest_framework import permissions
 from apps.usuarios.models import Rol
 
 
 class IsDocente(permissions.BasePermission):
-    """Allows access only to users with 'Docente' role."""
+    """Solo el rol Docente. Se usa en las acciones propias del formulador
+    del proyecto (registrar avances, editar su propio proyecto)."""
     def has_permission(self, request, view):
         return (
             request.user and
@@ -14,7 +37,8 @@ class IsDocente(permissions.BasePermission):
 
 
 class IsAdministrador(permissions.BasePermission):
-    """Allows access only to users with 'Administrador' role or is_staff."""
+    """Solo el rol Administrador. `is_staff` cuenta como Administrador para
+    que el superusuario de Django no quede fuera de la API."""
     def has_permission(self, request, view):
         return (
             request.user and
@@ -27,7 +51,9 @@ class IsAdministrador(permissions.BasePermission):
 
 
 class IsDocenteOrAdmin(permissions.BasePermission):
-    """Allows access to Docente or Administrador (used for creating proyectos)."""
+    """Docente o Administrador. Se usa al crear proyectos: el docente crea el
+    suyo y el Administrador puede crear en nombre de otro durante la carga
+    inicial."""
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
@@ -39,7 +65,8 @@ class IsDocenteOrAdmin(permissions.BasePermission):
 
 
 class IsJefaturaRSU(permissions.BasePermission):
-    """Allows access only to Jefatura RSU."""
+    """Solo el rol Jefatura RSU, que coordina la matriz operativa de su
+    facultad y consulta los informes institucionales."""
     def has_permission(self, request, view):
         return (
             request.user and
@@ -50,7 +77,8 @@ class IsJefaturaRSU(permissions.BasePermission):
 
 
 class IsDepartamento(permissions.BasePermission):
-    """Allows access only to Departamento."""
+    """Solo el rol Departamento, que revisa, aprueba u observa los proyectos
+    de su departamento academico."""
     def has_permission(self, request, view):
         return (
             request.user and
@@ -61,10 +89,14 @@ class IsDepartamento(permissions.BasePermission):
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
-    """
-    Safe methods are always allowed.
-    Write methods (PATCH/PUT) require the user to be the object owner
-    OR to hold an administrative role (Administrador / Jefatura RSU / Departamento).
+    """Lectura para todos; escritura solo para el dueno o un rol de revision.
+
+    Los metodos seguros (GET, HEAD, OPTIONS) siempre pasan. Para escribir
+    (PUT, PATCH, DELETE) hay que ser el dueno del objeto o tener un rol
+    administrativo: Administrador, Jefatura RSU o Departamento.
+
+    Se considera dueno al `docente_responsable` (proyectos) o al
+    `coordinador` (matriz operativa), segun el atributo que exista.
     """
     _ROLES_REVISION = [Rol.ADMINISTRADOR, Rol.JEFATURA, Rol.DEPARTAMENTO]
 
@@ -83,7 +115,12 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
 
 class IsOwnerOrAdmin(permissions.BasePermission):
-    """Object-level: allows writes only to the object owner or an admin/staff user."""
+    """Permiso a nivel de objeto para el propio usuario.
+
+    Lectura para todos; escritura solo si el objeto es el propio usuario o
+    quien pide es Administrador. Se usa en el perfil (/usuarios/me/) y en la
+    edicion de cuentas.
+    """
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True

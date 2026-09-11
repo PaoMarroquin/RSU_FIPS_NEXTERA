@@ -1,3 +1,28 @@
+"""
+Serializers del modulo de proyectos RSU.
+
+Traducen el proyecto y todas sus tablas de detalle a JSON, y concentran las
+validaciones de negocio del ANEXO 4.
+
+ProyectoRSUSerializer es anidado y escribible: en una sola peticion se crean
+o actualizan el proyecto, sus asignaturas, docentes, actividades, cronograma,
+documentos, metas y sub-items de eje. Eso evita que el frontend tenga que
+orquestar varias llamadas para guardar un formulario.
+
+Validaciones que aplica:
+- La escuela y el departamento deben pertenecer a la facultad elegida.
+- Si se marca "otro" como beneficiario, hay que detallarlo.
+- Si el eje RSU es "Otros", hay que describirlo.
+- tipo_actividad solo admite los valores de TIPOS_ACTIVIDAD_VALIDOS.
+- Un proyecto solo se puede editar en estado borrador u observado.
+- El valor meta de un indicador debe superar su linea base.
+- Una evidencia lleva archivo o enlace, nunca ambos.
+
+Conecta con:
+- apps/proyectos/models.py: modelos que serializa.
+- apps/proyectos/views.py: vistas que los usan.
+- apps/planificacion/models.py: catalogos referenciados por el proyecto.
+"""
 from rest_framework import serializers
 from django.db import transaction
 from django.db.models import Sum, F

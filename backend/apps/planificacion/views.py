@@ -1,3 +1,24 @@
+"""
+Vistas del modulo de planificacion.
+
+Exponen los catalogos que alimentan los formularios de proyecto (periodos,
+ejes RSU, ODS, lineas estrategicas) y el CRUD de la matriz operativa con sus
+objetivos, indicadores y actividades sugeridas.
+
+Regla de acceso: los catalogos son de lectura para cualquier usuario
+autenticado; crearlos o modificarlos es tarea del Administrador. La matriz
+operativa la gestiona la Jefatura RSU, y solo sobre su propia facultad, lo
+que comprueba el helper _verificar_facultad_propia.
+
+Tambien publica la exportacion de la matriz a Excel y PDF, delegando el
+armado del archivo en services.py.
+
+Conecta con:
+- apps/planificacion/models.py y serializers.py: datos y validacion.
+- apps/planificacion/services.py: generacion de Excel y PDF.
+- apps/planificacion/urls.py: rutas que exponen estas vistas.
+- apps/utils/permissions.py: IsAdministrador e IsJefaturaRSU.
+"""
 from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView

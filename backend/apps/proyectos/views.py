@@ -1,3 +1,37 @@
+"""
+Vistas del modulo de proyectos RSU: formulacion, revision y seguimiento.
+
+Concentra el ciclo de vida completo del proyecto y las reglas de quien puede
+verlo y tocarlo en cada estado.
+
+Visibilidad por rol (_filter_proyectos_por_rol): el Administrador ve todo; la
+Jefatura RSU ve su facultad; el Departamento ve su departamento; el Docente
+ve los suyos. Los sub-recursos reutilizan ese mismo criterio a traves de
+_verificar_proyecto_visible, para que la lectura no se salte el scope.
+
+Bloques de vistas:
+- Proyecto: alta, edicion, envio a revision y continuacion entre semestres.
+- Detalle del ANEXO 4: actividades, cronograma, financiamiento, presupuesto
+  y metas e indicadores.
+- Revision y aprobacion (HU-04): bandeja del Departamento, aprobar y
+  observar. Observar exige comentario tecnico.
+- Notificaciones: listado y marcado de leidas.
+- Seguimiento (HU-05): registro de avances y evidencias, observacion de un
+  avance y correccion por parte del docente.
+
+Reglas de estado que se hacen cumplir aqui:
+- Solo se edita en borrador u observado.
+- Solo se envia a revision con los campos obligatorios del ANEXO 4 completos.
+- Solo se aprueba u observa un proyecto en revision.
+- Solo se registran avances en proyectos aprobados o en ejecucion, y solo el
+  docente responsable. El primer avance pasa el proyecto a en_ejecucion.
+- El porcentaje de ejecucion se recalcula solo, nunca se escribe a mano.
+
+Conecta con:
+- apps/proyectos/models.py y serializers.py: datos y validacion.
+- apps/proyectos/urls.py: rutas que exponen estas vistas.
+- apps/utils/permissions.py: control de acceso por rol.
+"""
 from decimal import Decimal
 from rest_framework import generics, status, serializers, filters
 from rest_framework.views import APIView

@@ -1,3 +1,15 @@
+"""
+Serializers del modulo de planificacion.
+
+Traducen catalogos y matriz operativa a JSON. Los serializers de matriz son
+anidados: al pedir una matriz se devuelven sus objetivos con sus indicadores
+y sus actividades sugeridas en una sola respuesta, para que el frontend pinte
+la pantalla completa sin encadenar peticiones.
+
+Conecta con:
+- apps/planificacion/models.py: modelos que serializa.
+- apps/planificacion/views.py: vistas que los usan.
+"""
 from rest_framework import serializers
 from .models import (
     PeriodoAcademico,

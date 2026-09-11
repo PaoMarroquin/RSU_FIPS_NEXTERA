@@ -1,3 +1,31 @@
+"""
+Modelos del modulo de planificacion: matriz operativa y catalogos RSU.
+
+Define el marco de referencia sobre el que despues se formulan los proyectos:
+en que periodo se trabaja, bajo que eje de Responsabilidad Social, con que
+objetivos institucionales y con que ODS se alinea.
+
+Catalogos:
+- PeriodoAcademico: semestre I, II o anual. Solo uno deberia estar activo.
+  La combinacion anio + semestre es unica.
+- EjeRSU y EjeRSUSubitem: ejes de RSU y sus sub-items. Algunos sub-items
+  piden un texto de detalle cuando se marcan en un proyecto.
+- ODS: los 17 Objetivos de Desarrollo Sostenible.
+- LineaEstrategica: lineas institucionales, cada una dentro de un eje RSU.
+
+Planificacion:
+- MatrizOperativa: instrumento anual de una facultad para un periodo.
+- ObjetivoInstitucional: objetivos declarados en la matriz.
+- IndicadorInstitucional: como se mide cada objetivo.
+- ActividadSugerida: actividades propuestas como referencia para los
+  docentes.
+
+Conecta con:
+- apps/usuarios/models.py: Facultad y Usuario (coordinador de la matriz).
+- apps/proyectos/models.py: ProyectoRSU referencia PeriodoAcademico, EjeRSU,
+  EjeRSUSubitem, ODS, LineaEstrategica y ObjetivoInstitucional.
+- apps/planificacion/services.py: exporta la matriz a Excel y PDF.
+"""
 from django.db import models
 from django.conf import settings
 from apps.usuarios.models import Facultad

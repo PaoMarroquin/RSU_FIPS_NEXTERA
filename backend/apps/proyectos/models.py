@@ -1,3 +1,41 @@
+"""
+Modelos del modulo de proyectos RSU: formulacion, revision y seguimiento.
+
+Es el nucleo del sistema. ProyectoRSU implementa el ANEXO 4 (Formato OURS) y
+alrededor giran las tablas de detalle, el flujo de aprobacion y el registro
+de avances.
+
+Formulacion (ANEXO 4, secciones I a IX):
+- ProyectoRSU: cabecera y campos de texto del formato.
+- TipoBeneficiario: catalogo del grupo destinatario (campo 1.9).
+- ProyectoAsignatura, ProyectoDocente: asignaturas y docentes participantes.
+- ProyectoEjeSubitem: sub-items de eje RSU marcados, con su detalle.
+- ActividadProyecto (seccion VI) y CronogramaAccion (seccion VII).
+- FuenteFinanciamiento y PartidaPresupuestaria (seccion IX).
+- MetaIndicadorProyecto: metas con linea base, valor meta y alcanzado.
+- DocumentoSustentoProyecto: adjuntos de respaldo.
+
+Revision y aprobacion (HU-04):
+- RevisionProyecto: decision del Departamento y comentario tecnico.
+- HistorialEstadoProyecto: bitacora de todos los cambios de estado.
+- Notificacion: avisos internos al docente.
+
+Seguimiento y ejecucion (HU-05):
+- AvanceActividad: avance del docente sobre una actividad. El historial es de
+  solo insercion.
+- EvidenciaAvance: archivo (PDF, JPG, JPEG, PNG) o enlace de Google Drive.
+  El borrado es logico para no perder trazabilidad.
+
+Ciclo de vida del estado del proyecto:
+    borrador -> en_revision -> observado -> corregido -> aprobado
+             -> en_ejecucion -> finalizado, o rechazado
+
+Conecta con:
+- apps/usuarios/models.py: Facultad, Escuela, Departamento y Usuario.
+- apps/planificacion/models.py: PeriodoAcademico, EjeRSU, EjeRSUSubitem, ODS,
+  LineaEstrategica y ObjetivoInstitucional.
+- apps/proyectos/views.py: aplica las reglas de transicion de estado.
+"""
 from django.db import models
 from django.conf import settings
 from django.utils import timezone

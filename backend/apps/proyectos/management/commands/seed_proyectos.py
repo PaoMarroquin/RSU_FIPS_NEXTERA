@@ -1,3 +1,18 @@
+"""
+Comando de carga de proyectos RSU de ejemplo.
+
+Genera proyectos en distintos estados con sus actividades, cronograma,
+presupuesto y metas, para poder probar el frontend y los informes sin tener
+que llenar formularios a mano.
+
+Uso:
+    python manage.py seed_proyectos
+
+Conecta con:
+- apps/proyectos/models.py: modelos que puebla.
+- apps/planificacion/management/commands/seed_rsu.py: catalogos que deben
+  existir antes de ejecutar este comando.
+"""
 import datetime
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model

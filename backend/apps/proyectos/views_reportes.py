@@ -1,3 +1,24 @@
+"""
+Reportes agregados de proyectos por facultad y a nivel general.
+
+Responde a las pantallas de estadisticas: cuantos proyectos hay, como se
+reparten por estado, eje RSU, ODS y periodo, cuantos docentes participan y
+cuanto presupuesto suman. Todo se calcula con agregaciones en base de datos,
+no en Python, para que la respuesta no dependa del volumen.
+
+El resultado es solo numerico: no incluye ficha por proyecto ni exportacion
+a archivo, y entran proyectos en cualquier estado.
+
+Vistas:
+- ReporteGeneralView: agregado de toda la universidad. Solo Administrador.
+- ReporteFacultadView: agregado de una facultad. El Administrador ve
+  cualquiera; la Jefatura RSU, solo la suya.
+
+Conecta con:
+- apps/proyectos/models.py: ProyectoRSU y sus relaciones.
+- apps/proyectos/urls.py: rutas /reportes/general/ y /reportes/facultad/<id>/.
+- apps/utils/permissions.py: IsAdministrador.
+"""
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status

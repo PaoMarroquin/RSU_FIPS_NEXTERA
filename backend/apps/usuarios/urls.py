@@ -1,3 +1,20 @@
+"""
+Rutas del modulo de usuarios, montadas bajo /api/v1/.
+
+Agrupa la autenticacion, la gestion de cuentas, los catalogos institucionales
+y las bitacoras de auditoria.
+
+Rutas:
+- /auth/login/, /auth/token/refresh/, /auth/logout/, /auth/google/
+- /usuarios/, /usuarios/<id>/, /usuarios/me/,
+  /usuarios/<id>/asignar-rol/, /usuarios/<id>/historial-roles/
+- /roles/, /facultades/, /escuelas/, /departamentos/
+- /auditoria/
+
+Conecta con:
+- apps/usuarios/views.py: vistas a las que apunta cada ruta.
+- config/urls.py: enrutador raiz que incluye este archivo.
+"""
 from django.urls import path
 
 from . import views

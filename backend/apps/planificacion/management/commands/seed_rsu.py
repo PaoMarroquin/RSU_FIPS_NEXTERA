@@ -1,3 +1,19 @@
+"""
+Comando de carga inicial de los catalogos RSU.
+
+Deja la base en un estado usable tras un despliegue limpio: crea los ejes
+RSU con sus sub-items, los 17 ODS, las lineas estrategicas y un periodo
+academico activo. Es idempotente, de modo que volver a ejecutarlo no duplica
+registros.
+
+Uso:
+    python manage.py seed_rsu
+
+Conecta con:
+- apps/planificacion/models.py: modelos que puebla.
+- apps/proyectos/management/commands/seed_proyectos.py: carga de ejemplo que
+  se apoya en estos catalogos.
+"""
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone

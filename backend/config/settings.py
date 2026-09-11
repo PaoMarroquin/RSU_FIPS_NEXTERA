@@ -1,3 +1,27 @@
+"""
+Configuracion global del proyecto Django del backend RSU.
+
+Define aplicaciones instaladas, base de datos PostgreSQL, autenticacion JWT,
+CORS para el frontend React, documentacion OpenAPI y rutas de archivos
+subidos (firmas, documentos de sustento, evidencias).
+
+Los valores sensibles no estan escritos aqui: se leen del archivo .env con
+python-decouple (SECRET_KEY, credenciales de base de datos, GOOGLE_CLIENT_ID,
+origenes CORS permitidos).
+
+Puntos clave:
+- AUTH_USER_MODEL apunta a usuarios.Usuario: el login es por correo
+  institucional, no por username.
+- El manejador de errores de la API esta centralizado en
+  apps.utils.exceptions.custom_exception_handler.
+
+Conecta con:
+- config/urls.py: enrutador raiz que se declara en ROOT_URLCONF.
+- apps/usuarios/models.py: define el modelo Usuario referenciado por
+  AUTH_USER_MODEL.
+- apps/utils/exceptions.py: formato uniforme de los errores de la API.
+- .env: variables de entorno del despliegue.
+"""
 from pathlib import Path
 from datetime import timedelta
 

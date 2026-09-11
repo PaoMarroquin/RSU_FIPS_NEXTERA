@@ -1,5 +1,21 @@
 #!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
+"""
+Utilidad de linea de comandos de Django para el backend RSU.
+
+Punto de entrada de todas las tareas administrativas del proyecto:
+runserver, makemigrations, migrate, createsuperuser, test y los comandos
+propios (seed_rsu, seed_proyectos).
+
+Uso habitual:
+    python manage.py migrate
+    python manage.py runserver
+    python manage.py seed_rsu
+
+Conecta con:
+- config/settings.py: modulo de configuracion que se activa via
+  DJANGO_SETTINGS_MODULE.
+- apps/*/management/commands/: comandos personalizados que expone.
+"""
 import os
 import sys
 

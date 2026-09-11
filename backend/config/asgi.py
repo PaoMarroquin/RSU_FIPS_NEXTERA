@@ -1,10 +1,12 @@
 """
-ASGI config for config project.
+Punto de entrada ASGI del backend RSU.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+Expone el objeto `application` que usan los servidores ASGI asincronos
+(Uvicorn, Daphne). El proyecto es sincrono hoy, pero se mantiene el archivo
+para poder desplegar sobre ASGI sin cambios.
 
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
+Conecta con:
+- config/settings.py: configuracion que carga al arrancar.
 """
 
 import os

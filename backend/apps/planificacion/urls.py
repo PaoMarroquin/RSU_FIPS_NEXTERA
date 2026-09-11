@@ -1,3 +1,20 @@
+"""
+Rutas del modulo de planificacion, montadas bajo /api/v1/.
+
+Rutas:
+- /periodos/, /periodos/<id>/
+- /ejes-rsu/, /ods/
+- /lineas-estrategicas/, /lineas-estrategicas/<id>/
+- /matrices/, /matrices/<id>/
+- /matrices/<id>/export/excel/, /matrices/<id>/export/pdf/
+- /objetivos-institucionales/, /objetivos-institucionales/<id>/
+- /indicadores-institucionales/, /indicadores-institucionales/<id>/
+- /actividades-sugeridas/, /actividades-sugeridas/<id>/
+
+Conecta con:
+- apps/planificacion/views.py: vistas a las que apunta cada ruta.
+- config/urls.py: enrutador raiz que incluye este archivo.
+"""
 from django.urls import path
 from . import views
 

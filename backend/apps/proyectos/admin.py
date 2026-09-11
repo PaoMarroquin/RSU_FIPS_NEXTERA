@@ -1,3 +1,21 @@
+"""
+Registro de los modelos de proyectos en el panel de administracion.
+
+Da a la Oficina de RSU una via directa para revisar y corregir proyectos sin
+pasar por el frontend, util en soporte y en la carga inicial de datos.
+
+ProyectoRSUAdmin agrupa el ANEXO 4 en fieldsets que siguen las secciones del
+formato y usa inlines para asignaturas, docentes, sub-items de eje,
+actividades, cronograma, documentos y metas. TipoActividadForm presenta el
+JSONField tipo_actividad como una lista de casillas en lugar de JSON crudo.
+
+Conecta con:
+- apps/proyectos/models.py: modelos que registra.
+- apps/proyectos/static/proyectos/js/admin_subitems.js y
+  templates/admin/proyectos/proyectorsu/change_form.html: filtran los
+  sub-items segun el eje RSU elegido.
+- config/urls.py: expone el panel en /admin/.
+"""
 from django import forms
 from django.contrib import admin
 

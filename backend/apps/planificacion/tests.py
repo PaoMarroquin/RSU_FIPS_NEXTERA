@@ -1,3 +1,14 @@
+"""
+Pruebas de la API de planificacion.
+
+Verifican el acceso por rol a los catalogos y a la matriz operativa: que la
+Jefatura RSU solo pueda tocar la matriz de su facultad, que el Administrador
+pueda gestionar catalogos y que un usuario sin rol adecuado reciba 403.
+
+Conecta con:
+- apps/planificacion/views.py: comportamiento bajo prueba.
+- apps/usuarios/models.py: usuarios y roles que se crean en setUp.
+"""
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase

@@ -1,3 +1,30 @@
+"""
+Vistas del modulo de usuarios: autenticacion y gestion de cuentas.
+
+Cubre dos frentes. El primero es la autenticacion: login con correo
+institucional y contrasena, login con Google, refresco de token y logout.
+El segundo es la administracion de cuentas: alta, edicion, activacion,
+asignacion de rol y consulta de bitacoras.
+
+La autenticacion emite tokens JWT (simplejwt). Cada login deja registro en
+Sesion y cada accion administrativa deja registro en AuditoriaUsuario, de
+modo que siempre se puede reconstruir quien hizo que y desde donde.
+
+Grupos de vistas:
+- SessionLoginView, SessionTokenRefreshView, LogoutView, GoogleAuthView:
+  autenticacion.
+- UsuarioListCreateView, UsuarioRetrieveUpdateDestroyView, MiPerfilView,
+  AsignarRolView: gestion de cuentas.
+- RolListView, FacultadListView, EscuelaProfesionalListView,
+  DepartamentoAcademicoListView: catalogos para poblar formularios.
+- HistorialRolUsuarioListView, AuditoriaListView: bitacoras de auditoria.
+
+Conecta con:
+- apps/usuarios/models.py y apps/usuarios/serializers.py: datos y validacion.
+- apps/usuarios/urls.py: rutas que exponen estas vistas.
+- apps/utils/permissions.py: control de acceso por rol.
+- config/settings.py: GOOGLE_CLIENT_ID y configuracion de simplejwt.
+"""
 from datetime import datetime, timezone as dt_timezone
 
 from django.conf import settings

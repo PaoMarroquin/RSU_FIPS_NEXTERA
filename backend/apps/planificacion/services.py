@@ -1,3 +1,21 @@
+"""
+Exportacion de la matriz operativa a Excel y PDF.
+
+Aisla el armado de los archivos para que las vistas solo se ocupen de
+permisos y de devolver la respuesta HTTP. Ambas funciones reciben una
+MatrizOperativa y devuelven un BytesIO listo para adjuntar.
+
+Funciones:
+- export_matriz_excel(matriz): libro openpyxl con la cabecera de la matriz,
+  los objetivos con sus indicadores y las actividades sugeridas.
+- export_matriz_pdf(matriz): documento reportlab con la misma informacion en
+  tablas.
+
+Conecta con:
+- apps/planificacion/models.py: MatrizOperativa y sus relaciones.
+- apps/planificacion/views.py: MatrizOperativaExportExcelView y
+  MatrizOperativaExportPDFView, que consumen estas funciones.
+"""
 import io
 import openpyxl
 from reportlab.lib.pagesizes import letter
