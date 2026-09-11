@@ -130,6 +130,10 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:5173,http://127.0.0.1:5173',
     cast=Csv(),
 )
+# El navegador oculta las cabeceras de respuesta que no se expongan
+# explicitamente. Sin esta linea el frontend descarga los informes de HU-06
+# pero no puede leer el nombre del archivo que propone el backend.
+CORS_EXPOSE_HEADERS = ['Content-Disposition']
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
     default='http://localhost:5173,http://127.0.0.1:5173',
