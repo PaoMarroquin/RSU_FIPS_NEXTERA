@@ -31,6 +31,8 @@ Conecta con:
 - apps/proyectos/models.py y serializers.py: datos y validacion.
 - apps/proyectos/urls.py: rutas que exponen estas vistas.
 - apps/utils/permissions.py: control de acceso por rol.
+- apps/proyectos/views_consolidado.py: reutiliza el criterio de visibilidad
+  para los informes de HU-06.
 """
 from decimal import Decimal
 from rest_framework import generics, status, serializers, filters

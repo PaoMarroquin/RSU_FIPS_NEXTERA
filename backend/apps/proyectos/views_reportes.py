@@ -6,8 +6,9 @@ reparten por estado, eje RSU, ODS y periodo, cuantos docentes participan y
 cuanto presupuesto suman. Todo se calcula con agregaciones en base de datos,
 no en Python, para que la respuesta no dependa del volumen.
 
-El resultado es solo numerico: no incluye ficha por proyecto ni exportacion
-a archivo, y entran proyectos en cualquier estado.
+A diferencia de views_consolidado.py, aqui entran proyectos en cualquier
+estado (incluido borrador) y el resultado es solo numerico, sin ficha por
+proyecto ni exportacion a archivo.
 
 Vistas:
 - ReporteGeneralView: agregado de toda la universidad. Solo Administrador.
@@ -18,6 +19,8 @@ Conecta con:
 - apps/proyectos/models.py: ProyectoRSU y sus relaciones.
 - apps/proyectos/urls.py: rutas /reportes/general/ y /reportes/facultad/<id>/.
 - apps/utils/permissions.py: IsAdministrador.
+- apps/proyectos/views_consolidado.py: informes de HU-06, restringidos a
+  proyectos aprobados y finalizados y con exportacion a PDF y Excel.
 """
 from rest_framework.views import APIView
 from rest_framework.response import Response

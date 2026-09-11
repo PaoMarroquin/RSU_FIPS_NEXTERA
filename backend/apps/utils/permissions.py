@@ -13,12 +13,14 @@ Permisos disponibles:
 - IsDocente, IsAdministrador, IsJefaturaRSU, IsDepartamento: exigen un rol
   concreto.
 - IsDocenteOrAdmin: creacion de proyectos.
+- PuedeVerInformesConsolidados: lectura de los informes de HU-06.
 - IsOwnerOrReadOnly, IsOwnerOrAdmin: permisos a nivel de objeto.
 
 Conecta con:
 - apps/usuarios/models.py: constantes de Rol contra las que se compara.
-- apps/proyectos/views.py, apps/proyectos/views_reportes.py y
-  apps/planificacion/views.py: vistas que declaran estos permisos.
+- apps/proyectos/views.py, apps/proyectos/views_reportes.py,
+  apps/proyectos/views_consolidado.py y apps/planificacion/views.py:
+  vistas que declaran estos permisos.
 """
 from rest_framework import permissions
 from apps.usuarios.models import Rol
@@ -86,6 +88,34 @@ class IsDepartamento(permissions.BasePermission):
             request.user.rol and
             request.user.rol.nombre == Rol.DEPARTAMENTO
         )
+
+
+class PuedeVerInformesConsolidados(permissions.BasePermission):
+    """Lectura de los informes consolidados de HU-06.
+
+    Acceden los perfiles institucionales: Administrador, Jefatura RSU (que es
+    quien cumple el papel de Coordinador RSU) y Departamento. El alcance de
+    cada uno lo recorta despues services_consolidado.queryset_consolidable():
+    el Administrador ve toda la universidad, la Jefatura su facultad y el
+    Departamento su departamento.
+
+    El Docente queda fuera a proposito: el informe consolidado es una vista
+    institucional y el docente ya consulta sus propios proyectos por
+    /proyectos/.
+
+    Este permiso no distingue lectura de escritura porque el modulo entero es
+    de solo lectura: las vistas solo aceptan GET (CA-02).
+    """
+
+    _ROLES = [Rol.ADMINISTRADOR, Rol.JEFATURA, Rol.DEPARTAMENTO]
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff:
+            return True
+        return bool(user.rol and user.rol.nombre in self._ROLES)
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):

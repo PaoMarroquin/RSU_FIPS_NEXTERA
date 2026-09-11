@@ -15,6 +15,8 @@ Conecta con:
 - apps/planificacion/models.py: MatrizOperativa y sus relaciones.
 - apps/planificacion/views.py: MatrizOperativaExportExcelView y
   MatrizOperativaExportPDFView, que consumen estas funciones.
+- apps/proyectos/exports_consolidado.py: sigue el mismo patron para los
+  informes consolidados de HU-06.
 """
 import io
 import openpyxl

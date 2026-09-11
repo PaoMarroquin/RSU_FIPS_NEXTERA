@@ -13,6 +13,8 @@ Casos cubiertos:
 - Documentos de sustento: formato y tamano permitidos.
 - Seguimiento (HU-05): registro de avances, evidencias, recalculo del
   porcentaje de ejecucion y caracter no editable del historial.
+- Informes consolidados (HU-06): alcance por estado y por rol, filtros,
+  caracter de solo lectura y descarga en PDF y Excel.
 
 Conecta con:
 - apps/proyectos/views.py y serializers.py: comportamiento bajo prueba.
@@ -21,6 +23,9 @@ Conecta con:
 """
 import tempfile
 from decimal import Decimal
+from io import BytesIO
+
+import openpyxl
 from django.urls import reverse
 from django.test import override_settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -32,7 +37,7 @@ from apps.planificacion.models import PeriodoAcademico, MatrizOperativa, EjeRSU,
 from apps.proyectos.models import (
     ProyectoRSU, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, DocumentoSustentoProyecto,
-    AvanceActividad, EvidenciaAvance, Notificacion,
+    AvanceActividad, EvidenciaAvance, Notificacion, FuenteFinanciamiento,
 )
 
 class ProyectosAPITests(APITestCase):
@@ -1076,3 +1081,396 @@ class AvancesEvidenciasAPITests(APITestCase):
         self.client.force_authenticate(user=self.docente)
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# HU-06: informes consolidados y acceso de autoridades
+# ──────────────────────────────────────────────────────────────────────────────
+
+class InformesConsolidadosAPITests(APITestCase):
+    """Pruebas del modulo de informes consolidados (Sprint 6, T-104 a T-108).
+
+    El fixture arma un escenario minimo pero representativo: dos facultades,
+    proyectos en los cuatro estados que importan para el caso (borrador, en
+    revision, aprobado y finalizado) y, sobre el proyecto finalizado, el
+    presupuesto, las metas y los avances que el informe debe consolidar.
+    """
+
+    _cred = None
+
+    def setUp(self):
+        self.rol_admin = Rol.objects.get(nombre='Administrador')
+        self.rol_docente = Rol.objects.get(nombre='Docente')
+        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
+        self.rol_departamento = Rol.objects.get(nombre='Departamento')
+
+        self.eje = EjeRSU.objects.get(nombre='Gestión')
+        self.eje_docencia = EjeRSU.objects.filter(nombre='Docencia').first() or self.eje
+        self.ods1 = ODS.objects.get(numero=1)
+        self.ods4 = ODS.objects.get(numero=4)
+
+        self.facultad = Facultad.objects.get(codigo='FIPS')
+        self.escuela = EscuelaProfesional.objects.get(codigo='EPIS')
+        self.departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
+
+        # Segunda facultad, ya sembrada por la migracion 0004, para comprobar
+        # que la Jefatura de FIPS no ve mas alla de la suya.
+        self.otra_facultad = Facultad.objects.get(codigo='FCNF')
+        self.otra_escuela = EscuelaProfesional.objects.get(codigo='EPMAT')
+        self.otro_departamento = DepartamentoAcademico.objects.get(codigo='DAMAT')
+
+        self.periodo = PeriodoAcademico.objects.create(
+            nombre='2026-I', anio=2026, semestre='I',
+            fecha_inicio='2026-03-01', fecha_fin='2026-07-31', activo=True)
+
+        self.admin = Usuario.objects.create_user(
+            correo_institucional='admin.hu06@unsa.edu.pe', password=self._cred,
+            nombres='Admin', rol=self.rol_admin)
+        self.jefatura = Usuario.objects.create_user(
+            correo_institucional='jefatura.hu06@unsa.edu.pe', password=self._cred,
+            nombres='Jefatura', rol=self.rol_jefatura, facultad=self.facultad)
+        self.departamento_user = Usuario.objects.create_user(
+            correo_institucional='depto.hu06@unsa.edu.pe', password=self._cred,
+            nombres='Departamento', rol=self.rol_departamento,
+            facultad=self.facultad, departamento=self.departamento)
+        self.docente = Usuario.objects.create_user(
+            correo_institucional='docente.hu06@unsa.edu.pe', password=self._cred,
+            nombres='Docente', apellidos='Responsable', rol=self.rol_docente,
+            facultad=self.facultad)
+
+        self.aprobado = self._crear_proyecto('Proyecto aprobado', 'aprobado')
+        self.finalizado = self._crear_proyecto('Proyecto finalizado', 'finalizado')
+        self.borrador = self._crear_proyecto('Proyecto borrador', 'borrador')
+        self.en_revision = self._crear_proyecto('Proyecto en revision', 'en_revision')
+
+        self.aprobado.ods.add(self.ods1)
+        self.finalizado.ods.add(self.ods4)
+
+        # Proyecto finalizado en la otra facultad, fuera del alcance de la
+        # Jefatura de FIPS.
+        self.ajeno = ProyectoRSU.objects.create(
+            titulo='Proyecto de otra facultad', estado='finalizado',
+            eje_rsu=self.eje, periodo=self.periodo,
+            facultad=self.otra_facultad, escuela=self.otra_escuela,
+            departamento=self.otro_departamento,
+            semestre_academico='2026-I', docente_responsable=self.docente,
+            porcentaje_ejecucion=Decimal('100.00'))
+
+        self._cargar_datos_de_ejecucion(self.finalizado)
+
+    def _crear_proyecto(self, titulo, estado):
+        return ProyectoRSU.objects.create(
+            titulo=titulo, estado=estado,
+            eje_rsu=self.eje, periodo=self.periodo,
+            facultad=self.facultad, escuela=self.escuela,
+            departamento=self.departamento,
+            semestre_academico='2026-I', docente_responsable=self.docente,
+            nro_docentes=2, nro_estudiantes=30,
+            monto_financiamiento=Decimal('1000.00'),
+            porcentaje_ejecucion=Decimal('50.00'))
+
+    def _cargar_datos_de_ejecucion(self, proyecto):
+        """Presupuesto, metas y avances sobre los que se calculan los totales."""
+        FuenteFinanciamiento.objects.create(
+            proyecto=proyecto, fuente='autofinanciado', monto=Decimal('800.00'))
+
+        # 2 x 100 = 200 programado, 150 ejecutado.
+        PartidaPresupuestaria.objects.create(
+            proyecto=proyecto, descripcion='Refrigerios', categoria='refrigerio',
+            cantidad=2, costo_unitario=Decimal('100.00'),
+            monto_ejecutado=Decimal('150.00'))
+        # 3 x 50 = 150 programado, 50 ejecutado.
+        PartidaPresupuestaria.objects.create(
+            proyecto=proyecto, descripcion='Transporte', categoria='transporte',
+            cantidad=3, costo_unitario=Decimal('50.00'),
+            monto_ejecutado=Decimal('50.00'))
+
+        MetaIndicadorProyecto.objects.create(
+            proyecto=proyecto, meta_descripcion='Capacitar docentes',
+            indicador_nombre='Docentes capacitados',
+            valor_meta=Decimal('10.00'), valor_alcanzado=Decimal('12.00'))
+        MetaIndicadorProyecto.objects.create(
+            proyecto=proyecto, meta_descripcion='Talleres dictados',
+            indicador_nombre='Talleres', valor_meta=Decimal('5.00'),
+            valor_alcanzado=Decimal('3.00'))
+
+        actividad = ActividadProyecto.objects.create(
+            proyecto=proyecto, nombre='Taller inicial', estado='completada')
+        ActividadProyecto.objects.create(
+            proyecto=proyecto, nombre='Taller de cierre', estado='pendiente')
+
+        avance = AvanceActividad.objects.create(
+            proyecto=proyecto, actividad=actividad,
+            descripcion='Taller dictado con 30 asistentes.',
+            estado_actividad='completada', autor=self.docente)
+        EvidenciaAvance.objects.create(
+            avance=avance, tipo='enlace',
+            enlace_drive='https://drive.google.com/file/d/abc/view',
+            nombre='Lista de asistencia')
+
+    # ── CA-01: alcance del informe ────────────────────────────────────────────
+
+    def test_solo_incluye_proyectos_aprobados_y_finalizados(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        titulos = {p['titulo'] for p in response.data['proyectos']}
+        self.assertIn('Proyecto aprobado', titulos)
+        self.assertIn('Proyecto finalizado', titulos)
+        self.assertNotIn('Proyecto borrador', titulos)
+        self.assertNotIn('Proyecto en revision', titulos)
+
+        self.assertEqual(response.data['resumen']['total_proyectos'], 3)
+        self.assertEqual(response.data['resumen']['aprobados'], 1)
+        self.assertEqual(response.data['resumen']['finalizados'], 2)
+
+    def test_el_filtro_de_estado_no_puede_ampliar_el_alcance(self):
+        """Pedir estado=borrador no debe sacar al informe de CA-01."""
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'), {'estado': 'borrador'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['filtros_aplicados'], {})
+        self.assertEqual(response.data['resumen']['total_proyectos'], 3)
+
+    def test_el_filtro_de_estado_si_puede_estrechar(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'), {'estado': 'aprobado'})
+        self.assertEqual(response.data['resumen']['total_proyectos'], 1)
+        self.assertEqual(response.data['filtros_aplicados']['estado'], 'aprobado')
+
+    # ── Alcance por rol ───────────────────────────────────────────────────────
+
+    def test_jefatura_solo_ve_los_proyectos_de_su_facultad(self):
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('informe-consolidado'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titulos = {p['titulo'] for p in response.data['proyectos']}
+        self.assertNotIn('Proyecto de otra facultad', titulos)
+        self.assertEqual(response.data['resumen']['total_proyectos'], 2)
+
+    def test_departamento_solo_ve_los_de_su_departamento(self):
+        self.client.force_authenticate(user=self.departamento_user)
+        response = self.client.get(reverse('informe-consolidado'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['resumen']['total_proyectos'], 2)
+
+    def test_docente_no_accede_al_informe_consolidado(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('informe-consolidado'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_usuario_anonimo_no_accede(self):
+        response = self.client.get(reverse('informe-consolidado'))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # ── CA-02: solo lectura ───────────────────────────────────────────────────
+
+    def test_todas_las_respuestas_marcan_solo_lectura(self):
+        self.client.force_authenticate(user=self.jefatura)
+        for nombre in ('informe-consolidado', 'informe-consolidado-filtros',
+                       'informe-consolidado-proyectos'):
+            with self.subTest(ruta=nombre):
+                response = self.client.get(reverse(nombre))
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
+                self.assertTrue(response.data['solo_lectura'])
+
+    def test_los_metodos_de_escritura_estan_bloqueados(self):
+        self.client.force_authenticate(user=self.admin)
+        url = reverse('informe-consolidado')
+        for metodo in ('post', 'put', 'patch', 'delete'):
+            with self.subTest(metodo=metodo):
+                response = getattr(self.client, metodo)(url, {}, format='json')
+                self.assertEqual(
+                    response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_la_ficha_de_detalle_tambien_es_de_solo_lectura(self):
+        self.client.force_authenticate(user=self.admin)
+        url = reverse('informe-consolidado-proyecto-detail',
+                      kwargs={'pk': self.finalizado.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['solo_lectura'])
+
+        response = self.client.patch(url, {'titulo': 'Hackeado'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.finalizado.refresh_from_db()
+        self.assertEqual(self.finalizado.titulo, 'Proyecto finalizado')
+
+    # ── CA-03: filtros ────────────────────────────────────────────────────────
+
+    def test_filtro_por_facultad(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'),
+                                   {'facultad': self.otra_facultad.pk})
+        self.assertEqual(response.data['resumen']['total_proyectos'], 1)
+        self.assertEqual(response.data['proyectos'][0]['titulo'],
+                         'Proyecto de otra facultad')
+
+    def test_filtro_por_ods(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'),
+                                   {'ods': self.ods4.pk})
+        self.assertEqual(response.data['resumen']['total_proyectos'], 1)
+        self.assertEqual(response.data['proyectos'][0]['titulo'], 'Proyecto finalizado')
+
+    def test_filtro_por_periodo_y_eje_rsu(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'), {
+            'periodo': self.periodo.pk,
+            'eje_rsu': self.eje.pk,
+        })
+        self.assertEqual(response.data['filtros_aplicados'],
+                         {'periodo': self.periodo.pk, 'eje_rsu': self.eje.pk})
+        self.assertEqual(response.data['resumen']['total_proyectos'], 3)
+
+    def test_un_filtro_invalido_se_ignora_en_lugar_de_fallar(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'),
+                                   {'facultad': '', 'periodo': 'abc'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['filtros_aplicados'], {})
+
+    def test_los_catalogos_de_filtros_solo_traen_valores_con_proyectos(self):
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('informe-consolidado-filtros'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        nombres = [f['nombre'] for f in response.data['facultades']]
+        self.assertIn(self.facultad.nombre, nombres)
+        self.assertNotIn(self.otra_facultad.nombre, nombres)
+
+    # ── T-106: consolidacion de los datos ─────────────────────────────────────
+
+    def test_consolida_presupuesto_metas_y_avances_del_proyecto(self):
+        self.client.force_authenticate(user=self.admin)
+        url = reverse('informe-consolidado-proyecto-detail',
+                      kwargs={'pk': self.finalizado.pk})
+        ficha = self.client.get(url).data
+
+        presupuesto = ficha['presupuesto']
+        self.assertEqual(presupuesto['monto_presupuestado'], 350.0)
+        self.assertEqual(presupuesto['monto_ejecutado'], 200.0)
+        self.assertEqual(presupuesto['saldo_por_ejecutar'], 150.0)
+        self.assertEqual(presupuesto['monto_financiado'], 800.0)
+        self.assertAlmostEqual(
+            presupuesto['porcentaje_ejecucion_presupuestal'], 57.14, places=2)
+
+        metas = ficha['metas']
+        self.assertEqual(metas['total'], 2)
+        self.assertEqual(metas['cumplidas'], 1)
+        self.assertEqual(metas['porcentaje_cumplimiento'], 50.0)
+
+        avance = ficha['avance']
+        self.assertEqual(avance['actividades_total'], 2)
+        self.assertEqual(avance['actividades_completadas'], 1)
+        self.assertEqual(avance['avances_registrados'], 1)
+        self.assertEqual(avance['evidencias_vigentes'], 1)
+
+        self.assertEqual(len(ficha['detalle_presupuesto']), 2)
+        self.assertEqual(len(ficha['detalle_metas']), 2)
+        self.assertEqual(len(ficha['detalle_avances']), 1)
+
+    def test_la_evidencia_borrada_no_se_cuenta(self):
+        EvidenciaAvance.objects.filter(avance__proyecto=self.finalizado).update(
+            eliminada=True)
+        self.client.force_authenticate(user=self.admin)
+        url = reverse('informe-consolidado-proyecto-detail',
+                      kwargs={'pk': self.finalizado.pk})
+        ficha = self.client.get(url).data
+        self.assertEqual(ficha['avance']['evidencias_vigentes'], 0)
+
+    def test_totales_institucionales_y_distribuciones(self):
+        self.client.force_authenticate(user=self.admin)
+        informe = self.client.get(reverse('informe-consolidado')).data
+
+        self.assertEqual(informe['presupuesto']['monto_presupuestado'], 350.0)
+        self.assertEqual(informe['presupuesto']['monto_ejecutado'], 200.0)
+        self.assertEqual(informe['metas']['total'], 2)
+        self.assertEqual(informe['resumen']['docentes_responsables'], 1)
+        self.assertEqual(informe['resumen']['actividades_completadas'], 1)
+
+        facultades = {d['etiqueta']: d['total']
+                      for d in informe['distribuciones']['por_facultad']}
+        self.assertEqual(facultades[self.facultad.nombre], 2)
+        self.assertEqual(facultades[self.otra_facultad.nombre], 1)
+
+        estados = {d['etiqueta']: d['total']
+                   for d in informe['distribuciones']['por_estado']}
+        self.assertEqual(estados['aprobado'], 1)
+        self.assertEqual(estados['finalizado'], 2)
+
+    def test_incluir_proyectos_false_devuelve_solo_agregados(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado'),
+                                   {'incluir_proyectos': 'false'})
+        self.assertNotIn('proyectos', response.data)
+        self.assertEqual(response.data['resumen']['total_proyectos'], 3)
+
+    def test_detalle_de_un_proyecto_fuera_de_alcance_responde_404(self):
+        self.client.force_authenticate(user=self.jefatura)
+        url = reverse('informe-consolidado-proyecto-detail',
+                      kwargs={'pk': self.ajeno.pk})
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_detalle_de_un_proyecto_en_borrador_responde_404(self):
+        self.client.force_authenticate(user=self.admin)
+        url = reverse('informe-consolidado-proyecto-detail',
+                      kwargs={'pk': self.borrador.pk})
+        self.assertEqual(self.client.get(url).status_code, status.HTTP_404_NOT_FOUND)
+
+    # ── T-105: listado paginado ───────────────────────────────────────────────
+
+    def test_listado_paginado_de_proyectos(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado-proyectos'),
+                                   {'page_size': 2})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 3)
+        self.assertEqual(len(response.data['results']), 2)
+        self.assertTrue(response.data['solo_lectura'])
+        self.assertEqual(response.data['resumen']['total_proyectos'], 3)
+
+    # ── T-107 y T-108: exportacion ────────────────────────────────────────────
+
+    def test_exportacion_pdf(self):
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('informe-consolidado-export-pdf'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', response['Content-Disposition'])
+        contenido = b''.join(response.streaming_content)
+        self.assertTrue(contenido.startswith(b'%PDF'))
+        self.assertGreater(len(contenido), 1000)
+
+    def test_exportacion_excel(self):
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('informe-consolidado-export-excel'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('spreadsheetml', response['Content-Type'])
+        self.assertIn('attachment;', response['Content-Disposition'])
+        contenido = b''.join(response.streaming_content)
+        # Un .xlsx es un ZIP: debe empezar con la firma PK.
+        self.assertTrue(contenido.startswith(b'PK'))
+
+        libro = openpyxl.load_workbook(BytesIO(contenido))
+        self.assertEqual(libro.sheetnames, ['Resumen', 'Proyectos', 'Distribuciones'])
+        # Cabecera mas una fila por proyecto dentro del alcance de la Jefatura.
+        self.assertEqual(libro['Proyectos'].max_row, 3)
+
+    def test_la_exportacion_respeta_los_filtros(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado-export-excel'),
+                                   {'facultad': self.otra_facultad.pk})
+        contenido = b''.join(response.streaming_content)
+        libro = openpyxl.load_workbook(BytesIO(contenido))
+        self.assertEqual(libro['Proyectos'].max_row, 2)
+        self.assertEqual(libro['Proyectos'].cell(row=2, column=2).value,
+                         'Proyecto de otra facultad')
+
+    def test_docente_no_puede_exportar(self):
+        self.client.force_authenticate(user=self.docente)
+        for nombre in ('informe-consolidado-export-pdf',
+                       'informe-consolidado-export-excel'):
+            with self.subTest(ruta=nombre):
+                response = self.client.get(reverse(nombre))
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

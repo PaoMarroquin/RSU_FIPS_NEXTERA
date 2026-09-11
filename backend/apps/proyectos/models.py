@@ -35,6 +35,7 @@ Conecta con:
 - apps/planificacion/models.py: PeriodoAcademico, EjeRSU, EjeRSUSubitem, ODS,
   LineaEstrategica y ObjetivoInstitucional.
 - apps/proyectos/views.py: aplica las reglas de transicion de estado.
+- apps/proyectos/services_consolidado.py: consolida estos datos para HU-06.
 """
 from django.db import models
 from django.conf import settings
