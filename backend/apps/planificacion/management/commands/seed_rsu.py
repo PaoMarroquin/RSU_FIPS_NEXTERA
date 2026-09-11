@@ -1,134 +1,177 @@
 """
 Comando de carga inicial de los catalogos RSU.
 
-Deja la base en un estado usable tras un despliegue limpio: crea los ejes
-RSU con sus sub-items, los 17 ODS, las lineas estrategicas y un periodo
-academico activo. Es idempotente, de modo que volver a ejecutarlo no duplica
-registros.
+Crea usuarios de prueba, un periodo academico, lineas estrategicas y una
+matriz operativa de ejemplo. Es idempotente: volver a ejecutarlo no duplica
+registros. Los ejes RSU, ODS y facultades ya existen desde las migraciones.
 
 Uso:
     python manage.py seed_rsu
 
 Conecta con:
 - apps/planificacion/models.py: modelos que puebla.
-- apps/proyectos/management/commands/seed_proyectos.py: carga de ejemplo que
-  se apoya en estos catalogos.
+- apps/proyectos/management/commands/seed_proyectos.py: carga de proyectos
+  de ejemplo que depende de los catalogos creados aqui.
 """
+import datetime
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
-from django.utils import timezone
-from datetime import timedelta
 from apps.planificacion.models import (
     PeriodoAcademico, EjeRSU, LineaEstrategica, MatrizOperativa,
-    ObjetivoInstitucional, IndicadorInstitucional, ActividadSugerida
+    ObjetivoInstitucional, IndicadorInstitucional, ActividadSugerida,
 )
 from apps.usuarios.models import Facultad, Rol
 
 User = get_user_model()
 
+PASSWORD = 'Admin1234!'
+
+
 class Command(BaseCommand):
-    help = 'Crea datos de prueba reales (Matriz Operativa RSU - UNSA) para probar exportaciones'
+    help = 'Crea datos de prueba RSU: usuarios, periodo, lineas estrategicas y matriz operativa'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("Iniciando la carga de datos de prueba RSU...")
+        self.stdout.write('Iniciando la carga de datos de prueba RSU...')
 
-        # 1. Crear Usuario Coordinador (Adaptado a tus campos reales)
-        rol_coord, _ = Rol.objects.get_or_create(nombre='Coordinador RSU')
-        coordinador, _ = User.objects.get_or_create(
-            correo_institucional='jperez@unsa.edu.pe',
-            defaults={
-                'nombre_completo': 'Juan Pérez Gómez',
-                'celular': '987654321',
-                'rol': rol_coord,
-                'estado': 'activo'
-            }
+        # Roles ya existen desde la migracion 0003_seed_roles
+        rol_admin = Rol.objects.get(nombre=Rol.ADMINISTRADOR)
+        rol_docente = Rol.objects.get(nombre=Rol.DOCENTE)
+        rol_dpto = Rol.objects.get(nombre=Rol.DEPARTAMENTO)
+        rol_jefe = Rol.objects.get(nombre=Rol.JEFATURA)
+
+        # Facultad ya existe desde la migracion 0004_seed_facultades_unsa
+        facultad = Facultad.objects.get(codigo='FIPS')
+
+        # Usuarios de prueba
+        admin, creado = User.objects.get_or_create(
+            correo_institucional='admin@unsa.edu.pe',
+            defaults={'nombres': 'Admin', 'apellidos': 'RSU', 'rol': rol_admin,
+                      'estado': 'activo', 'is_staff': True},
         )
-        if not coordinador.password:
-            coordinador.set_password('unsa1234')
-            coordinador.save()
+        if creado:
+            admin.set_password(PASSWORD)
+            admin.save()
 
-        # 2. Crear Facultad
-        # 2. Crear Facultad (Simplificado solo con el nombre obligatorio)
-        facultad, _ = Facultad.objects.get_or_create(
-            nombre='Facultad de Ingeniería de Producción y Servicios'
+        jefe, creado = User.objects.get_or_create(
+            correo_institucional='jefe@unsa.edu.pe',
+            defaults={'nombres': 'Coordinador', 'apellidos': 'RSU FIPS', 'rol': rol_jefe,
+                      'facultad': facultad, 'estado': 'activo'},
         )
+        if creado:
+            jefe.set_password(PASSWORD)
+            jefe.save()
 
-        # 3. Crear Periodo Académico
+        dpto, creado = User.objects.get_or_create(
+            correo_institucional='departamento@unsa.edu.pe',
+            defaults={'nombres': 'Revisor', 'apellidos': 'Departamento FIPS', 'rol': rol_dpto,
+                      'facultad': facultad, 'estado': 'activo'},
+        )
+        if creado:
+            dpto.set_password(PASSWORD)
+            dpto.save()
+
+        doc1, creado = User.objects.get_or_create(
+            correo_institucional='docente1@unsa.edu.pe',
+            defaults={'nombres': 'Alberto', 'apellidos': 'Flores Valdivia', 'rol': rol_docente,
+                      'facultad': facultad, 'estado': 'activo'},
+        )
+        if creado:
+            doc1.set_password(PASSWORD)
+            doc1.save()
+
+        doc2, creado = User.objects.get_or_create(
+            correo_institucional='docente2@unsa.edu.pe',
+            defaults={'nombres': 'Patricia', 'apellidos': 'Bedregal Quiroz', 'rol': rol_docente,
+                      'facultad': facultad, 'estado': 'activo'},
+        )
+        if creado:
+            doc2.set_password(PASSWORD)
+            doc2.save()
+
+        self.stdout.write('  Usuarios OK')
+
+        # Periodo academico - clave unica (anio, semestre)
         periodo, _ = PeriodoAcademico.objects.get_or_create(
-            anio=2026,
-            semestre='Anual',
+            anio=2026, semestre='Anual',
             defaults={
-                'nombre': 'Año Académico 2026',
-                'fecha_inicio': timezone.now().date(),
-                'fecha_fin': (timezone.now() + timedelta(days=365)).date(),
-                'activo': True
-            }
+                'nombre': 'Anual 2026',
+                'fecha_inicio': datetime.date(2026, 4, 1),
+                'fecha_fin': datetime.date(2026, 12, 15),
+                'activo': True,
+            },
         )
+        self.stdout.write('  Periodo academico OK')
 
-        # 4. Crear Ejes RSU (Basados en la estructura universitaria)
-        eje_gestion, _ = EjeRSU.objects.get_or_create(nombre='Gestión Institucional')
-        eje_formacion, _ = EjeRSU.objects.get_or_create(nombre='Formación Académica')
-        eje_extension, _ = EjeRSU.objects.get_or_create(nombre='Extensión Universitaria')
+        # Ejes RSU ya existen desde la migracion 0002_seed_ejes_ods
+        eje_gestion = EjeRSU.objects.get(nombre='Gestión')
+        eje_formacion = EjeRSU.objects.get(nombre='Formación')
+        eje_investigacion = EjeRSU.objects.get(nombre='Investigación')
+        eje_extension = EjeRSU.objects.get(nombre='Extensión')
 
-        # 5. Crear Líneas Estratégicas
-        linea_ambiental, _ = LineaEstrategica.objects.get_or_create(
-            nombre='Gestión Ambiental Sostenible', eje_rsu=eje_gestion
+        # Lineas estrategicas
+        linea_amb, _ = LineaEstrategica.objects.get_or_create(
+            nombre='Gestion Ambiental y Campus Sostenible', eje_rsu=eje_gestion)
+        linea_edu, _ = LineaEstrategica.objects.get_or_create(
+            nombre='Innovacion Curricular con Enfoque RSU', eje_rsu=eje_formacion)
+        linea_inv, _ = LineaEstrategica.objects.get_or_create(
+            nombre='Investigacion Aplicada al Desarrollo Sostenible', eje_rsu=eje_investigacion)
+        linea_soc, _ = LineaEstrategica.objects.get_or_create(
+            nombre='Proyectos de Extension y Apoyo Comunitario', eje_rsu=eje_extension)
+        self.stdout.write('  Lineas estrategicas OK')
+
+        # Matriz operativa
+        matriz, creado = MatrizOperativa.objects.get_or_create(
+            periodo=periodo, facultad=facultad,
+            defaults={'coordinador': jefe, 'presupuesto_global': 85000.00, 'estado': 'publicada'},
         )
-        linea_curricula, _ = LineaEstrategica.objects.get_or_create(
-            nombre='Inclusión de RSU en la Currícula', eje_rsu=eje_formacion
-        )
+        if not creado:
+            self.stdout.write(self.style.WARNING('  La matriz ya existia, no se duplica.'))
+            self.stdout.write(self.style.SUCCESS('Datos RSU ya presentes. Listo.'))
+            return
 
-        # 6. Crear la Matriz Operativa
-        matriz, created = MatrizOperativa.objects.get_or_create(
-            periodo=periodo,
-            facultad=facultad,
-            defaults={
-                'coordinador': coordinador,
-                'presupuesto_global': 15000.00,
-                'estado': 'publicada'
-            }
-        )
-
-        if not created:
-            self.stdout.write(self.style.WARNING("La matriz ya existía, se agregarán nuevos datos a la existente."))
-
-        # 7. Crear Objetivos, Indicadores y Actividades para la Matriz
-        # --- OBJETIVO 1: AMBIENTAL ---
+        # Objetivos institucionales
         obj1 = ObjetivoInstitucional.objects.create(
-            matriz=matriz,
-            linea_estrategica=linea_ambiental,
-            eje_rsu=eje_gestion,
-            nombre='Reducir el consumo de papel y plástico en la facultad',
-            resultado_esperado='Facultad con certificación interna de eco-eficiencia'
+            matriz=matriz, linea_estrategica=linea_amb, eje_rsu=eje_gestion,
+            nombre='Promover ecoeficiencia y campus sostenible en la FIPS',
+            meta_cuantitativa='Reducir 20% el consumo de papel y plasticos.',
         )
         IndicadorInstitucional.objects.create(
-            objetivo=obj1, nombre='Porcentaje de reducción de papel', 
-            unidad_medida='%', valor_meta=30.00
-        )
+            objetivo=obj1, nombre='Porcentaje de reduccion de papel',
+            unidad_medida='%', valor_meta=20.00)
         ActividadSugerida.objects.create(
             matriz=matriz, objetivo=obj1, eje_rsu=eje_gestion,
-            nombre='Campaña de sensibilización "Cero Papel"', anio_academico=1
-        )
-        ActividadSugerida.objects.create(
-            matriz=matriz, objetivo=obj1, eje_rsu=eje_gestion,
-            nombre='Implementación de tachos ecológicos', anio_academico=2
-        )
+            nombre='Campana Cero Papel y concursos de afiches', anio_academico=1)
 
-        # --- OBJETIVO 2: FORMACIÓN ---
         obj2 = ObjetivoInstitucional.objects.create(
-            matriz=matriz,
-            linea_estrategica=linea_curricula,
-            eje_rsu=eje_formacion,
-            nombre='Integrar proyectos de impacto social en cursos de carrera',
-            resultado_esperado='Syllabus actualizados con enfoque RSU'
+            matriz=matriz, linea_estrategica=linea_edu, eje_rsu=eje_formacion,
+            nombre='Integrar competencias de RSU en asignaturas basicas',
+            meta_cuantitativa='El 100% de ingresantes participa en programas RSU.',
         )
         IndicadorInstitucional.objects.create(
-            objetivo=obj2, nombre='Número de cursos con enfoque RSU', 
-            unidad_medida='cursos', valor_meta=15.00
-        )
+            objetivo=obj2, nombre='Numero de cursos con enfoque RSU',
+            unidad_medida='cursos', valor_meta=15.00)
         ActividadSugerida.objects.create(
             matriz=matriz, objetivo=obj2, eje_rsu=eje_formacion,
-            nombre='Taller de rediseño de syllabus para docentes', anio_academico=None
-        )
+            nombre='Foros universitarios sobre etica y ODS', anio_academico=2)
 
-        self.stdout.write(self.style.SUCCESS(f"¡Datos creados exitosamente! Revisa la Matriz ID: {matriz.id}"))
+        obj3 = ObjetivoInstitucional.objects.create(
+            matriz=matriz, linea_estrategica=linea_inv, eje_rsu=eje_investigacion,
+            nombre='Desarrollar soluciones tecnologicas para problemas sociales',
+            meta_cuantitativa='Implementar 2 prototipos aplicados a salud o medio ambiente.',
+        )
+        ActividadSugerida.objects.create(
+            matriz=matriz, objetivo=obj3, eje_rsu=eje_investigacion,
+            nombre='Desarrollo de aplicativos moviles y telemetria', anio_academico=3)
+
+        obj4 = ObjetivoInstitucional.objects.create(
+            matriz=matriz, linea_estrategica=linea_soc, eje_rsu=eje_extension,
+            nombre='Fomentar el voluntariado profesional en comunidades vulnerables',
+            meta_cuantitativa='Asistencia tecnica a 3 comunidades rurales.',
+        )
+        ActividadSugerida.objects.create(
+            matriz=matriz, objetivo=obj4, eje_rsu=eje_extension,
+            nombre='Evaluacion de impacto socioeconomico y conectividad', anio_academico=5)
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Datos creados exitosamente. Matriz ID: {matriz.id}. '
+            f'Usuarios con contrasena: {PASSWORD}'))
