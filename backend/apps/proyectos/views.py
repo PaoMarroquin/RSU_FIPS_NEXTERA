@@ -74,10 +74,11 @@ from apps.usuarios.models import Rol
 def _proyecto_qs_base():
     return ProyectoRSU.objects.select_related(
         'facultad', 'escuela', 'departamento', 'periodo',
-        'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+        'linea_estrategica', 'objetivo_institucional',
         'docente_responsable',
     ).prefetch_related(
-        'ods', 'asignaturas', 'docentes_adicionales',
+        'ejes_rsu', 'ods', 'objetivos_regionales', 'objetivos_nacionales',
+        'asignaturas', 'docentes_adicionales',
         'actividades', 'cronograma',
         'ejes_subitems__sub_eje',
         'fuentes_financiamiento__partidas',
@@ -134,7 +135,6 @@ def _validar_campos_obligatorios(proyecto):
         errores['tipo_actividad'] = 'Debe seleccionar al menos un tipo de actividad (1.11).'
 
     for campo, label in [
-        ('eje_rsu_id', 'El eje RSU'),
         # ('periodo_id', 'El periodo académico'), #quitar obligacaion de periodo academico
         ('facultad_id', 'La facultad'),
         ('escuela_id', 'La escuela profesional'),
@@ -142,6 +142,9 @@ def _validar_campos_obligatorios(proyecto):
     ]:
         if not getattr(proyecto, campo):
             errores[campo.replace('_id', '')] = f'{label} es obligatorio.'
+
+    if not proyecto.ejes_rsu.exists():
+        errores['ejes_rsu'] = 'Debe seleccionar al menos un eje RSU (1.10).'
 
     # BUG FIX T-66: beneficiarios es M2M con TipoBeneficiario, no campos booleanos
     # También permitimos benef_otro_detalle si no hay beneficiarios relacionados.
@@ -152,6 +155,8 @@ def _validar_campos_obligatorios(proyecto):
         errores['ods'] = 'Debe seleccionar al menos un ODS.'
     if not proyecto.asignaturas.exists():
         errores['asignaturas'] = 'Debe registrar al menos una asignatura vinculada (1.5).'
+    if not proyecto.cronograma.exists():
+        errores['cronograma'] = 'Debe registrar al menos una acción de cronograma (VII).'
 
     errores.update(_validar_indicadores_y_presupuesto(proyecto))
 
@@ -300,10 +305,10 @@ class ProyectoEnviarRevisionView(APIView):
             ProyectoRSU.objects
             .select_related(
                 'facultad', 'escuela', 'departamento', 'periodo',
-                'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+                'linea_estrategica', 'objetivo_institucional',
                 'docente_responsable',
             )
-            .prefetch_related('ods', 'asignaturas', 'docentes_adicionales',
+            .prefetch_related('ejes_rsu', 'ods', 'asignaturas', 'docentes_adicionales',
                               'actividades', 'cronograma'),
             pk=pk,
         )
@@ -656,9 +661,9 @@ class ProyectoContinuarView(APIView):
         original = get_object_or_404(
             ProyectoRSU.objects.select_related(
                 'facultad', 'escuela', 'departamento',
-                'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+                'linea_estrategica', 'objetivo_institucional',
                 'docente_responsable',
-            ).prefetch_related('ods', 'docentes_adicionales__docente'),
+            ).prefetch_related('ejes_rsu', 'ods', 'docentes_adicionales__docente'),
             pk=pk,
         )
 
@@ -706,7 +711,6 @@ class ProyectoContinuarView(APIView):
                 facultad=original.facultad,
                 escuela=original.escuela,
                 departamento=original.departamento,
-                eje_rsu=original.eje_rsu,
                 eje_detalle=original.eje_detalle,
                 linea_estrategica=original.linea_estrategica,
                 objetivo_institucional=original.objetivo_institucional,
@@ -731,6 +735,9 @@ class ProyectoContinuarView(APIView):
             nuevo.save(update_fields=['codigo'])
 
             nuevo.ods.set(original.ods.all())
+            nuevo.ejes_rsu.set(original.ejes_rsu.all())
+            nuevo.objetivos_regionales.set(original.objetivos_regionales.all())
+            nuevo.objetivos_nacionales.set(original.objetivos_nacionales.all())
 
             for es in original.ejes_subitems.all():
                 ProyectoEjeSubitem.objects.create(

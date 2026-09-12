@@ -95,7 +95,7 @@ class Command(BaseCommand):
             codigo='PROY-FIPS-2026-0001',
             defaults=dict(
                 titulo='Campana Eco-Eficiencia FIPS: Politicas Cero Plastico y Cero Papel',
-                eje_rsu=eje_gestion, linea_estrategica=linea_amb,
+                linea_estrategica=linea_amb,
                 objetivo_institucional=obj_1, periodo=periodo,
                 facultad=facultad, escuela=escuela, departamento=departamento,
                 docente_responsable=docente_1, semestre_academico='2026-I',
@@ -103,6 +103,7 @@ class Command(BaseCommand):
             ),
         )
         if creado:
+            p1.ejes_rsu.set([eje_gestion])
             p1.ods.set([ods_12, ods_13])
             ProyectoAsignatura.objects.create(
                 proyecto=p1, nombre_asignatura='Introduccion a la Ingenieria de Sistemas',
@@ -114,7 +115,7 @@ class Command(BaseCommand):
             codigo='PROY-FIPS-2026-0002',
             defaults=dict(
                 titulo='Foro Universitario de Etica y Transparencia en Organizaciones Sociales',
-                eje_rsu=eje_formacion, linea_estrategica=linea_edu,
+                linea_estrategica=linea_edu,
                 objetivo_institucional=obj_2, periodo=periodo,
                 facultad=facultad, escuela=escuela, departamento=departamento,
                 docente_responsable=docente_1, semestre_academico='2026-I',
@@ -122,6 +123,7 @@ class Command(BaseCommand):
             ),
         )
         if creado:
+            p2.ejes_rsu.set([eje_formacion])
             p2.ods.set([ods_16])
             ProyectoAsignatura.objects.create(
                 proyecto=p2, nombre_asignatura='Etica y Ciudadania',
@@ -131,7 +133,7 @@ class Command(BaseCommand):
             codigo='PROY-FIPS-2026-0003',
             defaults=dict(
                 titulo='Sistema de Telemetria de Calidad de Aire IoT para el Distrito de Miraflores',
-                eje_rsu=eje_investigacion, linea_estrategica=linea_inv,
+                linea_estrategica=linea_inv,
                 objetivo_institucional=obj_3, periodo=periodo,
                 facultad=facultad, escuela=escuela, departamento=departamento,
                 docente_responsable=docente_2, semestre_academico='2026-I',
@@ -140,6 +142,7 @@ class Command(BaseCommand):
             ),
         )
         if creado:
+            p3.ejes_rsu.set([eje_investigacion])
             p3.ods.set([ods_3, ods_11, ods_9])
             ProyectoAsignatura.objects.create(
                 proyecto=p3, nombre_asignatura='Redes y Transmision de Datos',
@@ -151,7 +154,7 @@ class Command(BaseCommand):
             codigo='PROY-FIPS-2026-0004',
             defaults=dict(
                 titulo='Evaluacion de Impacto Tecnologico en Escuelas Rurales de la Provincia de Caylloma',
-                eje_rsu=eje_extension, linea_estrategica=linea_soc,
+                linea_estrategica=linea_soc,
                 objetivo_institucional=obj_4, periodo=periodo,
                 facultad=facultad, escuela=escuela, departamento=departamento,
                 docente_responsable=docente_2, semestre_academico='2026-I',
@@ -161,6 +164,7 @@ class Command(BaseCommand):
             ),
         )
         if creado:
+            p4.ejes_rsu.set([eje_extension])
             p4.ods.set([ods_4, ods_9])
             ProyectoAsignatura.objects.create(
                 proyecto=p4, nombre_asignatura='Proyecto de Tesis II',

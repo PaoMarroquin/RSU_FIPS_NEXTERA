@@ -31,7 +31,6 @@ def run():
         escuela=escuela_obj,
         departamento=docente.departamento,
         facultad=docente.departamento.facultad,
-        eje_rsu=eje,
         fecha_inicio=date(2026, 4, 1),
         fecha_termino=date(2026, 8, 31),
         diag_justificacion_intervencion='Justificacion para el proyecto borrador.',
@@ -65,6 +64,8 @@ def run():
         rec_hum_administrativos=0,
         rec_mat_material_didactico="Libros y cuadernos."
     )
+    if eje:
+        proyecto.ejes_rsu.add(eje)
     if ods:
         proyecto.ods.add(ods)
         

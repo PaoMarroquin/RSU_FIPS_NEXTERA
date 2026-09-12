@@ -126,7 +126,7 @@ class ProyectosAPITests(APITestCase):
             'descripcion_general': 'Proyecto de prueba para concientizar sobre el consumo energético.',
             'fundamentacion': 'Se justifica en la necesidad de reducir la huella de carbono en aulas.',
             'diagnostico_situacional': 'Se observa un uso inadecuado de luces y computadoras encendidas.',
-            'eje_rsu': self.eje_gestion.id,
+            'ejes_rsu': [self.eje_gestion.id],
             'linea_estrategica': self.linea.id,
             'objetivo_institucional': self.objetivo.id,
             'periodo': self.periodo.id,
@@ -171,7 +171,7 @@ class ProyectosAPITests(APITestCase):
 
         data = {
             'titulo': 'Proyecto con metas anidadas',
-            'eje_rsu': self.eje_gestion.id,
+            'ejes_rsu': [self.eje_gestion.id],
             'periodo': self.periodo.id,
             'facultad': self.facultad.id,
             'escuela': self.escuela.id,
@@ -204,7 +204,6 @@ class ProyectosAPITests(APITestCase):
         # Create project with docente_user as owner
         proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto Docente 1',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -213,6 +212,7 @@ class ProyectosAPITests(APITestCase):
             semestre_academico='2026-I',
             estado='borrador'
         )
+        proyecto.ejes_rsu.set([self.eje_gestion])
 
         # Authenticate with docente_user_2 (not the owner). get_queryset() scopes
         # a Docente to their own projects, so a non-owner's request 404s before
@@ -237,7 +237,6 @@ class ProyectosAPITests(APITestCase):
         """
         proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto en Revisión',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -246,6 +245,7 @@ class ProyectosAPITests(APITestCase):
             semestre_academico='2026-I',
             estado='en_revision'
         )
+        proyecto.ejes_rsu.set([self.eje_gestion])
 
         self.client.force_authenticate(user=self.docente_user)
         url = reverse('proyecto-detail', args=[proyecto.id])
@@ -265,7 +265,6 @@ class ProyectosAPITests(APITestCase):
         # 1. Create an incomplete project
         proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto Incompleto',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -274,6 +273,7 @@ class ProyectosAPITests(APITestCase):
             semestre_academico='2026-I',
             estado='borrador'
         )
+        proyecto.ejes_rsu.set([self.eje_gestion])
 
         self.client.force_authenticate(user=self.docente_user)
         url = reverse('proyecto-revisar', args=[proyecto.id])
@@ -285,6 +285,7 @@ class ProyectosAPITests(APITestCase):
         self.assertIn('asignaturas', response.data['errors'])
         self.assertIn('metas_indicadores', response.data['errors'])
         self.assertIn('presupuesto', response.data['errors'])
+        self.assertIn('cronograma', response.data['errors'])
 
         # 2. Complete all required fields and relationships
         proyecto.fund_por_que_grupo = 'Completado'
@@ -334,6 +335,11 @@ class ProyectosAPITests(APITestCase):
             cantidad=10,
             costo_unitario=15,
         )
+        CronogramaAccion.objects.create(
+            proyecto=proyecto,
+            descripcion='Acción 1',
+            orden=1,
+        )
 
         # Try sending to review again - should succeed
         response = self.client.post(url, {}, format='json')
@@ -347,7 +353,6 @@ class ProyectosAPITests(APITestCase):
         """
         proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto a Eliminar',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -356,6 +361,7 @@ class ProyectosAPITests(APITestCase):
             semestre_academico='2026-I',
             estado='borrador'
         )
+        proyecto.ejes_rsu.set([self.eje_gestion])
 
         self.client.force_authenticate(user=self.docente_user)
         url = reverse('proyecto-detail', args=[proyecto.id])
@@ -370,7 +376,6 @@ class ProyectosAPITests(APITestCase):
         """
         proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto en Revisión',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -379,6 +384,7 @@ class ProyectosAPITests(APITestCase):
             semestre_academico='2026-I',
             estado='en_revision'
         )
+        proyecto.ejes_rsu.set([self.eje_gestion])
 
         self.client.force_authenticate(user=self.docente_user)
         url = reverse('proyecto-detail', args=[proyecto.id])
@@ -393,7 +399,6 @@ class ProyectosAPITests(APITestCase):
         """
         proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto de Otro Docente',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -402,6 +407,7 @@ class ProyectosAPITests(APITestCase):
             semestre_academico='2026-I',
             estado='borrador'
         )
+        proyecto.ejes_rsu.set([self.eje_gestion])
 
         self.client.force_authenticate(user=self.docente_user_2)
         url = reverse('proyecto-detail', args=[proyecto.id])
@@ -419,7 +425,7 @@ class ProyectosAPITests(APITestCase):
 
         data = {
             'titulo': 'Proyecto No Permitido',
-            'eje_rsu': self.eje_gestion.id,
+            'ejes_rsu': [self.eje_gestion.id],
             'periodo': self.periodo.id,
             'facultad': self.facultad.id,
             'escuela': self.escuela.id,
@@ -470,7 +476,6 @@ class BaseProyectoTestCase(APITestCase):
 
         self.proyecto_borrador = ProyectoRSU.objects.create(
             titulo='Proyecto Base Borrador',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -479,9 +484,9 @@ class BaseProyectoTestCase(APITestCase):
             semestre_academico='2026-II',
             estado='borrador',
         )
+        self.proyecto_borrador.ejes_rsu.set([self.eje_gestion])
         self.proyecto_en_revision = ProyectoRSU.objects.create(
             titulo='Proyecto Base En Revisión',
-            eje_rsu=self.eje_gestion,
             periodo=self.periodo,
             facultad=self.facultad,
             escuela=self.escuela,
@@ -490,6 +495,7 @@ class BaseProyectoTestCase(APITestCase):
             semestre_academico='2026-II',
             estado='en_revision',
         )
+        self.proyecto_en_revision.ejes_rsu.set([self.eje_gestion])
 
 
 class ActividadesAPITests(BaseProyectoTestCase):
@@ -837,18 +843,20 @@ class AvancesEvidenciasAPITests(APITestCase):
         )
         self.proyecto = ProyectoRSU.objects.create(
             titulo='Proyecto Aprobado HU05',
-            eje_rsu=self.eje_gestion, periodo=self.periodo,
+            periodo=self.periodo,
             facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
             docente_responsable=self.docente, semestre_academico='2026-II',
             estado='aprobado',
         )
+        self.proyecto.ejes_rsu.set([self.eje_gestion])
         self.proyecto_borrador = ProyectoRSU.objects.create(
             titulo='Proyecto Borrador HU05',
-            eje_rsu=self.eje_gestion, periodo=self.periodo,
+            periodo=self.periodo,
             facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
             docente_responsable=self.docente, semestre_academico='2026-II',
             estado='borrador',
         )
+        self.proyecto_borrador.ejes_rsu.set([self.eje_gestion])
         self.act1 = ActividadProyecto.objects.create(
             proyecto=self.proyecto, nombre='Taller de capacitación', orden=1)
         self.act2 = ActividadProyecto.objects.create(
@@ -1150,24 +1158,27 @@ class InformesConsolidadosAPITests(APITestCase):
         # Jefatura de FIPS.
         self.ajeno = ProyectoRSU.objects.create(
             titulo='Proyecto de otra facultad', estado='finalizado',
-            eje_rsu=self.eje, periodo=self.periodo,
+            periodo=self.periodo,
             facultad=self.otra_facultad, escuela=self.otra_escuela,
             departamento=self.otro_departamento,
             semestre_academico='2026-I', docente_responsable=self.docente,
             porcentaje_ejecucion=Decimal('100.00'))
+        self.ajeno.ejes_rsu.set([self.eje])
 
         self._cargar_datos_de_ejecucion(self.finalizado)
 
     def _crear_proyecto(self, titulo, estado):
-        return ProyectoRSU.objects.create(
+        proyecto = ProyectoRSU.objects.create(
             titulo=titulo, estado=estado,
-            eje_rsu=self.eje, periodo=self.periodo,
+            periodo=self.periodo,
             facultad=self.facultad, escuela=self.escuela,
             departamento=self.departamento,
             semestre_academico='2026-I', docente_responsable=self.docente,
             nro_docentes=2, nro_estudiantes=30,
             monto_financiamiento=Decimal('1000.00'),
             porcentaje_ejecucion=Decimal('50.00'))
+        proyecto.ejes_rsu.set([self.eje])
+        return proyecto
 
     def _cargar_datos_de_ejecucion(self, proyecto):
         """Presupuesto, metas y avances sobre los que se calculan los totales."""

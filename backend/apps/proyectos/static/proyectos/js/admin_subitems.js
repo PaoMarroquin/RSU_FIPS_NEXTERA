@@ -14,8 +14,13 @@
         });
     }
 
-    function selectedEjeId() {
-        return parseInt($('#id_eje_rsu').val(), 10) || null;
+    function selectedEjeIds() {
+        // 'ejes_rsu' es un ManyToMany (selección múltiple de ejes RSU): se
+        // muestran los sub-items de todos los ejes seleccionados, no solo
+        // uno.
+        var val = $('#id_ejes_rsu').val();
+        if (!val) return [];
+        return [].concat(val).map(function (v) { return parseInt(v, 10); }).filter(Boolean);
     }
 
     function buildOptions(subitems, currentVal) {
@@ -29,8 +34,11 @@
 
     function applyFilter() {
         if (!loaded) return;
-        var ejeId = selectedEjeId();
-        var subitems = ejeId ? (ejesSubitems[ejeId] || []) : [];
+        var ejeIds = selectedEjeIds();
+        var subitems = [];
+        ejeIds.forEach(function (ejeId) {
+            subitems = subitems.concat(ejesSubitems[ejeId] || []);
+        });
         $('select[name$="-sub_eje"]').each(function () {
             var prev = $(this).val();
             $(this).html(buildOptions(subitems, prev));
@@ -39,7 +47,7 @@
 
     $(document).ready(function () {
         fetchEjes();
-        $('#id_eje_rsu').on('change', applyFilter);
+        $('#id_ejes_rsu').on('change', applyFilter);
         $(document).on('formset:added', applyFilter);
     });
 

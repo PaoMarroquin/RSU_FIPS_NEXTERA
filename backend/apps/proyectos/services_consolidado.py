@@ -55,7 +55,7 @@ ESTADOS_CONSOLIDABLES = ('aprobado', 'finalizado')
 # CA-03: filtros que acepta el informe, mapeados a su lookup del ORM.
 FILTROS_SOPORTADOS = {
     'facultad': 'facultad_id',
-    'eje_rsu': 'eje_rsu_id',
+    'eje_rsu': 'ejes_rsu__id',
     'ods': 'ods__id',
     'periodo': 'periodo_id',
     'escuela': 'escuela_id',
@@ -111,10 +111,10 @@ def queryset_consolidable(user):
         .filter(estado__in=ESTADOS_CONSOLIDABLES)
         .select_related(
             'facultad', 'escuela', 'departamento', 'periodo',
-            'eje_rsu', 'linea_estrategica', 'objetivo_institucional',
+            'linea_estrategica', 'objetivo_institucional',
             'docente_responsable',
         )
-        .prefetch_related('ods', 'beneficiarios')
+        .prefetch_related('ejes_rsu', 'ods', 'beneficiarios')
     )
 
     if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
@@ -155,9 +155,9 @@ def aplicar_filtros(qs, params):
         qs = qs.filter(**{lookup: valor})
         aplicados[nombre] = valor
 
-    # El filtro por ODS cruza una relacion muchos a muchos y puede repetir
-    # filas del proyecto; distinct() evita contarlo dos veces.
-    if 'ods' in aplicados:
+    # Los filtros por ODS y eje RSU cruzan relaciones muchos a muchos y
+    # pueden repetir filas del proyecto; distinct() evita contarlo dos veces.
+    if 'ods' in aplicados or 'eje_rsu' in aplicados:
         qs = qs.distinct()
 
     return qs, aplicados
@@ -357,8 +357,7 @@ def ficha_proyecto(proyecto, datos):
         'periodo': proyecto.periodo.nombre if proyecto.periodo else None,
         'periodo_id': proyecto.periodo_id,
         'semestre_academico': proyecto.semestre_academico,
-        'eje_rsu': proyecto.eje_rsu.nombre if proyecto.eje_rsu else None,
-        'eje_rsu_id': proyecto.eje_rsu_id,
+        'ejes_rsu': [{'id': e.id, 'nombre': e.nombre} for e in proyecto.ejes_rsu.all()],
         'linea_estrategica': (
             proyecto.linea_estrategica.nombre if proyecto.linea_estrategica else None),
         'objetivo_institucional': (
@@ -567,7 +566,7 @@ def consolidar(qs, filtros_aplicados=None, incluir_proyectos=True):
         'distribuciones': {
             'por_facultad': _distribucion(qs, 'facultad__nombre', 'facultad'),
             'por_escuela': _distribucion(qs, 'escuela__nombre', 'escuela'),
-            'por_eje_rsu': _distribucion(qs, 'eje_rsu__nombre', 'eje_rsu'),
+            'por_eje_rsu': _distribucion(qs, 'ejes_rsu__nombre', 'eje_rsu'),
             'por_periodo': _distribucion(qs, 'periodo__nombre', 'periodo'),
             'por_estado': _distribucion(qs, 'estado', 'estado'),
             'por_ods': _distribucion_ods(qs),

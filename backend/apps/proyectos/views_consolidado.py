@@ -182,7 +182,7 @@ class InformeConsolidadoFiltrosView(_BaseInformeConsolidadoView):
             'facultades': catalogo(Facultad, 'facultad_id'),
             'escuelas': catalogo(EscuelaProfesional, 'escuela_id'),
             'departamentos': catalogo(DepartamentoAcademico, 'departamento_id'),
-            'ejes_rsu': catalogo(EjeRSU, 'eje_rsu_id'),
+            'ejes_rsu': catalogo(EjeRSU, 'ejes_rsu__id'),
             'periodos': catalogo(PeriodoAcademico, 'periodo_id'),
             'ods': ods,
         })

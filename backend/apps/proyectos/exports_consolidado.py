@@ -172,7 +172,7 @@ def _tabla_proyectos(informe, estilos):
             Paragraph(p['codigo'], estilos['celda']),
             Paragraph(p['titulo'], estilos['celda']),
             Paragraph(p['facultad'] or '', estilos['celda']),
-            Paragraph(p['eje_rsu'] or '', estilos['celda']),
+            Paragraph(', '.join(e['nombre'] for e in p['ejes_rsu']), estilos['celda']),
             Paragraph(p['periodo'] or '', estilos['celda']),
             Paragraph(p['estado_display'], estilos['celda']),
             '%s %%' % p['avance']['porcentaje_ejecucion'],
@@ -356,7 +356,8 @@ def _hoja_proyectos(wb, informe):
         fila = _escribir_fila(ws, fila, [
             p['codigo'], p['titulo'], p['estado_display'],
             p['facultad'], p['escuela'], p['departamento'],
-            p['periodo'], p['semestre_academico'], p['eje_rsu'],
+            p['periodo'], p['semestre_academico'],
+            ', '.join(e['nombre'] for e in p['ejes_rsu']),
             ', '.join('ODS %s' % o['numero'] for o in p['ods']),
             p['docente_responsable'], p['nro_docentes'], p['nro_estudiantes'],
             p['avance']['porcentaje_ejecucion'],

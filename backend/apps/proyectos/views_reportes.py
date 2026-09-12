@@ -49,9 +49,9 @@ def _build_report(qs):
     )
 
     por_eje = list(
-        qs.values('eje_rsu__nombre')
-        .annotate(total=Count('id'))
-        .order_by('eje_rsu__nombre')
+        qs.values('ejes_rsu__nombre')
+        .annotate(total=Count('id', distinct=True))
+        .order_by('ejes_rsu__nombre')
     )
 
     por_periodo = list(
@@ -106,8 +106,8 @@ class ReporteGeneralView(APIView):
 
     def get(self, request):
         qs = ProyectoRSU.objects.select_related(
-            'eje_rsu', 'periodo'
-        ).prefetch_related('ods', 'docentes_adicionales')
+            'periodo'
+        ).prefetch_related('ejes_rsu', 'ods', 'docentes_adicionales')
 
         estado = request.query_params.get('estado')
         if estado:
@@ -152,8 +152,8 @@ class ReporteFacultadView(APIView):
                 )
 
         qs = ProyectoRSU.objects.filter(facultad=facultad).select_related(
-            'eje_rsu', 'periodo'
-        ).prefetch_related('ods', 'docentes_adicionales')
+            'periodo'
+        ).prefetch_related('ejes_rsu', 'ods', 'docentes_adicionales')
 
         estado = request.query_params.get('estado')
         if estado:

@@ -30,12 +30,13 @@ def run():
         escuela=escuela_obj,
         departamento=docente.departamento,
         facultad=docente.departamento.facultad,
-        eje_rsu=eje,
         fecha_inicio=date(2026, 3, 1),
         fecha_termino=date(2026, 7, 31),
         diag_justificacion_intervencion='Esta es una justificacion super detallada del proyecto.',
         obj_logro_intervencion='Lograr todos los objetivos de prueba.',
     )
+    if eje:
+        proyecto.ejes_rsu.add(eje)
     if ods:
         proyecto.ods.add(ods)
     
@@ -136,12 +137,13 @@ def run():
         escuela=escuela_obj,
         departamento=docente.departamento,
         facultad=docente.departamento.facultad,
-        eje_rsu=eje,
         fecha_inicio=date(2026, 3, 1),
         fecha_termino=date(2026, 7, 31),
         diag_justificacion_intervencion='Justificacion del segundo proyecto.',
         obj_logro_intervencion='Otro objetivo general.',
     )
+    if eje:
+        proyecto2.ejes_rsu.add(eje)
     ProyectoAsignatura.objects.create(
         proyecto=proyecto2, nombre_asignatura='Curso Base', anio_carrera=3
     )

@@ -144,13 +144,13 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
     )
     list_filter = (
         'estado', 'facultad', 'escuela',
-        'periodo', 'eje_rsu', 'anio_carrera',
+        'periodo', 'ejes_rsu', 'anio_carrera',
     )
     search_fields = (
         'codigo', 'titulo',
         'docente_responsable__nombres',
     )
-    filter_horizontal = ('ods', 'beneficiarios')
+    filter_horizontal = ('ods', 'beneficiarios', 'ejes_rsu', 'objetivos_regionales', 'objetivos_nacionales')
     readonly_fields = (
         'codigo', 'porcentaje_ejecucion', 'created_at', 'updated_at',
         'fecha_envio_revision', 'fecha_aprobacion',
@@ -176,8 +176,9 @@ class ProyectoRSUAdmin(admin.ModelAdmin):
                 'facultad', 'escuela', 'departamento', 'semestre_academico',
                 'titulo', 'nro_docentes', 'nro_estudiantes', 'lugar_ejecucion',
                 'beneficiarios', 'benef_otro_detalle',
-                'eje_rsu', 'eje_detalle',
+                'ejes_rsu', 'eje_detalle',
                 'linea_estrategica', 'objetivo_institucional', 'ods',
+                'objetivos_regionales', 'objetivos_nacionales',
                 'tipo_actividad', 'tipo_actividad_otro',
                 'fecha_inicio', 'fecha_evaluacion_avance', 'fecha_termino',
                 'fecha_encuesta_docentes', 'fecha_encuesta_alumnos', 'fecha_encuesta_grupo_destinatario',
