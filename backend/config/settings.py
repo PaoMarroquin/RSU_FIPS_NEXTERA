@@ -151,6 +151,13 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
+# OJO: python-decouple solo aplica el `default` cuando la variable NO existe
+# en .env. Si existe pero está vacía (como venía "MEDIA_ROOT=" en .env y en
+# .env.example) config() devuelve '' y Django guarda los archivos subidos
+# relativos al directorio desde el que se arrancó el proceso (cwd), no bajo
+# el proyecto — así aparecían carpetas sueltas como "evidencias_actividades/"
+# o "planificacion/" en la raíz del backend en vez de en media/. El `or`
+# fuerza el default también cuando el valor es una cadena vacía.
+MEDIA_ROOT = config('MEDIA_ROOT', default='') or str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
