@@ -39,7 +39,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.utils.permissions import IsAdministrador, IsDepartamento, IsOwnerOrAdmin
+from apps.utils.permissions import IsAdministrador, IsOwnerOrAdmin
 from .models import (
     AuditoriaUsuario,
     DepartamentoAcademico,
@@ -279,7 +279,10 @@ class UsuarioListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), (IsAdministrador | IsDepartamento)()]
+            # La gestión de usuarios es exclusiva del Administrador (antes
+            # también podía crear el Departamento; ese subpanel se retira de
+            # su rol y queda centralizado en Administrador).
+            return [IsAuthenticated(), IsAdministrador()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -302,10 +305,12 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         return UsuarioListSerializer
 
     def get_permissions(self):
+        # La gestión de usuarios (alta, edición, baja) es exclusiva del
+        # Administrador; el Departamento ya no administra usuarios.
         if self.request.method == 'DELETE':
-            return [IsAuthenticated(), (IsAdministrador | IsDepartamento)()]
+            return [IsAuthenticated(), IsAdministrador()]
         if self.request.method in ('PUT', 'PATCH'):
-            return [IsAuthenticated(), (IsAdministrador | IsDepartamento | IsOwnerOrAdmin)()]
+            return [IsAuthenticated(), (IsAdministrador | IsOwnerOrAdmin)()]
         return [IsAuthenticated()]
 
     def perform_update(self, serializer):
