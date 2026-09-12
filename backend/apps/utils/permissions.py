@@ -119,22 +119,27 @@ class PuedeVerInformesConsolidados(permissions.BasePermission):
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
-    """Lectura para todos; escritura solo para el dueno o un rol de revision.
+    """Lectura para todos; escritura solo para el dueno o el Administrador.
 
     Los metodos seguros (GET, HEAD, OPTIONS) siempre pasan. Para escribir
-    (PUT, PATCH, DELETE) hay que ser el dueno del objeto o tener un rol
-    administrativo: Administrador, Jefatura RSU o Departamento.
+    (PUT, PATCH, DELETE) hay que ser el dueno del objeto o ser Administrador.
+
+    Jefatura RSU y Departamento revisan/aprueban/observan a traves de sus
+    endpoints dedicados (ProyectoAprobarView, ProyectoObservarView), no
+    editando el objeto directamente: si tuvieran aqui el mismo bypass que el
+    Administrador, podrian modificar los campos de un proyecto ajeno de su
+    facultad/departamento mientras esta en estado 'observado' (el unico
+    estado no-borrador que el serializer aun deja editar) sin ser su dueno.
 
     Se considera dueno al `docente_responsable` (proyectos) o al
     `coordinador` (matriz operativa), segun el atributo que exista.
     """
-    _ROLES_REVISION = [Rol.ADMINISTRADOR, Rol.JEFATURA, Rol.DEPARTAMENTO]
 
     def has_object_permission(self, request, view, obj):
         if request.method in permissions.SAFE_METHODS:
             return True
 
-        if request.user.is_staff or (request.user.rol and request.user.rol.nombre in self._ROLES_REVISION):
+        if request.user.is_staff or (request.user.rol and request.user.rol.nombre == Rol.ADMINISTRADOR):
             return True
 
         if hasattr(obj, 'docente_responsable'):

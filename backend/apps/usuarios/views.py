@@ -30,7 +30,7 @@ from datetime import datetime, timezone as dt_timezone
 from django.conf import settings
 from django.db import IntegrityError
 from django.utils import timezone
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -269,6 +269,8 @@ class GoogleAuthView(APIView):
 
 class UsuarioListCreateView(generics.ListCreateAPIView):
     queryset = Usuario.objects.select_related('rol', 'facultad').all()
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nombres', 'apellidos', 'correo_institucional']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -301,9 +303,9 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method == 'DELETE':
-            return [IsAdminUser()]
+            return [IsAuthenticated(), (IsAdministrador | IsDepartamento)()]
         if self.request.method in ('PUT', 'PATCH'):
-            return [IsAuthenticated(), IsOwnerOrAdmin()]
+            return [IsAuthenticated(), (IsAdministrador | IsDepartamento | IsOwnerOrAdmin)()]
         return [IsAuthenticated()]
 
     def perform_update(self, serializer):
