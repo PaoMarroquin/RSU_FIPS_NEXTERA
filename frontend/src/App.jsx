@@ -1,24 +1,22 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ToastProvider } from "./context/ToastContext";
-import Toast from "./components/Toast";
+import { ToastProvider } from "./shared/context/ToastContext";
+import Toast from "./shared/components/Toast";
 
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Proyectos from "./pages/Proyectos";
-import Actividades from "./pages/Actividades";
-import NuevoProyecto from "./pages/NuevoProyecto";
-import Informes from "./pages/Informes";
-import Repositorio from "./pages/Repositorio";
-import RevisionProyectos from "./pages/RevisionProyectos";
-import Configuracion from "./pages/Configuracion";
-import EditarProyecto from './pages/EditarProyecto';
-import Notificaciones from './pages/Notificaciones';
-import ListaUsuarios from './pages/usuarios/ListaUsuarios';
-import CrearUsuarios from './pages/usuarios/CrearUsuarios';
-import EditarUsuarios from './pages/usuarios/EditarUsuarios';
-import ImportarUsuarios from './pages/usuarios/ImportarUsuarios';
-import MatrizOperativa from './pages/MatrizOperativa';
-import ProyectosJefatura from './pages/ProyectosJefatura';
+import Login from "./usuario/login/Login";
+import Dashboard from "./proyectos/dashboard/Dashboard";
+import Proyectos from "./proyectos/listar/Proyectos";
+import NuevoProyecto from "./proyectos/form/NuevoProyecto";
+import EditarProyecto from './proyectos/form/EditarProyecto';
+import Actividades from "./proyectos/actividades/Actividades";
+import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
+import Informes from "./proyectos/informes/Informes";
+import Repositorio from "./proyectos/repositorio/Repositorio";
+import Notificaciones from './proyectos/notificaciones/Notificaciones';
+import Configuracion from "./usuario/configuracion/MiPerfil";
+import GestionUsuarios from './usuario/gestion/GestionUsuarios'
+import ImportarUsuarios from './usuario/importar/ImportarUsuarios'
+import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
+import ProyectosJefatura from './proyectos/jefatura/ProyectosJefatura';
 
 function App() {
   return (
@@ -31,16 +29,14 @@ function App() {
           <Route path="/proyectos" element={<Proyectos />} />
           <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
           <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
-          <Route path="/evaluacion" element={<RevisionProyectos />} />
           <Route path="/actividades" element={<Actividades />} />
+          <Route path="/evaluacion" element={<RevisionProyectos />} />
           <Route path="/informes" element={<Informes />} />
           <Route path="/repositorio" element={<Repositorio />} />
           <Route path="/notificaciones" element={<Notificaciones />} />
-          <Route path="/configuracion" element={<Configuracion />} />
-          <Route path="/usuarios" element={<ListaUsuarios />} />
-          <Route path="/usuarios/nuevo" element={<CrearUsuarios />} />
+          <Route path="/usuarios" element={<GestionUsuarios />} />
           <Route path="/usuarios/importar" element={<ImportarUsuarios />} />
-          <Route path="/usuarios/editar/:id" element={<EditarUsuarios />} />
+          <Route path="/configuracion" element={<Configuracion />} />    
           <Route path="/matriz-operativa" element={<MatrizOperativa />} />
           <Route path="/proyectos-jefatura" element={<ProyectosJefatura />} />
         </Routes>
@@ -48,5 +44,4 @@ function App() {
     </ToastProvider>
   );
 }
-
 export default App;

@@ -35,6 +35,21 @@ class DepartamentoAcademicoSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre', 'codigo', 'facultad']
 
 
+def _validate_escuela_departamento_facultad(attrs):
+    """Escuela y Departamento deben pertenecer a la Facultad indicada, si se envían."""
+    facultad = attrs.get('facultad')
+    escuela = attrs.get('escuela')
+    departamento = attrs.get('departamento')
+
+    if escuela and facultad and escuela.facultad_id != facultad.pk:
+        raise serializers.ValidationError(
+            {'escuela': 'La escuela profesional no pertenece a la facultad seleccionada.'})
+    if departamento and facultad and departamento.facultad_id != facultad.pk:
+        raise serializers.ValidationError(
+            {'departamento': 'El departamento académico no pertenece a la facultad seleccionada.'})
+    return attrs
+
+
 class UsuarioCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
 
@@ -45,6 +60,9 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
             'password', 'celular', 'rol', 'facultad',
             'escuela', 'departamento', 'estado',
         ]
+
+    def validate(self, attrs):
+        return _validate_escuela_departamento_facultad(attrs)
 
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -61,6 +79,16 @@ class UsuarioEditSerializer(serializers.ModelSerializer):
             'id', 'nombres', 'apellidos', 'celular',
             'facultad', 'escuela', 'departamento', 'estado',
         ]
+
+    def validate(self, attrs):
+        merged = {
+            'facultad': self.instance.facultad if self.instance else None,
+            'escuela': self.instance.escuela if self.instance else None,
+            'departamento': self.instance.departamento if self.instance else None,
+        }
+        merged.update(attrs)
+        _validate_escuela_departamento_facultad(merged)
+        return attrs
 
 
 class UsuarioListSerializer(serializers.ModelSerializer):
