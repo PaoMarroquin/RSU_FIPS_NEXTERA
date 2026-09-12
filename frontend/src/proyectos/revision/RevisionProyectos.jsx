@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../../shared/layout/Layout";
 import { 
   FiCheckCircle, FiXCircle, FiInbox, FiTarget, 
@@ -11,6 +12,7 @@ import { useRevision } from "./hooks/useRevision";
 import ReporteExpediente from "../../shared/components/ReporteExpediente"; 
 
 export default function RevisionProyectos() {
+  const navigate = useNavigate();
   const {
     proyectos, loading, modalOpen, setModalOpen, selectedProyecto,
     observacionesCampos, evaluating, actionType, activeTab, setActiveTab,
@@ -20,8 +22,15 @@ export default function RevisionProyectos() {
   } = useRevision();
 
   useEffect(() => {
+    // Solo Departamento y Administrador pueden aprobar/observar (mismo
+    // criterio que el backend en ProyectoAprobarView/ProyectoObservarView).
+    const role = (localStorage.getItem("user_role") || "").toLowerCase();
+    if (role !== "departamento" && role !== "administrador") {
+      navigate("/dashboard");
+      return;
+    }
     fetchProyectos();
-  }, [fetchProyectos]);
+  }, [fetchProyectos, navigate]);
 
   const formatearFecha = (fechaString) => {
     if (!fechaString) return "-";

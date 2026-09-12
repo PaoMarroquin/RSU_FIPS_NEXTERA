@@ -23,7 +23,7 @@ export default function Proyectos() {
   const userRole = (localStorage.getItem("user_role") || "").toLowerCase().trim();
   const canCreate = userRole === "docente" || userRole === "administrador";
   const canEdit = userRole === "docente" || userRole === "administrador";
-  const canDelete = userRole === "administrador";
+  const canDelete = userRole === "docente" || userRole === "administrador";
 
   const {
     projectsDb, loading, page, setPage, totalPages,

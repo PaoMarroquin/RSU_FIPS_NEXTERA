@@ -2,28 +2,25 @@ import React from 'react';
 import { FiUser, FiBook, FiEdit2, FiTrash2, FiEye } from "react-icons/fi"; // Agregados iconos de edición y eliminación
 
 export default function ProjectCard({ id, title, author, faculty, progress, status, tag, onEdit, onDelete, onView }) {
-  // Convertimos a minúsculas y reemplazamos espacios por guiones
-  // Nota: Asegúrate de que las claves coincidan exactamente con lo que devuelve tu backend (con o sin tildes)
-  const statusKey = status ? status.toLowerCase().replace(" ", "-") : "borrador";
+  // El backend entrega el estado con guion bajo (en_revision, en_ejecucion),
+  // no con espacio ni con guion medio: normalizamos igual para que la
+  // busqueda en los mapas de color de abajo siempre encuentre la clave.
+  const statusKey = status ? status.toLowerCase().replace(/\s+/g, "_") : "borrador";
 
   const statusColors = {
-    "en-ejecución": "bg-blue-100 text-blue-700",
-    "en-ejecucion": "bg-blue-100 text-blue-700", // Variante sin tilde por si acaso
+    "en_ejecucion": "bg-blue-100 text-blue-700",
     "aprobado": "bg-emerald-100 text-emerald-700",
     "finalizado": "bg-purple-100 text-purple-700",
-    "en-revisión": "bg-amber-100 text-amber-700",
-    "en-revision": "bg-amber-100 text-amber-700", // Variante sin tilde
+    "en_revision": "bg-amber-100 text-amber-700",
     "observado": "bg-red-100 text-red-700",
     "borrador": "bg-slate-100 text-slate-700"
   };
 
   const progressColors = {
-    "en-ejecución": "bg-blue-500",
-    "en-ejecucion": "bg-blue-500",
+    "en_ejecucion": "bg-blue-500",
     "aprobado": "bg-emerald-500",
     "finalizado": "bg-purple-500",
-    "en-revisión": "bg-amber-500",
-    "en-revision": "bg-amber-500",
+    "en_revision": "bg-amber-500",
     "observado": "bg-red-500",
     "borrador": "bg-slate-400"
   };
@@ -102,8 +99,8 @@ export default function ProjectCard({ id, title, author, faculty, progress, stat
             </button>
           )}
           
-          {onDelete && (
-            <button 
+          {onDelete && statusKey === 'borrador' && (
+            <button
               onClick={onDelete}
               title="Eliminar proyecto"
               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"

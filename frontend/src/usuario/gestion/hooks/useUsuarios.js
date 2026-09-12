@@ -41,7 +41,7 @@ export function useUsuarios() {
     const role = localStorage.getItem("user_role");
     const sanitizedRole = role ? role.toLowerCase() : "";
 
-    if (sanitizedRole !== "departamento") {
+    if (sanitizedRole !== "departamento" && sanitizedRole !== "administrador") {
       navigate("/dashboard");
     } else {
       fetchUsuarios();

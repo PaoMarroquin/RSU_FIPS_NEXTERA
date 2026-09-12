@@ -2,9 +2,11 @@ import { FiEye, FiEdit2, FiTrash2 } from "react-icons/fi";
 
 const ESTADO_BADGE = {
   aprobado: "bg-green-100 text-green-700",
-  "en ejecucion": "bg-blue-100 text-blue-700",
+  finalizado: "bg-purple-100 text-purple-700",
+  en_ejecucion: "bg-blue-100 text-blue-700",
   observado: "bg-red-100 text-red-700",
-  "en revision": "bg-yellow-100 text-yellow-700",
+  en_revision: "bg-yellow-100 text-yellow-700",
+  borrador: "bg-slate-100 text-slate-700",
 };
 
 export default function ProyectosListView({ projects, canEdit, canDelete, onView, onEdit, onDelete }) {
@@ -32,12 +34,12 @@ export default function ProyectosListView({ projects, canEdit, canDelete, onView
               <button onClick={() => onView(project.dbId)} title="Ver expediente" className="p-2 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition">
                 <FiEye />
               </button>
-              {canEdit && (
+              {canEdit && !['en_revision', 'aprobado'].includes(project.status) && (
                 <button onClick={() => onEdit(project.dbId)} title="Editar proyecto" className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition">
                   <FiEdit2 />
                 </button>
               )}
-              {canDelete && (
+              {canDelete && project.status === 'borrador' && (
                 <button onClick={() => onDelete(project.dbId)} title="Eliminar proyecto" className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition">
                   <FiTrash2 />
                 </button>
