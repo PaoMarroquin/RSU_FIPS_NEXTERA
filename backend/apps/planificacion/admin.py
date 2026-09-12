@@ -16,11 +16,14 @@ from .models import (
     EjeRSU,
     EjeRSUSubitem,
     ODS,
+    ObjetivoRegional,
+    ObjetivoNacional,
     LineaEstrategica,
     MatrizOperativa,
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
+    DocumentoApoyo,
 )
 
 @admin.register(PeriodoAcademico)
@@ -57,6 +60,18 @@ class ODSAdmin(admin.ModelAdmin):
     list_display = ('numero', 'nombre')
     list_filter = ('numero',)
     search_fields = ('nombre',)
+
+
+@admin.register(ObjetivoRegional)
+class ObjetivoRegionalAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre')
+    search_fields = ('codigo', 'nombre')
+
+
+@admin.register(ObjetivoNacional)
+class ObjetivoNacionalAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre')
+    search_fields = ('codigo', 'nombre')
 
 
 @admin.register(LineaEstrategica)
@@ -102,3 +117,10 @@ class ActividadSugeridaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'matriz', 'eje_rsu', 'anio_academico', 'tipo_actividad', 'presupuesto_ref')
     list_filter = ('matriz__facultad', 'anio_academico', 'eje_rsu')
     search_fields = ('nombre', 'tipo_actividad')
+
+
+@admin.register(DocumentoApoyo)
+class DocumentoApoyoAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'categoria', 'publicado_por', 'activo', 'created_at')
+    list_filter = ('categoria', 'activo')
+    search_fields = ('titulo', 'descripcion')

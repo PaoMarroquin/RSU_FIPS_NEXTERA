@@ -4,12 +4,15 @@ Rutas del modulo de planificacion, montadas bajo /api/v1/.
 Rutas:
 - /periodos/, /periodos/<id>/
 - /ejes-rsu/, /ods/
+- /objetivos-regionales/, /objetivos-regionales/<id>/
+- /objetivos-nacionales/, /objetivos-nacionales/<id>/
 - /lineas-estrategicas/, /lineas-estrategicas/<id>/
 - /matrices/, /matrices/<id>/
 - /matrices/<id>/export/excel/, /matrices/<id>/export/pdf/
 - /objetivos-institucionales/, /objetivos-institucionales/<id>/
 - /indicadores-institucionales/, /indicadores-institucionales/<id>/
 - /actividades-sugeridas/, /actividades-sugeridas/<id>/
+- /documentos-apoyo/, /documentos-apoyo/<id>/
 
 Conecta con:
 - apps/planificacion/views.py: vistas a las que apunta cada ruta.
@@ -25,7 +28,13 @@ urlpatterns = [
     path('ejes-rsu/', views.EjeRSUListView.as_view(), name='eje-rsu-list'),
     
     path('ods/', views.ODSListView.as_view(), name='ods-list'),
-    
+
+    path('objetivos-regionales/', views.ObjetivoRegionalListCreateView.as_view(), name='objetivo-regional-list'),
+    path('objetivos-regionales/<int:pk>/', views.ObjetivoRegionalRetrieveUpdateDestroyView.as_view(), name='objetivo-regional-detail'),
+
+    path('objetivos-nacionales/', views.ObjetivoNacionalListCreateView.as_view(), name='objetivo-nacional-list'),
+    path('objetivos-nacionales/<int:pk>/', views.ObjetivoNacionalRetrieveUpdateDestroyView.as_view(), name='objetivo-nacional-detail'),
+
     path('lineas-estrategicas/', views.LineaEstrategicaListCreateView.as_view(), name='linea-estrategica-list'),
     path('lineas-estrategicas/<int:pk>/', views.LineaEstrategicaRetrieveUpdateDestroyView.as_view(), name='linea-estrategica-detail'),
     
@@ -42,4 +51,7 @@ urlpatterns = [
     
     path('actividades-sugeridas/', views.ActividadSugeridaListCreateView.as_view(), name='actividad-sugerida-list'),
     path('actividades-sugeridas/<int:pk>/', views.ActividadSugeridaRetrieveUpdateDestroyView.as_view(), name='actividad-sugerida-detail'),
+
+    path('documentos-apoyo/', views.DocumentoApoyoListCreateView.as_view(), name='documento-apoyo-list'),
+    path('documentos-apoyo/<int:pk>/', views.DocumentoApoyoRetrieveUpdateDestroyView.as_view(), name='documento-apoyo-detail'),
 ]

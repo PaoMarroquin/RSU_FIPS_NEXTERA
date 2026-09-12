@@ -23,6 +23,7 @@ from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsAdministrador, IsJefaturaRSU
@@ -30,21 +31,27 @@ from .models import (
     PeriodoAcademico,
     EjeRSU,
     ODS,
+    ObjetivoRegional,
+    ObjetivoNacional,
     LineaEstrategica,
     MatrizOperativa,
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
+    DocumentoApoyo,
 )
 from .serializers import (
     PeriodoAcademicoSerializer,
     EjeRSUSerializer,
     ODSSerializer,
+    ObjetivoRegionalSerializer,
+    ObjetivoNacionalSerializer,
     LineaEstrategicaSerializer,
     MatrizOperativaSerializer,
     ObjetivoInstitucionalSerializer,
     IndicadorInstitucionalSerializer,
     ActividadSugeridaSerializer,
+    DocumentoApoyoSerializer,
 )
 from apps.usuarios.models import Rol
 from .services import export_matriz_excel, export_matriz_pdf
@@ -84,6 +91,50 @@ class ODSListView(generics.ListAPIView):
     queryset = ODS.objects.all().order_by('numero')
     serializer_class = ODSSerializer
     permission_classes = [IsAuthenticated]
+
+
+class ObjetivoRegionalListCreateView(generics.ListCreateAPIView):
+    queryset = ObjetivoRegional.objects.all().order_by('codigo', 'nombre')
+    serializer_class = ObjetivoRegionalSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nombre', 'codigo']
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
+        return [IsAuthenticated()]
+
+
+class ObjetivoRegionalRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ObjetivoRegional.objects.all()
+    serializer_class = ObjetivoRegionalSerializer
+
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
+        return [IsAuthenticated()]
+
+
+class ObjetivoNacionalListCreateView(generics.ListCreateAPIView):
+    queryset = ObjetivoNacional.objects.all().order_by('codigo', 'nombre')
+    serializer_class = ObjetivoNacionalSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nombre', 'codigo']
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
+        return [IsAuthenticated()]
+
+
+class ObjetivoNacionalRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = ObjetivoNacional.objects.all()
+    serializer_class = ObjetivoNacionalSerializer
+
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
+        return [IsAuthenticated()]
 
 
 class LineaEstrategicaListCreateView(generics.ListCreateAPIView):
@@ -368,3 +419,58 @@ class MatrizOperativaExportPDFView(APIView):
         response = HttpResponse(pdf_file.read(), content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="matriz_operativa_{matriz.id}.pdf"'
         return response
+
+
+class DocumentoApoyoListCreateView(generics.ListCreateAPIView):
+    """
+    Repositorio de documentos guía para la formulación de proyectos.
+
+    Lectura: cualquier usuario autenticado (los docentes solo ven los
+    documentos activos; Administrador y Jefatura RSU ven también los
+    inactivos para poder reactivarlos).
+    Escritura: Administrador o Jefatura RSU, que es quien sube las guías
+    (líneas de investigación, objetivos regionales, normativa, etc.).
+    """
+    serializer_class = DocumentoApoyoSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['titulo', 'descripcion']
+    ordering_fields = ['created_at', 'titulo', 'categoria']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        qs = DocumentoApoyo.objects.select_related('publicado_por').all()
+        user = self.request.user
+        es_gestor = user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.JEFATURA])
+        if not es_gestor:
+            qs = qs.filter(activo=True)
+        categoria = self.request.query_params.get('categoria')
+        if categoria:
+            qs = qs.filter(categoria=categoria)
+        return qs
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        serializer.save(publicado_por=self.request.user)
+
+
+class DocumentoApoyoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = DocumentoApoyoSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        qs = DocumentoApoyo.objects.select_related('publicado_por').all()
+        user = self.request.user
+        es_gestor = user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.JEFATURA])
+        if not es_gestor:
+            qs = qs.filter(activo=True)
+        return qs
+
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
+        return [IsAuthenticated()]

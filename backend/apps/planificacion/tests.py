@@ -10,10 +10,13 @@ Conecta con:
 - apps/usuarios/models.py: usuarios y roles que se crean en setUp.
 """
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 from apps.usuarios.models import Usuario, Rol, Facultad
-from apps.planificacion.models import PeriodoAcademico, MatrizOperativa, EjeRSU, ODS, LineaEstrategica
+from apps.planificacion.models import (
+    PeriodoAcademico, MatrizOperativa, EjeRSU, ODS, LineaEstrategica, DocumentoApoyo,
+)
 
 class PlanificacionAPITests(APITestCase):
 
@@ -201,3 +204,138 @@ class PlanificacionAPITests(APITestCase):
         actividades_1er_anio = response_1st_year.data['results']
         self.assertEqual(len(actividades_1er_anio), 1)
         self.assertEqual(actividades_1er_anio[0]['nombre'], 'Elaboración de Afiches y Campaña de Sensibilización')
+
+
+class DocumentoApoyoAPITests(APITestCase):
+    """Repositorio de documentos guía: solo Jefatura RSU/Administrador publican,
+    todos los autenticados leen, y los docentes solo ven los activos."""
+
+    def setUp(self):
+        self.rol_admin = Rol.objects.get(nombre='Administrador')
+        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
+        self.rol_docente = Rol.objects.get(nombre='Docente')
+        self.facultad = Facultad.objects.get(codigo='FIPS')
+
+        self.jefatura_user = Usuario.objects.create_user(
+            correo_institucional='jefatura@unsa.edu.pe', password='password123',
+            nombres='Jefatura RSU', rol=self.rol_jefatura, facultad=self.facultad,
+        )
+        self.docente_user = Usuario.objects.create_user(
+            correo_institucional='docente-doc@unsa.edu.pe', password='password123',
+            nombres='Docente Prueba', rol=self.rol_docente, facultad=self.facultad,
+        )
+        self.list_url = reverse('documento-apoyo-list')
+
+    def test_jefatura_puede_publicar_documento_con_archivo(self):
+        self.client.force_authenticate(user=self.jefatura_user)
+        archivo = SimpleUploadedFile('guia.pdf', b'contenido', content_type='application/pdf')
+        response = self.client.post(self.list_url, {
+            'titulo': 'Guía de Formulación 2026',
+            'descripcion': 'Guía para docentes',
+            'categoria': 'guia_formulacion',
+            'archivo': archivo,
+        }, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['publicado_por'], self.jefatura_user.id)
+
+    def test_jefatura_puede_publicar_documento_con_enlace(self):
+        self.client.force_authenticate(user=self.jefatura_user)
+        response = self.client.post(self.list_url, {
+            'titulo': 'Objetivos Regionales',
+            'categoria': 'objetivo_regional',
+            'enlace_externo': 'https://drive.google.com/file/d/abc123',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_no_permite_archivo_y_enlace_juntos(self):
+        self.client.force_authenticate(user=self.jefatura_user)
+        archivo = SimpleUploadedFile('guia.pdf', b'contenido', content_type='application/pdf')
+        response = self.client.post(self.list_url, {
+            'titulo': 'Documento inválido',
+            'archivo': archivo,
+            'enlace_externo': 'https://drive.google.com/file/d/abc123',
+        }, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_requiere_archivo_o_enlace(self):
+        self.client.force_authenticate(user=self.jefatura_user)
+        response = self.client.post(self.list_url, {'titulo': 'Sin adjunto'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_docente_no_puede_publicar_documento(self):
+        self.client.force_authenticate(user=self.docente_user)
+        response = self.client.post(self.list_url, {
+            'titulo': 'No autorizado',
+            'enlace_externo': 'https://drive.google.com/file/d/xyz',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_docente_solo_ve_documentos_activos(self):
+        DocumentoApoyo.objects.create(
+            titulo='Activo', enlace_externo='https://drive.google.com/a',
+            publicado_por=self.jefatura_user, activo=True,
+        )
+        DocumentoApoyo.objects.create(
+            titulo='Inactivo', enlace_externo='https://drive.google.com/b',
+            publicado_por=self.jefatura_user, activo=False,
+        )
+        self.client.force_authenticate(user=self.docente_user)
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        titulos = [d['titulo'] for d in response.data['results']]
+        self.assertIn('Activo', titulos)
+        self.assertNotIn('Inactivo', titulos)
+
+        # La Jefatura sí ve ambos, para poder reactivar el inactivo.
+        self.client.force_authenticate(user=self.jefatura_user)
+        response = self.client.get(self.list_url)
+        titulos = [d['titulo'] for d in response.data['results']]
+        self.assertIn('Activo', titulos)
+        self.assertIn('Inactivo', titulos)
+
+
+class MatrizAlineamientoAPITests(APITestCase):
+    """Catálogos de Objetivos Regionales/Nacionales y su correlación con el
+    proyecto (matriz de alineamiento estratégico)."""
+
+    def setUp(self):
+        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
+        self.rol_docente = Rol.objects.get(nombre='Docente')
+        self.facultad = Facultad.objects.get(codigo='FIPS')
+        self.jefatura_user = Usuario.objects.create_user(
+            correo_institucional='jefatura2@unsa.edu.pe', password='password123',
+            nombres='Jefatura RSU', rol=self.rol_jefatura, facultad=self.facultad,
+        )
+        self.docente_user = Usuario.objects.create_user(
+            correo_institucional='docente2@unsa.edu.pe', password='password123',
+            nombres='Docente Prueba', rol=self.rol_docente, facultad=self.facultad,
+        )
+
+    def test_jefatura_puede_crear_objetivo_regional_y_nacional(self):
+        self.client.force_authenticate(user=self.jefatura_user)
+        r1 = self.client.post(reverse('objetivo-regional-list'), {
+            'codigo': 'OR-01', 'nombre': 'Reducir la pobreza en Arequipa',
+        }, format='json')
+        self.assertEqual(r1.status_code, status.HTTP_201_CREATED)
+
+        r2 = self.client.post(reverse('objetivo-nacional-list'), {
+            'codigo': 'ON-01', 'nombre': 'Educación de calidad para todos',
+        }, format='json')
+        self.assertEqual(r2.status_code, status.HTTP_201_CREATED)
+
+    def test_docente_no_puede_crear_objetivo_regional(self):
+        self.client.force_authenticate(user=self.docente_user)
+        response = self.client.post(reverse('objetivo-regional-list'), {
+            'nombre': 'No autorizado',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_docente_puede_listar_catalogos_para_su_formulario(self):
+        from apps.planificacion.models import ObjetivoRegional, ObjetivoNacional
+        ObjetivoRegional.objects.create(codigo='OR-01', nombre='Objetivo Regional 1')
+        ObjetivoNacional.objects.create(codigo='ON-01', nombre='Objetivo Nacional 1')
+        self.client.force_authenticate(user=self.docente_user)
+        self.assertEqual(
+            self.client.get(reverse('objetivo-regional-list')).status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self.client.get(reverse('objetivo-nacional-list')).status_code, status.HTTP_200_OK)
