@@ -1,10 +1,52 @@
+"""
+Modelos del modulo de proyectos RSU: formulacion, revision y seguimiento.
+
+Es el nucleo del sistema. ProyectoRSU implementa el ANEXO 4 (Formato OURS) y
+alrededor giran las tablas de detalle, el flujo de aprobacion y el registro
+de avances.
+
+Formulacion (ANEXO 4, secciones I a IX):
+- ProyectoRSU: cabecera y campos de texto del formato.
+- TipoBeneficiario: catalogo del grupo destinatario (campo 1.9).
+- ProyectoAsignatura, ProyectoDocente: asignaturas y docentes participantes.
+- ProyectoEjeSubitem: sub-items de eje RSU marcados, con su detalle.
+- ActividadProyecto (seccion VI) y CronogramaAccion (seccion VII).
+- FuenteFinanciamiento y PartidaPresupuestaria (seccion IX).
+- MetaIndicadorProyecto: metas con linea base, valor meta y alcanzado.
+- DocumentoSustentoProyecto: adjuntos de respaldo.
+
+Revision y aprobacion (HU-04):
+- RevisionProyecto: decision del Departamento y comentario tecnico.
+- HistorialEstadoProyecto: bitacora de todos los cambios de estado.
+- Notificacion: avisos internos al docente.
+
+Seguimiento y ejecucion (HU-05):
+- AvanceActividad: avance del docente sobre una actividad. El historial es de
+  solo insercion.
+- EvidenciaAvance: archivo (PDF, JPG, JPEG, PNG) o enlace de Google Drive.
+  El borrado es logico para no perder trazabilidad.
+
+Ciclo de vida del estado del proyecto:
+    borrador -> en_revision -> observado -> corregido -> aprobado
+             -> en_ejecucion -> finalizado, o rechazado
+
+Conecta con:
+- apps/usuarios/models.py: Facultad, Escuela, Departamento y Usuario.
+- apps/planificacion/models.py: PeriodoAcademico, EjeRSU, EjeRSUSubitem, ODS,
+  LineaEstrategica y ObjetivoInstitucional.
+- apps/proyectos/views.py: aplica las reglas de transicion de estado.
+- apps/proyectos/services_consolidado.py: consolida estos datos para HU-06.
+"""
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
-from apps.planificacion.models import PeriodoAcademico, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, ODS
+from apps.planificacion.models import (
+    PeriodoAcademico, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, ODS,
+    ObjetivoRegional, ObjetivoNacional,
+)
 
 DOCUMENTO_SUSTENTO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx']
 DOCUMENTO_SUSTENTO_MAX_SIZE_MB = 10
@@ -164,9 +206,13 @@ class ProyectoRSU(models.Model):
     #   "extension_ods_numeros": "3, 4, 11",
     #   "extension_ambito_detalle": "..."
     # }
-    eje_rsu = models.ForeignKey(
-        EjeRSU, on_delete=models.PROTECT, related_name='proyectos',
-        help_text="1.10 Eje RSU principal del proyecto (selección excluyente)")
+    # Antes era ForeignKey (un solo eje, "selección excluyente"). Se cambió a
+    # ManyToMany porque en la práctica un proyecto puede alinearse con más de
+    # un eje RSU a la vez (caso real reportado: un proyecto marcado en dos
+    # ejes que el formulario anterior no permitía guardar).
+    ejes_rsu = models.ManyToManyField(
+        EjeRSU, related_name='proyectos', db_table='proyecto_ejes_rsu',
+        help_text="1.10 Eje(s) RSU del proyecto (se permite más de uno)")
     eje_detalle = models.TextField(
         blank=True, null=True,
         help_text="1.10 Descripción obligatoria cuando el eje RSU seleccionado es 'Otros'")
@@ -329,6 +375,17 @@ class ProyectoRSU(models.Model):
     # ODS (many-to-many)
     ods = models.ManyToManyField(ODS, related_name='proyectos', db_table='proyecto_ods')
 
+    # Matriz de alineamiento estratégico: correlación con Objetivos
+    # Regionales y Objetivos Nacionales (además de ODS, ya de arriba).
+    objetivos_regionales = models.ManyToManyField(
+        ObjetivoRegional, blank=True, related_name='proyectos',
+        db_table='proyecto_objetivos_regionales',
+        help_text='Objetivos Regionales con los que se alinea el proyecto')
+    objetivos_nacionales = models.ManyToManyField(
+        ObjetivoNacional, blank=True, related_name='proyectos',
+        db_table='proyecto_objetivos_nacionales',
+        help_text='Objetivos Nacionales con los que se alinea el proyecto')
+
     # ──────────────────────────────────────────────────────────────────────────
     # INFORME FINAL (fases posteriores al sprint actual)
     # ──────────────────────────────────────────────────────────────────────────
@@ -367,7 +424,9 @@ class ProyectoAsignatura(models.Model):
     """
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='asignaturas')
-    nombre_asignatura = models.CharField(max_length=200)
+    # Ampliado a 500 (antes 200): algunas escuelas listan varias asignaturas
+    # del año académico en un solo registro y el límite anterior las cortaba.
+    nombre_asignatura = models.CharField(max_length=500)
     codigo_asignatura = models.CharField(max_length=50, blank=True, null=True)
     anio_carrera = models.IntegerField(null=True, blank=True)
     semestre = models.CharField(max_length=10, blank=True, null=True)

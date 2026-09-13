@@ -1,3 +1,30 @@
+"""
+Serializers del modulo de usuarios.
+
+Traducen los modelos de usuarios y estructura academica a JSON y validan la
+entrada de la API. Hay un serializer distinto por operacion porque las reglas
+cambian: al crear se exige contrasena, al editar no; al listar se devuelven
+los nombres de rol y facultad ya resueltos para que el frontend no tenga que
+hacer llamadas extra.
+
+Serializers:
+- RolSerializer, FacultadSerializer, EscuelaProfesionalSerializer,
+  DepartamentoAcademicoSerializer: catalogos de solo lectura.
+- UsuarioCreateSerializer: alta de usuario, cifra la contrasena.
+- UsuarioEditSerializer: edicion administrativa.
+- UsuarioListSerializer: listado y detalle, con campos derivados.
+- MiPerfilUpdateSerializer: lo que el propio usuario puede cambiar de si
+  mismo.
+- AsignarRolSerializer: cambio de rol con motivo.
+- HistorialRolSerializer, AuditoriaUsuarioSerializer: lectura de bitacoras.
+
+Validacion transversal: _validate_escuela_departamento_facultad comprueba que
+la escuela y el departamento pertenezcan a la facultad elegida.
+
+Conecta con:
+- apps/usuarios/models.py: modelos que serializa.
+- apps/usuarios/views.py: vistas que los usan.
+"""
 from rest_framework import serializers
 
 from .models import (

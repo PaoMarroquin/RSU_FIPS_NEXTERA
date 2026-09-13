@@ -1,14 +1,29 @@
+"""
+Serializers del modulo de planificacion.
+
+Traducen catalogos y matriz operativa a JSON. Los serializers de matriz son
+anidados: al pedir una matriz se devuelven sus objetivos con sus indicadores
+y sus actividades sugeridas en una sola respuesta, para que el frontend pinte
+la pantalla completa sin encadenar peticiones.
+
+Conecta con:
+- apps/planificacion/models.py: modelos que serializa.
+- apps/planificacion/views.py: vistas que los usan.
+"""
 from rest_framework import serializers
 from .models import (
     PeriodoAcademico,
     EjeRSU,
     EjeRSUSubitem,
     ODS,
+    ObjetivoRegional,
+    ObjetivoNacional,
     LineaEstrategica,
     MatrizOperativa,
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
+    DocumentoApoyo,
 )
 
 class PeriodoAcademicoSerializer(serializers.ModelSerializer):
@@ -35,6 +50,18 @@ class ODSSerializer(serializers.ModelSerializer):
     class Meta:
         model = ODS
         fields = ['id', 'numero', 'nombre', 'descripcion', 'icono_url', 'created_at']
+
+
+class ObjetivoRegionalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ObjetivoRegional
+        fields = ['id', 'codigo', 'nombre', 'descripcion', 'created_at']
+
+
+class ObjetivoNacionalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ObjetivoNacional
+        fields = ['id', 'codigo', 'nombre', 'descripcion', 'created_at']
 
 
 class LineaEstrategicaSerializer(serializers.ModelSerializer):
@@ -98,3 +125,29 @@ class MatrizOperativaSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['coordinador']
+
+
+class DocumentoApoyoSerializer(serializers.ModelSerializer):
+    """Repositorio de documentos guía (Jefatura RSU) para la formulación de proyectos."""
+    categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
+    publicado_por_nombre = serializers.CharField(source='publicado_por.nombres', read_only=True)
+
+    class Meta:
+        model = DocumentoApoyo
+        fields = [
+            'id', 'titulo', 'descripcion', 'categoria', 'categoria_display',
+            'archivo', 'enlace_externo', 'publicado_por', 'publicado_por_nombre',
+            'activo', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['publicado_por', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        archivo = attrs.get('archivo', getattr(self.instance, 'archivo', None))
+        enlace = attrs.get('enlace_externo', getattr(self.instance, 'enlace_externo', None))
+        if not archivo and not enlace:
+            raise serializers.ValidationError(
+                'Debe adjuntar un archivo o indicar un enlace externo.')
+        if archivo and enlace:
+            raise serializers.ValidationError(
+                'Use un archivo o un enlace externo, no ambos.')
+        return attrs

@@ -1,3 +1,24 @@
+"""
+Manejador de excepciones de la API: da un formato unico a todos los errores.
+
+Sin esto, DRF responde con formas distintas segun el tipo de error (un dict
+con "detail", un dict de errores por campo, o una lista). El frontend
+tendria que contemplar los tres casos. Aqui se normaliza todo a:
+
+    {
+      "error":  "Bad Request",              nombre legible del codigo HTTP
+      "detail": "mensaje principal",        que salio mal, en una frase
+      "errors": {"campo": ["motivo"]}       detalle por campo, o null
+    }
+
+Se activa desde REST_FRAMEWORK['EXCEPTION_HANDLER'] en config/settings.py y
+aplica a todas las vistas de la API sin que estas tengan que hacer nada.
+
+Conecta con:
+- config/settings.py: donde se registra como EXCEPTION_HANDLER.
+- Todas las vistas de apps/: consumen este formato al lanzar
+  ValidationError, PermissionDenied o Http404.
+"""
 from rest_framework.views import exception_handler
 
 _STATUS_NAMES = {

@@ -1,3 +1,18 @@
+"""
+Registro de los modelos de usuarios en el panel de administracion.
+
+Permite al Administrador gestionar cuentas, roles y estructura academica sin
+pasar por el frontend. Es la via de emergencia para crear el primer usuario o
+corregir datos institucionales.
+
+UsuarioAdmin cifra la contrasena al guardar si se escribio en texto plano, de
+modo que un usuario creado desde el admin pueda iniciar sesion igual que uno
+creado por la API.
+
+Conecta con:
+- apps/usuarios/models.py: modelos que registra.
+- config/urls.py: expone el panel en /admin/.
+"""
 from django.contrib import admin
 from .models import Usuario, Rol, Facultad, EscuelaProfesional, DepartamentoAcademico
 

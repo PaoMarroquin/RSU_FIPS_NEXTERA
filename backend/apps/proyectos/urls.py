@@ -1,6 +1,39 @@
+"""
+Rutas del modulo de proyectos RSU, montadas bajo /api/v1/.
+
+Bloques:
+- Proyecto: /proyectos/, /proyectos/<id>/, /proyectos/<id>/revisar/,
+  /proyectos/<id>/continuar/
+- Detalle del ANEXO 4, todas bajo /proyectos/<id>/: actividades,
+  cronograma, financiamiento, presupuesto y metas-indicadores.
+- Seguimiento (HU-05): /proyectos/<id>/avances/ y sus evidencias, con las
+  acciones observar y corregir.
+- Revision (HU-04): /proyectos/para-revisar/, /proyectos/<id>/aprobar/,
+  /proyectos/<id>/observar/
+- Notificaciones: /notificaciones/, /notificaciones/<id>/leer/
+- Reportes agregados: /reportes/general/, /reportes/facultad/<id>/
+- Informes consolidados (HU-06), todas de solo lectura:
+  /informes/consolidado/, /informes/consolidado/proyectos/,
+  /informes/consolidado/proyectos/<id>/, /informes/consolidado/filtros/,
+  /informes/consolidado/export/pdf/, /informes/consolidado/export/excel/
+
+Conecta con:
+- apps/proyectos/views.py: formulacion, revision y seguimiento.
+- apps/proyectos/views_reportes.py: reportes agregados.
+- apps/proyectos/views_consolidado.py: informes consolidados de HU-06.
+- config/urls.py: enrutador raiz que incluye este archivo.
+"""
 from django.urls import path
 from . import views
 from .views_reportes import ReporteGeneralView, ReporteFacultadView
+from .views_consolidado import (
+    InformeConsolidadoView,
+    InformeConsolidadoProyectosView,
+    InformeConsolidadoProyectoDetailView,
+    InformeConsolidadoFiltrosView,
+    InformeConsolidadoExportPDFView,
+    InformeConsolidadoExportExcelView,
+)
 
 urlpatterns = [
     # ── Proyecto principal ────────────────────────────────────────────────────
@@ -51,4 +84,20 @@ urlpatterns = [
     # ── Módulo 4: Notificaciones ──────────────────────────────────────────────
     path('notificaciones/', views.NotificacionListView.as_view(), name='notificacion-list'),
     path('notificaciones/<int:pk>/leer/', views.NotificacionLeerView.as_view(), name='notificacion-leer'),
+
+    # ── Módulo 6: Informes consolidados (HU-06) ───────────────────────────────
+    # Todas son de solo lectura: solo aceptan GET. Cubren únicamente proyectos
+    # en estado aprobado o finalizado (CA-01).
+    path('informes/consolidado/',
+         InformeConsolidadoView.as_view(), name='informe-consolidado'),
+    path('informes/consolidado/filtros/',
+         InformeConsolidadoFiltrosView.as_view(), name='informe-consolidado-filtros'),
+    path('informes/consolidado/proyectos/',
+         InformeConsolidadoProyectosView.as_view(), name='informe-consolidado-proyectos'),
+    path('informes/consolidado/proyectos/<int:pk>/',
+         InformeConsolidadoProyectoDetailView.as_view(), name='informe-consolidado-proyecto-detail'),
+    path('informes/consolidado/export/pdf/',
+         InformeConsolidadoExportPDFView.as_view(), name='informe-consolidado-export-pdf'),
+    path('informes/consolidado/export/excel/',
+         InformeConsolidadoExportExcelView.as_view(), name='informe-consolidado-export-excel'),
 ]

@@ -1,10 +1,12 @@
 """
-WSGI config for config project.
+Punto de entrada WSGI del backend RSU.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+Expone el objeto `application` que usan los servidores WSGI sincronos
+(Gunicorn, uWSGI, mod_wsgi) para servir el proyecto en produccion.
 
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
+Conecta con:
+- config/settings.py: configuracion que carga al arrancar.
+- Dockerfile y docker-compose.yml: donde se referencia config.wsgi.
 """
 
 import os

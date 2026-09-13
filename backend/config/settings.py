@@ -1,3 +1,27 @@
+"""
+Configuracion global del proyecto Django del backend RSU.
+
+Define aplicaciones instaladas, base de datos PostgreSQL, autenticacion JWT,
+CORS para el frontend React, documentacion OpenAPI y rutas de archivos
+subidos (firmas, documentos de sustento, evidencias).
+
+Los valores sensibles no estan escritos aqui: se leen del archivo .env con
+python-decouple (SECRET_KEY, credenciales de base de datos, GOOGLE_CLIENT_ID,
+origenes CORS permitidos).
+
+Puntos clave:
+- AUTH_USER_MODEL apunta a usuarios.Usuario: el login es por correo
+  institucional, no por username.
+- El manejador de errores de la API esta centralizado en
+  apps.utils.exceptions.custom_exception_handler.
+
+Conecta con:
+- config/urls.py: enrutador raiz que se declara en ROOT_URLCONF.
+- apps/usuarios/models.py: define el modelo Usuario referenciado por
+  AUTH_USER_MODEL.
+- apps/utils/exceptions.py: formato uniforme de los errores de la API.
+- .env: variables de entorno del despliegue.
+"""
 from pathlib import Path
 from datetime import timedelta
 
@@ -106,6 +130,10 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:5173,http://127.0.0.1:5173',
     cast=Csv(),
 )
+# El navegador oculta las cabeceras de respuesta que no se expongan
+# explicitamente. Sin esta linea el frontend descarga los informes de HU-06
+# pero no puede leer el nombre del archivo que propone el backend.
+CORS_EXPOSE_HEADERS = ['Content-Disposition']
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
     default='http://localhost:5173,http://127.0.0.1:5173',
@@ -123,6 +151,13 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = config('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
+# OJO: python-decouple solo aplica el `default` cuando la variable NO existe
+# en .env. Si existe pero está vacía (como venía "MEDIA_ROOT=" en .env y en
+# .env.example) config() devuelve '' y Django guarda los archivos subidos
+# relativos al directorio desde el que se arrancó el proceso (cwd), no bajo
+# el proyecto — así aparecían carpetas sueltas como "evidencias_actividades/"
+# o "planificacion/" en la raíz del backend en vez de en media/. El `or`
+# fuerza el default también cuando el valor es una cadena vacía.
+MEDIA_ROOT = config('MEDIA_ROOT', default='') or str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

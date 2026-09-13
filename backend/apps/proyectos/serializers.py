@@ -1,3 +1,28 @@
+"""
+Serializers del modulo de proyectos RSU.
+
+Traducen el proyecto y todas sus tablas de detalle a JSON, y concentran las
+validaciones de negocio del ANEXO 4.
+
+ProyectoRSUSerializer es anidado y escribible: en una sola peticion se crean
+o actualizan el proyecto, sus asignaturas, docentes, actividades, cronograma,
+documentos, metas y sub-items de eje. Eso evita que el frontend tenga que
+orquestar varias llamadas para guardar un formulario.
+
+Validaciones que aplica:
+- La escuela y el departamento deben pertenecer a la facultad elegida.
+- Si se marca "otro" como beneficiario, hay que detallarlo.
+- Si el eje RSU es "Otros", hay que describirlo.
+- tipo_actividad solo admite los valores de TIPOS_ACTIVIDAD_VALIDOS.
+- Un proyecto solo se puede editar en estado borrador u observado.
+- El valor meta de un indicador debe superar su linea base.
+- Una evidencia lleva archivo o enlace, nunca ambos.
+
+Conecta con:
+- apps/proyectos/models.py: modelos que serializa.
+- apps/proyectos/views.py: vistas que los usan.
+- apps/planificacion/models.py: catalogos referenciados por el proyecto.
+"""
 from rest_framework import serializers
 from django.db import transaction
 from django.db.models import Sum, F
@@ -292,11 +317,13 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     # Read-only display fields
     beneficiarios_info = serializers.SerializerMethodField(read_only=True)
     ods_info = serializers.SerializerMethodField(read_only=True)
+    objetivos_regionales_info = serializers.SerializerMethodField(read_only=True)
+    objetivos_nacionales_info = serializers.SerializerMethodField(read_only=True)
     docente_responsable_nombre = serializers.CharField(
         source='docente_responsable.nombres', read_only=True)
     docente_responsable_detalle = serializers.SerializerMethodField(read_only=True)
     continuaciones_count = serializers.SerializerMethodField(read_only=True)
-    eje_rsu_nombre = serializers.CharField(source='eje_rsu.nombre', read_only=True)
+    ejes_rsu_info = serializers.SerializerMethodField(read_only=True)
     linea_estrategica_nombre = serializers.CharField(
         source='linea_estrategica.nombre', read_only=True)
     objetivo_institucional_nombre = serializers.CharField(
@@ -333,7 +360,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'beneficiarios', 'beneficiarios_info', 'benef_otro_detalle',
 
             # 1.10 Eje RSU
-            'eje_rsu', 'eje_rsu_nombre',
+            'ejes_rsu', 'ejes_rsu_info',
             'ejes_subitems',
             'eje_detalle',
             'linea_estrategica', 'linea_estrategica_nombre',
@@ -399,6 +426,10 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             # ── ODS ───────────────────────────────────────────────────────
             'ods', 'ods_info',
 
+            # ── Matriz de alineamiento estratégico ────────────────────────
+            'objetivos_regionales', 'objetivos_regionales_info',
+            'objetivos_nacionales', 'objetivos_nacionales_info',
+
             # ── Asignaturas y docentes ────────────────────────────────────
             'asignaturas',
             'docentes_adicionales',
@@ -430,6 +461,15 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
     def get_ods_info(self, obj):
         return [{'id': o.id, 'numero': o.numero, 'nombre': o.nombre} for o in obj.ods.all()]
+
+    def get_ejes_rsu_info(self, obj):
+        return [{'id': e.id, 'nombre': e.nombre} for e in obj.ejes_rsu.all()]
+
+    def get_objetivos_regionales_info(self, obj):
+        return [{'id': o.id, 'codigo': o.codigo, 'nombre': o.nombre} for o in obj.objetivos_regionales.all()]
+
+    def get_objetivos_nacionales_info(self, obj):
+        return [{'id': o.id, 'codigo': o.codigo, 'nombre': o.nombre} for o in obj.objetivos_nacionales.all()]
 
     def get_continuaciones_count(self, obj):
         return obj.continuaciones.count()
@@ -500,9 +540,17 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                     {'benef_otro_detalle': 'Debe especificar el detalle cuando selecciona "Otro" como beneficiario.'})
 
     def _validate_eje_rsu(self, attrs):
-        eje_rsu = self._get(attrs, 'eje_rsu')
+        # 'ejes_rsu' es M2M: a diferencia de un FK, el valor no está en la
+        # instancia como objeto directo sino como manager, y en attrs llega
+        # como lista (aún no asignada al modelo).
+        if 'ejes_rsu' in attrs:
+            ejes = attrs['ejes_rsu']
+        elif self.instance is not None:
+            ejes = list(self.instance.ejes_rsu.all())
+        else:
+            ejes = []
         eje_detalle = self._get(attrs, 'eje_detalle')
-        if eje_rsu and eje_rsu.nombre == 'Otros' and not (eje_detalle or '').strip():
+        if any(e.nombre == 'Otros' for e in ejes) and not (eje_detalle or '').strip():
             raise serializers.ValidationError(
                 {'eje_detalle': 'Debe describir el eje RSU cuando selecciona "Otros".'})
 
@@ -548,6 +596,9 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         metas_data         = validated_data.pop('metas_indicadores', [])
         ods_data           = validated_data.pop('ods', [])
         beneficiarios_data = validated_data.pop('beneficiarios', [])
+        ejes_rsu_data      = validated_data.pop('ejes_rsu', [])
+        objetivos_regionales_data = validated_data.pop('objetivos_regionales', [])
+        objetivos_nacionales_data = validated_data.pop('objetivos_nacionales', [])
         subitems_data      = validated_data.pop('ejes_subitems', [])
 
         validated_data['docente_responsable'] = self.context['request'].user
@@ -560,6 +611,9 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             proyecto.ods.set(ods_data)
             proyecto.beneficiarios.set(beneficiarios_data)
+            proyecto.ejes_rsu.set(ejes_rsu_data)
+            proyecto.objetivos_regionales.set(objetivos_regionales_data)
+            proyecto.objetivos_nacionales.set(objetivos_nacionales_data)
             self._save_nested_flat(proyecto, {
                 'asignaturas':           asignaturas_data,
                 'docentes_adicionales':  docentes_data,
@@ -585,6 +639,9 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         metas_data         = validated_data.pop('metas_indicadores', None)
         ods_data           = validated_data.pop('ods', None)
         beneficiarios_data = validated_data.pop('beneficiarios', None)
+        ejes_rsu_data      = validated_data.pop('ejes_rsu', None)
+        objetivos_regionales_data = validated_data.pop('objetivos_regionales', None)
+        objetivos_nacionales_data = validated_data.pop('objetivos_nacionales', None)
         subitems_data      = validated_data.pop('ejes_subitems', None)
 
         with transaction.atomic():
@@ -597,6 +654,12 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 instance.ods.set(ods_data)
             if beneficiarios_data is not None:
                 instance.beneficiarios.set(beneficiarios_data)
+            if ejes_rsu_data is not None:
+                instance.ejes_rsu.set(ejes_rsu_data)
+            if objetivos_regionales_data is not None:
+                instance.objetivos_regionales.set(objetivos_regionales_data)
+            if objetivos_nacionales_data is not None:
+                instance.objetivos_nacionales.set(objetivos_nacionales_data)
 
             self._save_nested_flat(instance, {
                 'asignaturas':           asignaturas_data,

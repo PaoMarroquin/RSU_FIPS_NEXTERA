@@ -1,5 +1,35 @@
+"""
+Modelos del modulo de planificacion: matriz operativa y catalogos RSU.
+
+Define el marco de referencia sobre el que despues se formulan los proyectos:
+en que periodo se trabaja, bajo que eje de Responsabilidad Social, con que
+objetivos institucionales y con que ODS se alinea.
+
+Catalogos:
+- PeriodoAcademico: semestre I, II o anual. Solo uno deberia estar activo.
+  La combinacion anio + semestre es unica.
+- EjeRSU y EjeRSUSubitem: ejes de RSU y sus sub-items. Algunos sub-items
+  piden un texto de detalle cuando se marcan en un proyecto.
+- ODS: los 17 Objetivos de Desarrollo Sostenible.
+- LineaEstrategica: lineas institucionales, cada una dentro de un eje RSU.
+
+Planificacion:
+- MatrizOperativa: instrumento anual de una facultad para un periodo.
+- ObjetivoInstitucional: objetivos declarados en la matriz.
+- IndicadorInstitucional: como se mide cada objetivo.
+- ActividadSugerida: actividades propuestas como referencia para los
+  docentes.
+
+Conecta con:
+- apps/usuarios/models.py: Facultad y Usuario (coordinador de la matriz).
+- apps/proyectos/models.py: ProyectoRSU referencia PeriodoAcademico, EjeRSU,
+  EjeRSUSubitem, ODS, LineaEstrategica y ObjetivoInstitucional.
+- apps/planificacion/services.py: exporta la matriz a Excel y PDF.
+"""
 from django.db import models
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
 from apps.usuarios.models import Facultad
 
 class PeriodoAcademico(models.Model):
@@ -59,6 +89,50 @@ class ODS(models.Model):
 
     def __str__(self):
         return f'ODS {self.numero}: {self.nombre}'
+
+
+class ObjetivoRegional(models.Model):
+    """
+    Catálogo de Objetivos Regionales (p. ej. del Plan de Desarrollo Regional
+    Concertado de Arequipa) contra los que se correlaciona un proyecto RSU,
+    igual que ya se hace con los ODS. Lo carga y mantiene Jefatura RSU /
+    Administrador; el docente solo selecciona al formular su proyecto.
+    """
+    codigo = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    nombre = models.CharField(max_length=300)
+    descripcion = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'objetivos_regionales'
+        verbose_name = 'Objetivo Regional'
+        verbose_name_plural = 'Objetivos Regionales'
+        ordering = ['codigo', 'nombre']
+
+    def __str__(self):
+        return f'{self.codigo} - {self.nombre}' if self.codigo else self.nombre
+
+
+class ObjetivoNacional(models.Model):
+    """
+    Catálogo de Objetivos Nacionales (p. ej. del Plan Estratégico de
+    Desarrollo Nacional) contra los que se correlaciona un proyecto RSU,
+    igual que ODS y Objetivos Regionales, para armar la matriz de
+    alineamiento estratégico completa (Regional ⇄ Nacional ⇄ ODS).
+    """
+    codigo = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    nombre = models.CharField(max_length=300)
+    descripcion = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'objetivos_nacionales'
+        verbose_name = 'Objetivo Nacional'
+        verbose_name_plural = 'Objetivos Nacionales'
+        ordering = ['codigo', 'nombre']
+
+    def __str__(self):
+        return f'{self.codigo} - {self.nombre}' if self.codigo else self.nombre
 
 
 class EjeRSUSubitem(models.Model):
@@ -182,3 +256,72 @@ class ActividadSugerida(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.get_anio_academico_display()})'
+
+
+DOCUMENTO_APOYO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+DOCUMENTO_APOYO_MAX_SIZE_MB = 20
+
+
+def validate_documento_apoyo_size(archivo):
+    if archivo.size > DOCUMENTO_APOYO_MAX_SIZE_MB * 1024 * 1024:
+        raise ValidationError(
+            f'El archivo no puede superar los {DOCUMENTO_APOYO_MAX_SIZE_MB}MB.')
+
+
+class DocumentoApoyo(models.Model):
+    """
+    Repositorio de documentos de apoyo para la formulación de proyectos RSU.
+
+    Publicado por Jefatura RSU (o Administrador) para que los docentes
+    consulten lineamientos al formular su proyecto: líneas de investigación,
+    objetivos regionales, guías de formulación, normativa vigente, etc.
+    Admite archivo local (PDF/Word/Excel/PowerPoint) o enlace externo (Drive,
+    p. ej.), igual que las evidencias de HU-05, para no saturar el servidor.
+    El ocultamiento es lógico (`activo=False`) para conservar el historial.
+    """
+    CATEGORIAS = [
+        ('linea_investigacion', 'Línea de Investigación'),
+        ('objetivo_regional',   'Objetivo Regional'),
+        ('objetivo_nacional',   'Objetivo Nacional'),
+        ('ods',                 'ODS'),
+        ('guia_formulacion',    'Guía de Formulación'),
+        ('normativa',           'Normativa / Directiva'),
+        ('otro',                'Otro'),
+    ]
+
+    titulo = models.CharField(max_length=255, help_text='Nombre del documento')
+    descripcion = models.TextField(blank=True, default='', help_text='Descripción del contenido')
+    categoria = models.CharField(max_length=30, choices=CATEGORIAS, default='otro', db_index=True)
+    archivo = models.FileField(
+        upload_to='planificacion/documentos_apoyo/', null=True, blank=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=DOCUMENTO_APOYO_EXTENSIONS),
+            validate_documento_apoyo_size,
+        ],
+    )
+    enlace_externo = models.URLField(
+        blank=True, null=True,
+        help_text='Enlace externo (Drive, etc.) cuando no se adjunta archivo')
+    publicado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name='documentos_apoyo_publicados')
+    activo = models.BooleanField(
+        default=True, db_index=True,
+        help_text='Los documentos inactivos dejan de listarse para los docentes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'documentos_apoyo'
+        verbose_name = 'Documento de Apoyo'
+        verbose_name_plural = 'Documentos de Apoyo'
+        ordering = ['-created_at']
+
+    def clean(self):
+        if not self.archivo and not self.enlace_externo:
+            raise ValidationError('Debe adjuntar un archivo o indicar un enlace externo.')
+        if self.archivo and self.enlace_externo:
+            raise ValidationError('Use un archivo o un enlace externo, no ambos.')
+
+    def __str__(self):
+        return self.titulo

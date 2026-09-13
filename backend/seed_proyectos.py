@@ -388,7 +388,6 @@ def crear_proyectos(infra, docentes):
                     'facultad':            facultad,
                     'escuela':             escuela,
                     'departamento':        depto,
-                    'eje_rsu':             eje,
                     'periodo':             periodo,
                     'semestre_academico':  '2026-I',
                     'lugar_ejecucion':     'Campus UNSA - Arequipa',
@@ -401,6 +400,7 @@ def crear_proyectos(infra, docentes):
                     'fuente_financiamiento': 'autofinanciado',
                 }
             )
+            proyecto.ejes_rsu.set([eje])
 
             if created:
                 # Crear meta/indicador

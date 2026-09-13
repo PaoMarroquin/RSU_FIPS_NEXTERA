@@ -1,3 +1,31 @@
+"""
+Modelos del modulo de usuarios, roles y estructura academica.
+
+Contiene el modelo de usuario propio del sistema y el arbol institucional de
+la UNSA sobre el que se apoyan la planificacion y los proyectos.
+
+Modelos:
+- Facultad, EscuelaProfesional, DepartamentoAcademico: estructura academica.
+  Escuela y departamento cuelgan siempre de una facultad.
+- Rol: los cuatro roles del sistema (Administrador, Docente, Departamento,
+  Jefatura RSU). Las constantes de esta clase son la unica fuente de verdad
+  de los nombres de rol.
+- Usuario: reemplaza al usuario de Django. El identificador de acceso es el
+  correo institucional (USERNAME_FIELD), no un username.
+- Sesion: token emitido, vencimiento e IP, para trazabilidad de accesos.
+- HistorialRolUsuario: quien cambio el rol de quien, desde cual, hacia cual
+  y por que motivo.
+- AuditoriaUsuario: bitacora de altas, ediciones, activaciones y cambios de
+  rol.
+
+Conecta con:
+- config/settings.py: AUTH_USER_MODEL apunta a Usuario.
+- apps/utils/permissions.py: compara contra las constantes de Rol.
+- apps/planificacion/models.py: MatrizOperativa referencia Facultad y
+  Usuario (coordinador).
+- apps/proyectos/models.py: ProyectoRSU referencia Facultad, Escuela,
+  Departamento y Usuario (docente responsable).
+"""
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 

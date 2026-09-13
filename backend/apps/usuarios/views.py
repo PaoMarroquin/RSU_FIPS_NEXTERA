@@ -1,9 +1,36 @@
+"""
+Vistas del modulo de usuarios: autenticacion y gestion de cuentas.
+
+Cubre dos frentes. El primero es la autenticacion: login con correo
+institucional y contrasena, login con Google, refresco de token y logout.
+El segundo es la administracion de cuentas: alta, edicion, activacion,
+asignacion de rol y consulta de bitacoras.
+
+La autenticacion emite tokens JWT (simplejwt). Cada login deja registro en
+Sesion y cada accion administrativa deja registro en AuditoriaUsuario, de
+modo que siempre se puede reconstruir quien hizo que y desde donde.
+
+Grupos de vistas:
+- SessionLoginView, SessionTokenRefreshView, LogoutView, GoogleAuthView:
+  autenticacion.
+- UsuarioListCreateView, UsuarioRetrieveUpdateDestroyView, MiPerfilView,
+  AsignarRolView: gestion de cuentas.
+- RolListView, FacultadListView, EscuelaProfesionalListView,
+  DepartamentoAcademicoListView: catalogos para poblar formularios.
+- HistorialRolUsuarioListView, AuditoriaListView: bitacoras de auditoria.
+
+Conecta con:
+- apps/usuarios/models.py y apps/usuarios/serializers.py: datos y validacion.
+- apps/usuarios/urls.py: rutas que exponen estas vistas.
+- apps/utils/permissions.py: control de acceso por rol.
+- config/settings.py: GOOGLE_CLIENT_ID y configuracion de simplejwt.
+"""
 from datetime import datetime, timezone as dt_timezone
 
 from django.conf import settings
 from django.db import IntegrityError
 from django.utils import timezone
-from rest_framework import generics, status
+from rest_framework import filters, generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
@@ -12,7 +39,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.utils.permissions import IsAdministrador, IsDepartamento, IsOwnerOrAdmin
+from apps.utils.permissions import IsAdministrador, IsOwnerOrAdmin
 from .models import (
     AuditoriaUsuario,
     DepartamentoAcademico,
@@ -242,6 +269,8 @@ class GoogleAuthView(APIView):
 
 class UsuarioListCreateView(generics.ListCreateAPIView):
     queryset = Usuario.objects.select_related('rol', 'facultad').all()
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nombres', 'apellidos', 'correo_institucional']
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -250,7 +279,10 @@ class UsuarioListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), (IsAdministrador | IsDepartamento)()]
+            # La gestión de usuarios es exclusiva del Administrador (antes
+            # también podía crear el Departamento; ese subpanel se retira de
+            # su rol y queda centralizado en Administrador).
+            return [IsAuthenticated(), IsAdministrador()]
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
@@ -273,10 +305,12 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         return UsuarioListSerializer
 
     def get_permissions(self):
+        # La gestión de usuarios (alta, edición, baja) es exclusiva del
+        # Administrador; el Departamento ya no administra usuarios.
         if self.request.method == 'DELETE':
-            return [IsAdminUser()]
+            return [IsAuthenticated(), IsAdministrador()]
         if self.request.method in ('PUT', 'PATCH'):
-            return [IsAuthenticated(), IsOwnerOrAdmin()]
+            return [IsAuthenticated(), (IsAdministrador | IsOwnerOrAdmin)()]
         return [IsAuthenticated()]
 
     def perform_update(self, serializer):

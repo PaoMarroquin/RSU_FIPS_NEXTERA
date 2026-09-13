@@ -1,3 +1,27 @@
+"""
+Reportes agregados de proyectos por facultad y a nivel general.
+
+Responde a las pantallas de estadisticas: cuantos proyectos hay, como se
+reparten por estado, eje RSU, ODS y periodo, cuantos docentes participan y
+cuanto presupuesto suman. Todo se calcula con agregaciones en base de datos,
+no en Python, para que la respuesta no dependa del volumen.
+
+A diferencia de views_consolidado.py, aqui entran proyectos en cualquier
+estado (incluido borrador) y el resultado es solo numerico, sin ficha por
+proyecto ni exportacion a archivo.
+
+Vistas:
+- ReporteGeneralView: agregado de toda la universidad. Solo Administrador.
+- ReporteFacultadView: agregado de una facultad. El Administrador ve
+  cualquiera; la Jefatura RSU, solo la suya.
+
+Conecta con:
+- apps/proyectos/models.py: ProyectoRSU y sus relaciones.
+- apps/proyectos/urls.py: rutas /reportes/general/ y /reportes/facultad/<id>/.
+- apps/utils/permissions.py: IsAdministrador.
+- apps/proyectos/views_consolidado.py: informes de HU-06, restringidos a
+  proyectos aprobados y finalizados y con exportacion a PDF y Excel.
+"""
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -25,9 +49,9 @@ def _build_report(qs):
     )
 
     por_eje = list(
-        qs.values('eje_rsu__nombre')
-        .annotate(total=Count('id'))
-        .order_by('eje_rsu__nombre')
+        qs.values('ejes_rsu__nombre')
+        .annotate(total=Count('id', distinct=True))
+        .order_by('ejes_rsu__nombre')
     )
 
     por_periodo = list(
@@ -82,8 +106,8 @@ class ReporteGeneralView(APIView):
 
     def get(self, request):
         qs = ProyectoRSU.objects.select_related(
-            'eje_rsu', 'periodo'
-        ).prefetch_related('ods', 'docentes_adicionales')
+            'periodo'
+        ).prefetch_related('ejes_rsu', 'ods', 'docentes_adicionales')
 
         estado = request.query_params.get('estado')
         if estado:
@@ -128,8 +152,8 @@ class ReporteFacultadView(APIView):
                 )
 
         qs = ProyectoRSU.objects.filter(facultad=facultad).select_related(
-            'eje_rsu', 'periodo'
-        ).prefetch_related('ods', 'docentes_adicionales')
+            'periodo'
+        ).prefetch_related('ejes_rsu', 'ods', 'docentes_adicionales')
 
         estado = request.query_params.get('estado')
         if estado:

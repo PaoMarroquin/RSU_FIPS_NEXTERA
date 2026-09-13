@@ -1,14 +1,29 @@
+"""
+Registro de los modelos de planificacion en el panel de administracion.
+
+Permite cargar y corregir catalogos (periodos, ejes RSU, sub-items, ODS,
+lineas estrategicas) y revisar las matrices operativas. La matriz se edita
+con inlines para que objetivos y actividades sugeridas se gestionen desde la
+misma pantalla.
+
+Conecta con:
+- apps/planificacion/models.py: modelos que registra.
+- config/urls.py: expone el panel en /admin/.
+"""
 from django.contrib import admin
 from .models import (
     PeriodoAcademico,
     EjeRSU,
     EjeRSUSubitem,
     ODS,
+    ObjetivoRegional,
+    ObjetivoNacional,
     LineaEstrategica,
     MatrizOperativa,
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
+    DocumentoApoyo,
 )
 
 @admin.register(PeriodoAcademico)
@@ -45,6 +60,18 @@ class ODSAdmin(admin.ModelAdmin):
     list_display = ('numero', 'nombre')
     list_filter = ('numero',)
     search_fields = ('nombre',)
+
+
+@admin.register(ObjetivoRegional)
+class ObjetivoRegionalAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre')
+    search_fields = ('codigo', 'nombre')
+
+
+@admin.register(ObjetivoNacional)
+class ObjetivoNacionalAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre')
+    search_fields = ('codigo', 'nombre')
 
 
 @admin.register(LineaEstrategica)
@@ -90,3 +117,10 @@ class ActividadSugeridaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'matriz', 'eje_rsu', 'anio_academico', 'tipo_actividad', 'presupuesto_ref')
     list_filter = ('matriz__facultad', 'anio_academico', 'eje_rsu')
     search_fields = ('nombre', 'tipo_actividad')
+
+
+@admin.register(DocumentoApoyo)
+class DocumentoApoyoAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'categoria', 'publicado_por', 'activo', 'created_at')
+    list_filter = ('categoria', 'activo')
+    search_fields = ('titulo', 'descripcion')

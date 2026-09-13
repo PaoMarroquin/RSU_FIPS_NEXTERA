@@ -1,3 +1,9 @@
+"""
+Configuracion de la aplicacion Django "planificacion".
+
+Conecta con:
+- config/settings.py: donde se declara en INSTALLED_APPS.
+"""
 from django.apps import AppConfig
 
 
