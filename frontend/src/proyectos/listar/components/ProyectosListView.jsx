@@ -1,52 +1,77 @@
-import { FiEye, FiEdit2, FiTrash2 } from "react-icons/fi";
+import React from "react";
+import { FiUser, FiBook, FiTag } from "react-icons/fi";
+import ProjectActions from "./ProjectActions";
+import { STATUS_COLORS, getStatusKey } from "./projectConstants";
 
-const ESTADO_BADGE = {
-  aprobado: "bg-green-100 text-green-700",
-  finalizado: "bg-purple-100 text-purple-700",
-  en_ejecucion: "bg-blue-100 text-blue-700",
-  observado: "bg-red-100 text-red-700",
-  en_revision: "bg-yellow-100 text-yellow-700",
-  borrador: "bg-slate-100 text-slate-700",
-};
-
-export default function ProyectosListView({ projects, canEdit, canDelete, onView, onEdit, onDelete }) {
+export default function ProyectosListView({
+  projects,
+  canEdit,
+  canDelete,
+  onView,
+  onEdit,
+  onDelete,
+}) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
-      <div className="divide-y divide-slate-200">
-        {projects.map((project) => (
-          <div key={project.dbId} className="flex items-center justify-between px-6 py-5 hover:bg-slate-50 transition-colors">
-            <div className="flex-1 min-w-0 pr-4">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md">{project.id}</span>
-                <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${ESTADO_BADGE[project.status] || "bg-slate-100 text-slate-700"}`}>
-                  {project.status}
-                </span>
-              </div>
-              <h3 className="text-lg font-bold text-slate-800 truncate">{project.title}</h3>
-              <div className="flex flex-wrap gap-6 mt-2 text-sm text-slate-500">
-                <span>👤 {project.author}</span>
-                <span>🎓 {project.faculty}</span>
-                <span>📌 {project.tag}</span>
-              </div>
-            </div>
+      <div className="divide-y divide-slate-100">
+        {projects.map((project) => {
+          const statusKey = getStatusKey(project.status);
+          const currentStatusColor = STATUS_COLORS[statusKey] || "bg-slate-100 text-slate-700";
 
-            <div className="flex gap-2">
-              <button onClick={() => onView(project.dbId)} title="Ver expediente" className="p-2 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition">
-                <FiEye />
-              </button>
-              {canEdit && !['en_revision', 'aprobado'].includes(project.status) && (
-                <button onClick={() => onEdit(project.dbId)} title="Editar proyecto" className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition">
-                  <FiEdit2 />
-                </button>
-              )}
-              {canDelete && project.status === 'borrador' && (
-                <button onClick={() => onDelete(project.dbId)} title="Eliminar proyecto" className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition">
-                  <FiTrash2 />
-                </button>
-              )}
+          return (
+            <div
+              key={project.dbId}
+              className="flex flex-col md:flex-row md:items-center justify-between p-4 sm:px-6 gap-4 hover:bg-slate-50/80 transition-colors"
+            >
+              {/* Información Principal */}
+              <div className="flex-1 min-w-0 pr-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                    {project.id}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${currentStatusColor}`}
+                  >
+                    {project.status}
+                  </span>
+                </div>
+
+                <h3
+                  className="text-base font-bold text-slate-800 truncate mb-2"
+                  title={project.title}
+                >
+                  {project.title}
+                </h3>
+
+                {/* Detalles con react-icons y misma estética */}
+                <div className="flex flex-wrap items-center gap-y-1 gap-x-5 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5 truncate">
+                    <FiUser className="text-slate-400 shrink-0" />
+                    {project.author}
+                  </span>
+                  <span className="flex items-center gap-1.5 truncate">
+                    <FiBook className="text-slate-400 shrink-0" />
+                    {project.faculty}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                    <FiTag className="text-slate-400 shrink-0" />
+                    {project.tag || "Sin Eje"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Botones de acción reutilizados */}
+              <div className="self-end md:self-center shrink-0">
+                <ProjectActions
+                  statusKey={statusKey}
+                  onView={() => onView(project.dbId)}
+                  onEdit={canEdit ? () => onEdit(project.dbId) : null}
+                  onDelete={canDelete ? () => onDelete(project.dbId) : null}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
