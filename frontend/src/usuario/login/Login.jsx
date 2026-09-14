@@ -24,23 +24,19 @@ export default function Login() {
   // Auto-login: verifica tokens activos antes de renderizar el formulario
   useEffect(() => {
     const verificarSesion = async () => {
-      if (tokenStore.getAccessToken()) {
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
       const refreshToken = tokenStore.getRefreshToken();
+      console.log(refreshToken)
       if (refreshToken) {
         try {
-          await refreshAccessToken(); // ← ahora comparte el mismo lock que axiosConfig
+          await authApi.refreshToken(refreshToken);
           navigate('/dashboard', { replace: true });
           return;
         } catch (err) {
           tokenStore.clear();
         }
+      } else {
+        setCheckingSession(false);
       }
-
-      setCheckingSession(false);
     };
 
     verificarSesion();
