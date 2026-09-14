@@ -7,34 +7,58 @@ export const useRevision = () => {
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
-  // Estados del Modal de Evaluación y Detalle
+  // Estados del Modal de Evaluación
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedProyecto, setSelectedProyecto] = useState(null); 
-  
-  // Diccionario dinámico exhaustivo para mapear observaciones por cada campo
+  const [selectedProyecto, setSelectedProyecto] = useState(null);
   const [observacionesCampos, setObservacionesCampos] = useState({});
   const [evaluating, setEvaluating] = useState(false);
   const [actionType, setActionType] = useState(null); // 'aprobar' o 'observar'
+  const [activeTab, setActiveTab] = useState("general");
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
-  // Pestañas organizadas
-  const [activeTab, setActiveTab] = useState("general"); 
-  const [metas, setMetas] = useState([]);
-  const [cronograma, setCronograma] = useState([]);
-  const [presupuestoCompleto, setPresupuestoCompleto] = useState([]);
-  const [loadingSubRecursos, setLoadingSubRecursos] = useState(false);
-
-  // Estados del Modal de Visualización
+  // Estados del Modal de Visualización (solo lectura)
   const [modalVistaOpen, setModalVistaOpen] = useState(false);
   const [proyectoDetalle, setProyectoDetalle] = useState(null);
-  const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [loadingVista, setLoadingVista] = useState(false);
+
+  // Diccionario exhaustivo de observaciones — claves alineadas 1:1 con
+  // ProyectoRSUSerializer (backend) y useFormRSU (creación/edición).
+  const CAMPOS_INICIALES = {
+    // Sección I - Identificación y clasificación académica
+    unidad_academica: "", periodo_semestre: "", titulo: "",
+    asignaturas: "", anio_carrera: "", num_docentes_estudiantes: "",
+    lugar_ejecucion: "",
+    // Sección I - Enfoque RSU
+    beneficiarios: "", eje_rsu: "", ejes_subitems: "",
+    tipo_actividad: "", ods: "",
+    metas_indicadores: "", fechas_clave: "",
+    // Sección II - Fundamentación
+    fund_por_que_grupo: "", fund_para_que_proyecto: "", fund_mecanismo_ensenanza: "",
+    // Sección III - Diagnóstico
+    diag_estado_grupo: "", diag_problemas_detectados: "",
+    diag_aportes_formacion: "", diag_justificacion_intervencion: "",
+    // Sección IV - Objetivos
+    obj_logro_intervencion: "", obj_mejora_curricular: "",
+    // Sección V - Resultados
+    resultado_en_beneficiarios: "", resultado_en_curriculo: "", impacto_esperado: "",
+    // Sección VI - Actividades
+    actividades: "",
+    // Sección VII - Cronograma
+    cronograma: "",
+    // Sección VIII - Recursos
+    rec_humanos: "", rec_materiales: "",
+    // Sección IX - Financiamiento
+    monto_financiamiento: "", fuentes_financiamiento: "",
+    descripcion_gastos: "", observaciones_financiamiento: "",
+    // Cierre
+    observacion_general: ""
+  };
 
   const fetchProyectos = useCallback(async () => {
     try {
       setLoading(true);
-      // Usamos el endpoint específico del backend para Módulo 4: Revisión
       const res = await proyectoApi.obtenerProyectosParaRevisar();
-      const pendientesDeRevision = res.results || res || [];
-      setProyectos(pendientesDeRevision);
+      setProyectos(res.results || res || []);
     } catch (error) {
       console.error("Error fetching revisiones:", error);
       showToast("error", "No se pudo conectar con el servidor de proyectos.");
@@ -47,52 +71,35 @@ export const useRevision = () => {
     setProyectoDetalle(null);
     setModalVistaOpen(true);
     try {
-      setLoadingDetalle(true);
+      setLoadingVista(true);
       const data = await proyectoApi.obtenerProyectoPorId(proyecto.id);
       setProyectoDetalle(data);
     } catch (error) {
       console.error("Error cargando detalle del proyecto:", error);
       showToast("error", "Error al cargar el detalle del expediente.");
     } finally {
-      setLoadingDetalle(false);
+      setLoadingVista(false);
     }
   };
 
   const openModalRevision = async (proyecto, action) => {
-    setSelectedProyecto(null); 
+    setSelectedProyecto(null);
     setActionType(action);
     setActiveTab("general");
     setModalOpen(true);
-    setLoadingSubRecursos(true);
-    
-    setObservacionesCampos({
-      titulo: "", codigo: "", linea_investigacion: "", ods_vinculados: "",
-      resumen: "", justificacion: "", planteamiento_problema: "",
-      objetivo_general: "", objetivos_especificos: "", localizacion: "",
-      distrito_provincia: "", beneficiarios_directos: "", beneficiarios_indirectos: "",
-      docentes_participantes: "", estudiantes_participantes: "", entities_aliadas: "",
-      metas_globales: "", cronograma_global: "", monto_financiamiento: "",
-      partidas_bienes: "", partidas_servicios: "", observacion_general: ""
-    });
-    
-    try {
-      // Llamadas concurrentes centralizadas
-      const [resProyectoFull, resMetas, resCronograma, resPresupuesto] = await Promise.all([
-        proyectoApi.obtenerProyectoPorId(proyecto.id),
-        proyectoApi.obtenerMetasIndicadores(proyecto.id).catch(() => []),
-        proyectoApi.obtenerCronograma(proyecto.id).catch(() => []),
-        proyectoApi.obtenerPresupuesto(proyecto.id).catch(() => [])
-      ]);
+    setLoadingDetalle(true);
+    setObservacionesCampos({ ...CAMPOS_INICIALES });
 
-      setSelectedProyecto(resProyectoFull);
-      setMetas(resMetas.results || resMetas || []);
-      setCronograma(resCronograma.results || resCronograma || []);
-      setPresupuestoCompleto(resPresupuesto.results || resPresupuesto || []);
+    try {
+      // Una sola llamada: el serializer ya trae actividades, cronograma,
+      // metas_indicadores y fuentes_financiamiento anidados.
+      const data = await proyectoApi.obtenerProyectoPorId(proyecto.id);
+      setSelectedProyecto(data);
     } catch (error) {
-      console.error("Error cargando los datos detallados del expediente:", error);
+      console.error("Error cargando el expediente:", error);
       showToast("error", "Error al sincronizar los campos del proyecto.");
     } finally {
-      setLoadingSubRecursos(false);
+      setLoadingDetalle(false);
     }
   };
 
@@ -124,7 +131,7 @@ export const useRevision = () => {
           textoEstructurado += `RESUMEN GENERAL:\n${observacionesCampos.observacion_general.trim()}\n\n`;
         }
         textoEstructurado += "DETALLE DE OBSERVACIONES POR CAMPO:\n";
-        
+
         Object.entries(camposConObservacion).forEach(([campo, textoObs]) => {
           const nombreFormateado = campo.replace(/_/g, " ").toUpperCase();
           textoEstructurado += `- En [${nombreFormateado}]: ${textoObs}\n`;
@@ -132,7 +139,7 @@ export const useRevision = () => {
         payload.comentario_tecnico = textoEstructurado;
         await proyectoApi.observarProyecto(selectedProyecto.id, payload);
       }
-      
+
       showToast("success", `El proyecto ha sido ${actionType === 'aprobar' ? 'Aprobado' : 'Observado'} con éxito.`);
       setModalOpen(false);
       fetchProyectos();
@@ -149,8 +156,8 @@ export const useRevision = () => {
   return {
     proyectos, loading, modalOpen, setModalOpen, selectedProyecto,
     observacionesCampos, evaluating, actionType, activeTab, setActiveTab,
-    metas, cronograma, presupuestoCompleto, loadingSubRecursos,
-    modalVistaOpen, setModalVistaOpen, proyectoDetalle, loadingDetalle,
+    loadingDetalle,
+    modalVistaOpen, setModalVistaOpen, proyectoDetalle, loadingVista,
     fetchProyectos, openModalVisualizacion, openModalRevision, handleInputChange, handleEvaluate
   };
 };
