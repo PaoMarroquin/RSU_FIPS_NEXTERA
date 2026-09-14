@@ -38,7 +38,7 @@ export default function Proyectos() {
     faculty: p.facultad_nombre,
     progress: parseFloat(p.porcentaje_ejecucion) || 0,
     status: p.estado,
-    tag: p.eje_rsu_nombre,
+    ejes_rsu_info: p.ejes_rsu_info,
   }));
 
   const handleNuevoProyecto = () => {

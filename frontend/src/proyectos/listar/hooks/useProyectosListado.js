@@ -20,7 +20,6 @@ export function useProyectosListado() {
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      // ⚠️ nombres de query params asumidos (page, search) — confirmar con el backend
       const data = await proyectoApi.obtenerProyectos({ page, search: debouncedSearch });
       setProjectsDb(data.results);
       setTotalPages(Math.ceil(data.count / 10));

@@ -45,7 +45,7 @@ export default function Recursos({ data, updateData }) {
 
       {(tieneNegativos || totalHum === 0) && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 animate-in fade-in slide-in-from-top-2">
-          <p className="font-bold">Correcciones requeridas para marcar este paso como completado:</p>
+          <p>Correcciones requeridas para marcar este paso como completado:</p>
           <ul className="list-disc list-inside ml-1 mt-0.5 opacity-90">
             {tieneNegativos && <li>No se permiten valores negativos en el conteo de personas.</li>}
             {totalHum === 0 && <li>Debe registrar al menos un (1) miembro en los Recursos Humanos del proyecto.</li>}

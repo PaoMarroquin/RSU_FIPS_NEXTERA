@@ -15,6 +15,7 @@ export default function ProyectosListView({
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
       <div className="divide-y divide-slate-100">
         {projects.map((project) => {
+            console.log("PROYECTO:", project);
           const statusKey = getStatusKey(project.status);
           const currentStatusColor = STATUS_COLORS[statusKey] || "bg-slate-100 text-slate-700";
 
@@ -55,7 +56,7 @@ export default function ProyectosListView({
                   </span>
                   <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
                     <FiTag className="text-slate-400 shrink-0" />
-                    {project.tag || "Sin Eje"}
+                    {project.ejes_rsu_info?.map((eje) => eje.nombre).join(", ") || "Sin Eje"}
                   </span>
                 </div>
               </div>

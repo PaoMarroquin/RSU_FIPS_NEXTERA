@@ -96,7 +96,7 @@ export default function Cronograma({ data, updateData }) {
 
       {cronogramas.length > 0 && (tieneCamposVacios || tieneErroresFecha) && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1 text-xs text-red-700 animate-in fade-in slide-in-from-top-2">
-          <p className="font-bold">⚠️ Por favor, corrige los siguientes problemas para asegurar el guardado en el servidor:</p>
+          <p > Por favor, corrige los siguientes problemas para asegurar el guardado en el servidor:</p>
           <ul className="list-disc list-inside ml-1 space-y-0.5 opacity-90">
             {tieneCamposVacios && <li>Hay filas con campos obligatorios vacíos (Descripción, Fecha Inicio o Fin).</li>}
             {tieneErroresFecha && <li>Las fechas no pueden cruzarse ni salirse del rango de Inicio y Termino del proyecto.</li>}

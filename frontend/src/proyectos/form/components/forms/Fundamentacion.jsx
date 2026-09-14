@@ -18,18 +18,6 @@ export default function Fundamentacion({ data, updateData }) {
         </div>
       </div>
 
-      {/* CUADRO DE PREGUNTAS GUÍA */}
-      <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-5">
-        <h3 className="text-sm font-bold text-blue-800 mb-2.5">
-          Preguntas guía para la fundamentación:
-        </h3>
-        <ul className="list-disc list-inside text-xs text-blue-700 space-y-1.5 ml-1">
-          <li>¿Por qué se eligió el grupo beneficiario?</li>
-          <li>¿Para qué servirá el proyecto?</li>
-          <li>¿Cuál será el mecanismo de enseñanza-aprendizaje?</li>
-        </ul>
-      </div>
-
       {/* CAMPOS DE TEXTO */}
       <div className="space-y-5">
         

@@ -1,4 +1,5 @@
-let accessToken = null;
+//let accessToken = null;
+let accessToken = localStorage.getItem('access_token'); //este de aqui agregue y el if de abajo de setaccesstoken
 const listeners = new Set();
 
 const notify = () => listeners.forEach((cb) => cb(!!accessToken));
@@ -8,6 +9,9 @@ export const tokenStore = {
 
   setAccessToken(token) {
     accessToken = token;
+      if (token) {
+   localStorage.setItem('access_token', token);
+ }
     notify();
   },
 

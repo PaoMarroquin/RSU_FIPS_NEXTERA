@@ -11,6 +11,7 @@ export default function ProjectCard({
   progress,
   status,
   tag,
+  ejes_rsu_info,
   onEdit,
   onDelete,
   onView,
@@ -67,7 +68,8 @@ export default function ProjectCard({
       {/* FOOTER (Tag y Botones de Acción) */}
       <div className="mt-4 flex items-center justify-between">
         <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-1 rounded-md">
-          {tag || "Sin Eje"}
+          {ejes_rsu_info?.map((eje) => eje.nombre).join(", ") || "Sin Eje"}
+          
         </span>
 
         <ProjectActions

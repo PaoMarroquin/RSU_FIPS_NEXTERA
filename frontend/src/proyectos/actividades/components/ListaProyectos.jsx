@@ -14,7 +14,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
       {loading ? (
         <div className="text-center py-12 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-medium">
           <div className="w-6 h-6 border-2 border-[#7B1E3A] border-t-transparent rounded-full animate-spin"></div>
-          Consultando registros en Django...
+          Consultando registros...
         </div>
       ) : proyectos.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center gap-3">
