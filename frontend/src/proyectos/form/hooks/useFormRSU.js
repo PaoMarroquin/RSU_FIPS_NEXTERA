@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../shared/context/ToastContext';
 import { proyectoApi } from '../../../shared/api/proyectos/proyectoApi';
@@ -12,7 +12,7 @@ const mockInitialData = {
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
   asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
   beneficiarios: '', 
-  eje_rsu: null, ejes_subitems: [], eje_detalle: "",
+  eje_rsu: [], ejes_subitems: [], eje_detalle: "",
   tiposActividad: [],
   tipoActividadOtro: '',
   metas_indicadores: [],
@@ -70,7 +70,7 @@ const isNumberValid = (value) => value !== null && value >= 0;
 
 const VALIDACIONES = {
   1: {
-    periodo: (data) => isIdValid(data.periodo),
+    //periodo: (data) => isIdValid(data.periodo),
     facultad: (data) => isIdValid(data.facultad),
     escuela: (data) => isIdValid(data.escuela),
     departamento: (data) => isIdValid(data.departamento),
@@ -80,7 +80,9 @@ const VALIDACIONES = {
     beneficiarios: (data) => isTextValid(data.beneficiarios),
     numDocentes: (data) => isNumberValid(data.numDocentes),
     numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
-    eje_rsu: (data) => isIdValid(data.eje_rsu),
+    ejes_rsu: (data) => 
+      (Array.isArray(data.ejes_rsu) && data.ejes_rsu.length > 0) ||
+      (Array.isArray(data.ejes_subitems) && data.ejes_subitems.length > 0),
     metas_indicadores: (data) => Array.isArray(data.metas_indicadores) && data.metas_indicadores.some(item => (item.meta_descripcion || '').trim() && (item.indicador_nombre || '').trim()),
     fechaInicio: (data) => isTextValid(data.fechaInicio),
     fechaTermino: (data) => isTextValid(data.fechaTermino),
@@ -141,6 +143,7 @@ const VALIDACIONES = {
 export const useFormRSU = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
   
@@ -216,6 +219,9 @@ export const useFormRSU = () => {
   };
 
   const enviarProyectoBackend = async (modo = 'BORRADOR') => {
+    if (isSubmittingRef.current) return false;
+    isSubmittingRef.current = true;
+
     const camposObligatorios = [
       formData.periodo,
       formData.facultad, formData.escuela, formData.departamento, 
@@ -236,7 +242,7 @@ export const useFormRSU = () => {
         lugar_ejecucion: formData.lugar || "",
         beneficiarios: [], 
         benef_otro_detalle: formData.beneficiarios || "",
-        eje_rsu: parseInt(formData.eje_rsu, 10),
+        ejes_rsu: formData.ejes_rsu || [],
         ejes_subitems: formData.ejes_subitems || [],
         eje_detalle: formData.eje_detalle || "",
         objetivo_institucional: null, 
@@ -486,6 +492,7 @@ export const useFormRSU = () => {
         showToast('error', "Hubo un error al intentar conectarse al servidor.");
       }
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
