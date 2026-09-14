@@ -71,7 +71,7 @@ function App() {
           </Route>
 
           {/* Redireccion por defecto a rutas inexistentes */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </ToastProvider>
