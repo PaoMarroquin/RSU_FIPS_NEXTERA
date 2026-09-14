@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { FiTrash2, FiPlus } from "react-icons/fi";
 // Ajustamos las rutas hacia la carpeta shared
-import PaginatedSelect from '../../../../shared/components/forms/PaginatedSelect'; 
+import PaginatedSelect from '../../../../shared/components/forms/PaginatedSelect';
 import BeneficiariosSelector from '../../../../shared/components/forms/BeneficiariosSelector';
 import EjeRSUSelector from '../../../../shared/components/forms/EjeRSUSelector';
 // Importamos el API correcto
-import { catalogoApi } from '../../../../shared/api/usuario/catalogoApi'; 
+import { catalogoApi } from '../../../../shared/api/usuario/catalogoApi';
 
 export default function DatosGenerales({ data, updateData }) {
 
@@ -12,11 +13,11 @@ export default function DatosGenerales({ data, updateData }) {
     const { name, type, checked, value } = e.target;
     if (type === 'date' && value) {
       if (name === 'fechaTermino' && data.fechaInicio && value < data.fechaInicio) {
-        alert('⚠️ La fecha de término no puede ser anterior a la fecha de inicio.');
+        alert('La fecha de término no puede ser anterior a la fecha de inicio.');
         return;
       }
       if (name === 'fechaInicio' && data.fechaTermino && value > data.fechaTermino) {
-        alert('⚠️ La fecha de inicio no puede ser posterior a la fecha de término.');
+        alert('La fecha de inicio no puede ser posterior a la fecha de término.');
         return;
       }
     }
@@ -228,13 +229,33 @@ export default function DatosGenerales({ data, updateData }) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">N° Docentes Participantes <span className="text-red-500">*</span> </label>
-            <input type="number" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="numDocentes" value={data.numDocentes === null ? '' : data.numDocentes} onChange={handleChange} />
+            <label className="text-xs font-semibold text-slate-600">
+              N° Docentes Participantes <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+              name="numDocentes"
+              value={data.numDocentes === null ? '' : data.numDocentes}
+              onChange={handleChange}
+            />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">N° Estudiantes Participantes <span className="text-red-500">*</span> </label>
-            <input type="number" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="numEstudiantes" value={data.numEstudiantes === null ? '' : data.numEstudiantes} onChange={handleChange} />
+            <label className="text-xs font-semibold text-slate-600">
+              N° Estudiantes Participantes <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+              name="numEstudiantes"
+              value={data.numEstudiantes === null ? '' : data.numEstudiantes}
+              onChange={handleChange}
+            />
           </div>
 
           <div className="flex flex-col gap-1 md:col-span-2">
@@ -361,71 +382,119 @@ export default function DatosGenerales({ data, updateData }) {
 
       {/* 5. META E INDICADOR */}
       <div>
-        <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
-          Meta e Indicador
-        </h3>
-        <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
+        {/* CABECERA DE SECCIÓN */}
+        <div className="flex items-center justify-between mb-3 pb-1.5 border-b border-slate-100">
+          <h3 className="text-sm font-bold text-slate-800">Meta e Indicador</h3>
+          <span className="text-xs font-semibold text-slate-500">
+            {listaMetas.length} {listaMetas.length === 1 ? "registro" : "registros"}
+          </span>
+        </div>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 space-y-4">
           {listaMetas.map((meta, index) => (
             <div
               key={index}
-              className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4"
+              className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:border-slate-300 transition-all relative"
             >
-              <input
-                type="text"
-                placeholder="Descripción de la meta"
-                value={meta.meta_descripcion}
-                onChange={(e) =>
-                  handleMetaChange(index, "meta_descripcion", e.target.value)
-                }
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-              />
+              {/* NUMERACIÓN Y BOTÓN ELIMINAR */}
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                  Meta #{index + 1}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => eliminarMeta(index)}
+                  title="Eliminar registro"
+                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  <FiTrash2 className="w-4 h-4" />
+                </button>
+              </div>
 
-              <input
-                type="text"
-                placeholder="Nombre del indicador"
-                value={meta.indicador_nombre}
-                onChange={(e) =>
-                  handleMetaChange(index, "indicador_nombre", e.target.value)
-                }
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-              />
+              {/* GRILLA DE CAMPOS (12 Columnas) */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                {/* 1. Descripción de la Meta (Textarea - 5 columnas) */}
+                <div className="md:col-span-5 flex flex-col">
+                  <label className="text-xs font-semibold text-slate-600 mb-1">
+                    Descripción de la meta
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Describa detalladamente la meta..."
+                    value={meta.meta_descripcion}
+                    onChange={(e) =>
+                      handleMetaChange(index, "meta_descripcion", e.target.value)
+                    }
+                    className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] resize-y transition-all"
+                  />
+                </div>
 
-              <input
-                type="number"
-                placeholder="Línea base"
-                value={meta.linea_base}
-                onChange={(e) =>
-                  handleMetaChange(index, "linea_base", e.target.value)
-                }
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-              />
+                {/* 2. Nombre del Indicador (Textarea - 4 columnas) */}
+                <div className="md:col-span-4 flex flex-col">
+                  <label className="text-xs font-semibold text-slate-600 mb-1">
+                    Nombre del indicador
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Nombre o fórmula del indicador..."
+                    value={meta.indicador_nombre}
+                    onChange={(e) =>
+                      handleMetaChange(index, "indicador_nombre", e.target.value)
+                    }
+                    className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] resize-y transition-all"
+                  />
+                </div>
 
-              <input
-                type="number"
-                placeholder="Valor meta"
-                value={meta.valor_meta}
-                onChange={(e) =>
-                  handleMetaChange(index, "valor_meta", e.target.value)
-                }
-                className="h-10 rounded-md border border-slate-300 px-3 text-sm"
-              />
+                {/* 3. Números: Línea Base y Valor Meta (3 columnas) */}
+                <div className="md:col-span-3 grid grid-cols-2 gap-2 content-start">
+                  <div className="flex flex-col">
+                    <label
+                      className="text-xs font-semibold text-slate-600 mb-1 truncate"
+                      title="Línea base"
+                    >
+                      Línea base
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={meta.linea_base}
+                      onChange={(e) =>
+                        handleMetaChange(index, "linea_base", e.target.value)
+                      }
+                      className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all"
+                    />
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => eliminarMeta(index)}
-                className="h-10 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
-              >
-                ✕
-              </button>
+                  <div className="flex flex-col">
+                    <label
+                      className="text-xs font-semibold text-slate-600 mb-1 truncate"
+                      title="Valor meta"
+                    >
+                      Valor meta
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="100"
+                      value={meta.valor_meta}
+                      onChange={(e) =>
+                        handleMetaChange(index, "valor_meta", e.target.value)
+                      }
+                      className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
 
+          {/* BOTÓN AGREGAR */}
           <button
             type="button"
             onClick={agregarMeta}
-            className="mt-2 px-4 py-2 rounded-md bg-[#b1122b] text-white hover:bg-[#920f24]"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#b1122b] text-white text-sm font-medium hover:bg-[#920f24] active:bg-[#780c1d] transition-colors shadow-sm"
           >
-            + Agregar meta e indicador
+            <FiPlus className="w-4 h-4" />
+            Agregar meta e indicador
           </button>
         </div>
       </div>
@@ -450,13 +519,37 @@ export default function DatosGenerales({ data, updateData }) {
               onChange={handleChange}
             />
             {(data.fechaInicio && data.fechaTermino && data.fechaInicio > data.fechaTermino) && (
-              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Mayor a la fecha de término</span>
+              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">Mayor a la fecha de término</span>
             )}
           </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Fecha de Evaluación de Avance</label>
-            <input type="date" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="fechaEvaluacion" value={data.fechaEvaluacion} onChange={handleChange} />
+            <label className="text-xs font-semibold text-slate-600">
+              Fecha de Evaluación de Avance
+            </label>
+            <input
+              type="date"
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.fechaEvaluacion &&
+                ((data.fechaInicio && data.fechaEvaluacion < data.fechaInicio) ||
+                  (data.fechaTermino && data.fechaEvaluacion > data.fechaTermino))
+                ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                }`}
+              name="fechaEvaluacion"
+              value={data.fechaEvaluacion || ""}
+              min={data.fechaInicio || undefined}
+              max={data.fechaTermino || undefined}
+              onChange={handleChange}
+            />
+            {data.fechaEvaluacion &&
+              ((data.fechaInicio && data.fechaEvaluacion < data.fechaInicio) ||
+                (data.fechaTermino && data.fechaEvaluacion > data.fechaTermino)) && (
+                <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                  Debe estar entre la fecha de inicio y término
+                </span>
+              )}
           </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Fecha de Término <span className="text-red-500">*</span></label>
             <input
@@ -471,7 +564,7 @@ export default function DatosGenerales({ data, updateData }) {
               onChange={handleChange}
             />
             {(data.fechaTermino && data.fechaInicio && data.fechaTermino < data.fechaInicio) && (
-              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Menor a la fecha de inicio</span>
+              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">Menor a la fecha de inicio</span>
             )}
           </div>
         </div>
@@ -479,18 +572,91 @@ export default function DatosGenerales({ data, updateData }) {
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mt-4">
           <label className="text-xs font-bold text-slate-700 block mb-3">Fechas de Aplicación de Encuestas</label>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            {/* Encuesta a Docentes */}
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">Encuesta a Docentes</label>
-              <input type="date" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="encuestaDocentes" value={data.encuestaDocentes} onChange={handleChange} />
+              <label className="text-[11px] font-medium text-slate-500">
+                Encuesta a Docentes
+              </label>
+              <input
+                type="date"
+                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaDocentes &&
+                    ((data.fechaInicio && data.encuestaDocentes < data.fechaInicio) ||
+                      (data.fechaTermino && data.encuestaDocentes > data.fechaTermino))
+                    ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                  }`}
+                name="encuestaDocentes"
+                value={data.encuestaDocentes || ""}
+                min={data.fechaInicio || undefined}
+                max={data.fechaTermino || undefined}
+                onChange={handleChange}
+              />
+              {data.encuestaDocentes &&
+                ((data.fechaInicio && data.encuestaDocentes < data.fechaInicio) ||
+                  (data.fechaTermino && data.encuestaDocentes > data.fechaTermino)) && (
+                  <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                    Debe estar entre la fecha de inicio y término
+                  </span>
+                )}
             </div>
+
+            {/* Encuesta a Estudiantes */}
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">Encuesta a Estudiantes</label>
-              <input type="date" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="encuestaEstudiantes" value={data.encuestaEstudiantes} onChange={handleChange} />
+              <label className="text-[11px] font-medium text-slate-500">
+                Encuesta a Estudiantes
+              </label>
+              <input
+                type="date"
+                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaEstudiantes &&
+                    ((data.fechaInicio && data.encuestaEstudiantes < data.fechaInicio) ||
+                      (data.fechaTermino && data.encuestaEstudiantes > data.fechaTermino))
+                    ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                  }`}
+                name="encuestaEstudiantes"
+                value={data.encuestaEstudiantes || ""}
+                min={data.fechaInicio || undefined}
+                max={data.fechaTermino || undefined}
+                onChange={handleChange}
+              />
+              {data.encuestaEstudiantes &&
+                ((data.fechaInicio && data.encuestaEstudiantes < data.fechaInicio) ||
+                  (data.fechaTermino && data.encuestaEstudiantes > data.fechaTermino)) && (
+                  <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                    Debe estar entre la fecha de inicio y término
+                  </span>
+                )}
             </div>
+
+            {/* Encuesta a Grupo Destinatario */}
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">Encuesta a Grupo Destinatario</label>
-              <input type="date" className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all" name="encuestaDestinatarios" value={data.encuestaDestinatarios} onChange={handleChange} />
+              <label className="text-[11px] font-medium text-slate-500">
+                Encuesta a Grupo Destinatario
+              </label>
+              <input
+                type="date"
+                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaDestinatarios &&
+                    ((data.fechaInicio && data.encuestaDestinatarios < data.fechaInicio) ||
+                      (data.fechaTermino && data.encuestaDestinatarios > data.fechaTermino))
+                    ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                    : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                  }`}
+                name="encuestaDestinatarios"
+                value={data.encuestaDestinatarios || ""}
+                min={data.fechaInicio || undefined}
+                max={data.fechaTermino || undefined}
+                onChange={handleChange}
+              />
+              {data.encuestaDestinatarios &&
+                ((data.fechaInicio && data.encuestaDestinatarios < data.fechaInicio) ||
+                  (data.fechaTermino && data.encuestaDestinatarios > data.fechaTermino)) && (
+                  <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                    Debe estar entre la fecha de inicio y término
+                  </span>
+                )}
             </div>
+
           </div>
         </div>
       </div>
