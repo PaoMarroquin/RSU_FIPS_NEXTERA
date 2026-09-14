@@ -12,7 +12,6 @@ export const NAV_BY_ROLE = {
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos", icon: FiFolder, label: "Proyectos Departamento" },
     { to: "/evaluacion", icon: FiCheckSquare, label: "Evaluar Proyectos" },
-    { to: "/usuarios", icon: FiUsers, label: "Usuarios" },
   ],
   autoridad: [
     { to: "/proyectos", icon: FiFolder, label: "Todo RSU" },
@@ -22,6 +21,9 @@ export const NAV_BY_ROLE = {
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos-jefatura", icon: FiFolder, label: "Proyectos RSU" },
     { to: "/matriz-operativa", icon: FiMap, label: "Matriz Operativa" },
+  ],
+  administrador :[
+    { to: "/usuarios", icon: FiUsers, label: "Usuarios" },
   ],
 };
 
