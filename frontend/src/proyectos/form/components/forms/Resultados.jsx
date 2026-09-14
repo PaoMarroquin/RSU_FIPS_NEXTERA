@@ -2,8 +2,7 @@ import React from 'react';
 
 export default function Resultados({ data, updateData }) {
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    updateData(name, value);
+    updateData(e.target.name, e.target.value);
   };
 
   return (

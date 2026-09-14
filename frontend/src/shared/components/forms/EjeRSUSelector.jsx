@@ -6,6 +6,9 @@ export default function EjeRSUSelector({ data, updateData }) {
   const [ejesDb, setEjesDb] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const ejesSeleccionados = Array.isArray(data.ejes_rsu) ? data.ejes_rsu : [];
+  const subitemsSeleccionados = Array.isArray(data.ejes_subitems) ? data.ejes_subitems : [];
+
   useEffect(() => {
     const fetchEjes = async () => {
       try {
@@ -22,8 +25,34 @@ export default function EjeRSUSelector({ data, updateData }) {
     fetchEjes();
   }, []);
 
-  const ejesSeleccionados = Array.isArray(data.ejes_rsu) ? data.ejes_rsu : [];
-  const subitemsSeleccionados = Array.isArray(data.ejes_subitems) ? data.ejes_subitems : [];
+  // Auto-sincronizar ejes_rsu al cargar ejesDb o al montar el componente con datos existentes
+  useEffect(() => {
+    if (ejesDb.length === 0) return;
+
+    const ejesConSubitemsActivos = ejesDb
+      .filter(eje => eje.subitems && eje.subitems.length > 0)
+      .filter(eje =>
+        eje.subitems.some(sub => subitemsSeleccionados.some(s => s.sub_eje === sub.id))
+      )
+      .map(eje => eje.id);
+
+    const ejesSinSubitemsActuales = ejesSeleccionados.filter(id => {
+      const eje = ejesDb.find(e => e.id === id);
+      return eje && (!eje.subitems || eje.subitems.length === 0);
+    });
+
+    const todosEjesActivos = Array.from(
+      new Set([...ejesConSubitemsActivos, ...ejesSinSubitemsActuales])
+    );
+
+    const sonIguales =
+      todosEjesActivos.length === ejesSeleccionados.length &&
+      todosEjesActivos.every(id => ejesSeleccionados.includes(id));
+
+    if (!sonIguales) {
+      updateData("ejes_rsu", todosEjesActivos);
+    }
+  }, [ejesDb, subitemsSeleccionados]);
 
   // Sincroniza y actualiza los IDs únicos de ejes_rsu en función de las selecciones
   const sincronizarEjes = (nuevosSubitems, nuevosEjesSinSubitems) => {
@@ -112,7 +141,11 @@ export default function EjeRSUSelector({ data, updateData }) {
 
       {ejesDb.map((eje) => {
         const tieneSubitems = eje.subitems && eje.subitems.length > 0;
-        const esEjeActivo = ejesSeleccionados.includes(eje.id);
+        
+        // Determina si el eje está activo dinámicamente según sus subítems o selección directa
+        const esEjeActivo = tieneSubitems
+          ? eje.subitems.some(sub => subitemsSeleccionados.some(s => s.sub_eje === sub.id))
+          : ejesSeleccionados.includes(eje.id);
 
         return (
           <div 

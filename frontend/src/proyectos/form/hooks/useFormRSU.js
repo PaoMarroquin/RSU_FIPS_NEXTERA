@@ -107,19 +107,19 @@ const VALIDACIONES = {
       resultado_en_beneficiarios: (data) => isTextValid(data.resultado_en_beneficiarios),
       resultado_en_curriculo: (data) => isTextValid(data.resultado_en_curriculo),
     },
-    6: {
-      actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0,
-    },
-    7: {
-      cronogramas: (data) => 
-        Array.isArray(data.cronogramas) && 
-        data.cronogramas.length > 0 && 
-        data.cronogramas.every(item => 
-          item.descripcion?.trim() !== "" && 
-          item.fecha_inicio !== "" && 
-          item.fecha_fin !== "" &&
-          item.fecha_fin >= item.fecha_inicio
-        ),
+  6: {
+    actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0,
+  },
+  7: {
+    cronogramas: (data) => 
+      Array.isArray(data.cronogramas) && 
+      data.cronogramas.length > 0 && 
+      data.cronogramas.every(item => 
+        item.descripcion?.trim() !== "" && 
+        item.fecha_inicio !== "" && 
+        item.fecha_fin !== "" &&
+        item.fecha_fin >= item.fecha_inicio
+      ),
     },
   8: {
       recursos: (data) => {
@@ -150,6 +150,7 @@ export const useFormRSU = () => {
   const [formData, setFormData] = useState(() => {
     try {
       const draft = localStorage.getItem('rsu_draft');
+      console.log(draft)
       if (draft) {
         const parsedDraft = JSON.parse(draft);
         if (parsedDraft.tipoActividad !== undefined && parsedDraft.tiposActividad === undefined) {
@@ -165,6 +166,7 @@ export const useFormRSU = () => {
           parsedDraft.tipoActividadOtro = codigoBackend ? '' : (viejo && viejo !== '__OTROS__' ? viejo : '');
           delete parsedDraft.tipoActividad;
         }
+        console.log(parsedDraft)
         return { ...mockInitialData, ...parsedDraft };
       }
     } catch (error) {
