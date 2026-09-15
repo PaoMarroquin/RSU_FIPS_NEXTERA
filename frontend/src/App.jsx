@@ -63,7 +63,15 @@ function App() {
 
           <Route
             element={
-              <ProtectedRoute allowedRoles={["jefatura", "departamento", "autoridad"]}/>
+              <ProtectedRoute 
+               allowedRoles={[
+        "departamento",
+        "autoridad",
+        "jefatura rsu",
+        "administrador",
+      ]}
+              
+              />
             }
           >
               <Route path="/informes-consolidado" element={<InformeConsolidado />}  />

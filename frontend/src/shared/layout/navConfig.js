@@ -28,6 +28,8 @@ export const NAV_BY_ROLE = {
   ],
   administrador :[
     { to: "/usuarios", icon: FiUsers, label: "Usuarios" },
+    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes FIPS" },
+
   ],
 };
 
