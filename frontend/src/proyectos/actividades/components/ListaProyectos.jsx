@@ -180,7 +180,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
     <div className="space-y-4">
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <FiFolder className="text-[#7B1E3A]" />
+          <FiFolder className="text-[#b1122b]" />
           Mis Proyectos Aprobados (Ejecución RSU)
         </h2>
 
@@ -220,10 +220,10 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                 key={opcion.id}
                 type="button"
                 onClick={() => setFiltro(opcion.id)}
-                className={`px-3 py-2 rounded-lg text-[11px] font-semibold transition-all border ${
+                className={`px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors border ${
                   filtro === opcion.id
-                    ? "bg-[#7B1E3A] text-white border-[#7B1E3A]"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-[#7B1E3A] hover:text-[#7B1E3A]"
+                    ? "bg-[#b1122b] text-white border-[#b1122b]"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-[#b1122b]/40"
                 }`}
               >
                 {opcion.label}
@@ -245,7 +245,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
 
       {loading ? (
         <div className="text-center py-12 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-medium">
-          <div className="w-6 h-6 border-2 border-[#7B1E3A] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#b1122b] border-t-transparent rounded-full animate-spin" />
           Consultando registros...
         </div>
       ) : proyectos.length === 0 ? (
@@ -272,7 +272,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
           <button
             type="button"
             onClick={() => setFiltro("todos")}
-            className="mt-3 text-[11px] font-bold text-[#7B1E3A] hover:underline"
+            className="mt-3 text-[11px] font-bold text-[#b1122b] hover:text-[#8a0e21] transition-colors"
           >
             Ver todos los proyectos
           </button>
@@ -296,7 +296,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
               <div
                 key={proy.id}
                 onClick={() => onSelect(proy)}
-                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#7B1E3A] shadow-sm hover:shadow transition-all cursor-pointer group"
+                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#b1122b] shadow-sm hover:shadow transition-all cursor-pointer group"
               >
                 <div className="flex justify-between items-start">
                   <div className="space-y-1 min-w-0">
@@ -304,7 +304,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                       {proy.codigo || `ID #${proy.id}`}
                     </span>
 
-                    <h3 className="text-sm font-bold text-slate-800 group-hover:text-[#7B1E3A] transition-colors">
+                    <h3 className="text-sm font-bold text-slate-800 group-hover:text-[#b1122b] transition-colors">
                       {proy.titulo}
                     </h3>
 
@@ -322,7 +322,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <FiCheckCircle className="text-[#7B1E3A]" />
+                      <FiCheckCircle className="text-[#b1122b]" />
 
                       <span className="text-[11px] font-semibold text-slate-600">
                         Avance de actividades
@@ -336,7 +336,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
 
                   <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-[#7B1E3A] rounded-full transition-all"
+                      className="h-full bg-[#b1122b] rounded-full transition-all"
                       style={{
                         width: `${avance}%`,
                       }}
@@ -359,7 +359,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                     <div className="flex items-center gap-2 mb-1">
                       <FiCalendar className="text-slate-500 text-sm" />
 
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                         Próxima actividad
                       </span>
                     </div>
@@ -387,7 +387,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                     <div className="flex items-center gap-2 mb-1">
                       {prioridadIcono}
 
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                         Prioridad
                       </span>
                     </div>
