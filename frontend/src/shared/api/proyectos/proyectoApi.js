@@ -305,4 +305,59 @@ obtenerMetasIndicadores: async (proyectoPk) => {
   return response.data;
 },
 
+  // ── INFORMES CONSOLIDADOS ────────────────────────────────────────────────
+  obtenerInformeConsolidado: async (params = {}) => {
+    const response = await api.get(
+      '/api/v1/informes/consolidado/',
+      { params }
+    );
+    return response.data;
+  },
+
+  obtenerFiltrosInformeConsolidado: async () => {
+    const response = await api.get(
+      '/api/v1/informes/consolidado/filtros/'
+    );
+    return response.data;
+  },
+
+  obtenerProyectosConsolidados: async (params = {}) => {
+    const response = await api.get(
+      '/api/v1/informes/consolidado/proyectos/',
+      { params }
+    );
+    return response.data;
+  },
+
+  obtenerDetalleProyectoConsolidado: async (id) => {
+    const response = await api.get(
+      `/api/v1/informes/consolidado/proyectos/${id}/`
+    );
+    return response.data;
+  },
+
+  descargarInformeConsolidadoPDF: async (params = {}) => {
+  const response = await api.get(
+    '/api/v1/informes/consolidado/export/pdf/',
+    {
+      params,
+      responseType: 'blob',
+    }
+  );
+
+  return response;
+},
+
+descargarInformeConsolidadoExcel: async (params = {}) => {
+  const response = await api.get(
+    '/api/v1/informes/consolidado/export/excel/',
+    {
+      params,
+      responseType: 'blob',
+    }
+  );
+
+  return response;
+},
+
 };

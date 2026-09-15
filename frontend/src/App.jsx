@@ -11,6 +11,7 @@ import EditarProyecto from './proyectos/form/EditarProyecto';
 import Actividades from "./proyectos/actividades/Actividades";
 import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
 import Informes from "./proyectos/informes/Informes";
+import InformeConsolidado from "./proyectos/informes/components/InformeConsolidado";
 import Repositorio from "./proyectos/repositorio/Repositorio";
 import Notificaciones from './proyectos/notificaciones/Notificaciones';
 import Configuracion from "./usuario/configuracion/MiPerfil";
@@ -33,6 +34,7 @@ function App() {
             <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
             <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
             <Route path="/actividades" element={<Actividades />} />
+            <Route path="/informes" element={<Informes />} />
           </Route>
 
           {/* Exclusivas Departamento */}
@@ -59,8 +61,12 @@ function App() {
             <Route path="/proyectos" element={<Proyectos />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={["docente", "autoridad"]} />}>
-            <Route path="/informes" element={<Informes />} />
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["jefatura", "departamento", "autoridad"]}/>
+            }
+          >
+              <Route path="/informes-consolidado" element={<InformeConsolidado />}  />
           </Route>
 
           {/* General Autenticado */}
