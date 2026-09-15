@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from 'react-router-dom';
+import { FiAlertTriangle } from 'react-icons/fi';
 import { useFormRSU } from "./hooks/useFormRSU";
 import Layout from "../../shared/layout/Layout"; // El orquestador global
 
@@ -66,6 +67,23 @@ export default function NuevoProyecto() {
             Cancelar
           </button>
         </div>
+
+        {formData.estado === 'observado' && formData.ultima_observacion && (
+          <div className="flex gap-3 p-4 rounded-xl border border-amber-300 bg-amber-50">
+            <FiAlertTriangle className="text-amber-500 text-xl shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-800 m-0">
+                Este proyecto fue observado{formData.ultima_observacion.revisor ? ` por ${formData.ultima_observacion.revisor}` : ''}
+              </p>
+              <p className="text-sm text-amber-900 m-0 mt-1 whitespace-pre-wrap">
+                {formData.ultima_observacion.comentario}
+              </p>
+              <p className="text-xs text-amber-600 m-0 mt-2">
+                Corrige lo indicado antes de volver a enviarlo a revisión.
+              </p>
+            </div>
+          </div>
+        )}
 
         <Stepper currentStep={step} pasosCompletados={pasosCompletados} goToStep={goToStep} />
         

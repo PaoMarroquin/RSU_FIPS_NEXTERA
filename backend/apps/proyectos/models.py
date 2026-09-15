@@ -821,6 +821,9 @@ class Notificacion(models.Model):
         # HU-05 (T-90): seguimiento de avances
         ('avance_observado', 'Avance Observado'),
         ('avance_corregido', 'Avance Corregido'),
+        # Cierre de proyecto: ver ProyectoFinalizarView en views.py
+        ('finalizacion', 'Proyecto Finalizado'),
+        ('listo_para_cerrar', 'Listo para Cerrar'),
     ]
 
     destinatario = models.ForeignKey(

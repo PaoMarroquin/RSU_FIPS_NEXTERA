@@ -68,7 +68,7 @@ from .serializers import (
     AvanceActividadSerializer,
     EvidenciaAvanceSerializer,
 )
-from apps.usuarios.models import Rol
+from apps.usuarios.models import Rol, Usuario
 
 
 def _proyecto_qs_base():
@@ -898,6 +898,90 @@ class ProyectoObservarView(APIView):
         return Response({'detail': 'Proyecto observado exitosamente.'}, status=status.HTTP_200_OK)
 
 
+class ProyectosParaFinalizarView(generics.ListAPIView):
+    """
+    Bandeja de proyectos en ejecucion que ya llegaron al 100% de actividades
+    completadas y estan esperando que Departamento, Jefatura RSU o
+    Administrador confirmen su cierre (ver ProyectoFinalizarView).
+
+    Mismo rol de "bandeja de pendientes" que ProyectosParaRevisarView cumple
+    para la revision inicial: sin esto, nadie tendria una lista concreta de
+    que proyectos estan listos para finalizar, mas alla de la notificacion
+    puntual que se manda cuando cada proyecto llega al 100%
+    (_notificar_listo_para_cerrar).
+    """
+    serializer_class = ProyectoRSUSerializer
+    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador | IsJefaturaRSU]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user).filter(
+            estado='en_ejecucion', porcentaje_ejecucion=Decimal('100.00'),
+        ).order_by('fecha_inicio_ejecucion')
+        return qs
+
+
+class ProyectoFinalizarView(APIView):
+    """
+    Cierra un proyecto en ejecucion una vez que completo el 100% de sus
+    actividades.
+
+    Antes de esto no existia ningun camino para que un proyecto llegara a
+    estado 'finalizado': porcentaje_ejecucion podia llegar a 100% (se
+    recalcula solo en cada avance, ver _recalcular_porcentaje_ejecucion) pero
+    el proyecto se quedaba en 'en_ejecucion' para siempre, y por lo tanto
+    nunca aparecia en el informe consolidado de HU-06, que solo cuenta
+    proyectos 'aprobado' o 'finalizado'.
+
+    El cierre requiere confirmacion institucional (no lo dispara el docente
+    ni ocurre solo): asi el 100% de actividades queda como una senal de "listo
+    para cerrar", pero quien decide que el proyecto realmente cumplio sigue
+    siendo Departamento, Jefatura RSU o Administrador, igual que con
+    aprobar/observar en revision.
+    """
+    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador | IsJefaturaRSU]
+
+    @transaction.atomic
+    def post(self, request, pk):
+        proyecto = get_object_or_404(
+            _filter_proyectos_por_rol(ProyectoRSU.objects.all(), request.user), pk=pk)
+
+        if proyecto.estado != 'en_ejecucion':
+            raise serializers.ValidationError(
+                "Solo se pueden finalizar proyectos en ejecucion "
+                f"(estado actual: '{proyecto.estado}').")
+
+        if proyecto.porcentaje_ejecucion != Decimal('100.00'):
+            raise serializers.ValidationError(
+                f'El proyecto tiene {proyecto.porcentaje_ejecucion}% de actividades '
+                'completadas. Debe llegar al 100% antes de poder finalizarlo.')
+
+        estado_anterior = proyecto.estado
+        proyecto.estado = 'finalizado'
+        proyecto.fecha_cierre = timezone.now()
+        proyecto.save(update_fields=['estado', 'fecha_cierre'])
+
+        _registrar_historial(
+            proyecto=proyecto,
+            usuario=request.user,
+            estado_anterior=estado_anterior,
+            estado_nuevo='finalizado',
+            comentario='Proyecto finalizado tras completar el 100% de sus actividades.',
+            request=request,
+        )
+
+        _crear_notificacion(
+            destinatario=proyecto.docente_responsable,
+            proyecto=proyecto,
+            tipo='finalizacion',
+            titulo=f'Proyecto "{proyecto.titulo[:50]}..." Finalizado',
+            mensaje='Tu proyecto ha sido marcado como finalizado. Ya forma parte '
+                    'del repositorio institucional de proyectos RSU.',
+        )
+
+        return Response({'detail': 'Proyecto finalizado exitosamente.'}, status=status.HTTP_200_OK)
+
+
 class NotificacionListView(generics.ListAPIView):
     """
     T-71: Lista las notificaciones del usuario autenticado.
@@ -942,11 +1026,40 @@ def _get_proyecto_ejecucion(pk, user):
     return proyecto
 
 
+def _notificar_listo_para_cerrar(proyecto):
+    """
+    Avisa a quienes pueden confirmar el cierre (ver ProyectoFinalizarView):
+    Departamento del proyecto y Jefatura RSU de su facultad. Puede haber mas
+    de un usuario con ese rol y ese alcance, asi que se notifica a todos.
+    """
+    destinatarios = list(Usuario.objects.filter(
+        rol__nombre=Rol.DEPARTAMENTO, departamento=proyecto.departamento,
+    )) + list(Usuario.objects.filter(
+        rol__nombre=Rol.JEFATURA, facultad=proyecto.facultad,
+    ))
+    for destinatario in destinatarios:
+        _crear_notificacion(
+            destinatario=destinatario,
+            proyecto=proyecto,
+            tipo='listo_para_cerrar',
+            titulo=f'Proyecto "{proyecto.titulo[:50]}..." listo para finalizar',
+            mensaje='El proyecto completó el 100% de sus actividades. Revísalo '
+                    'y confirma su cierre en la bandeja de proyectos por finalizar.',
+        )
+
+
 def _recalcular_porcentaje_ejecucion(proyecto):
     """
     T-89: % de ejecución = actividades completadas / total de actividades * 100.
     Punto único de cálculo: si se decide ponderar 'en_ejecucion', se cambia aquí.
+
+    Cuando el porcentaje cruza a 100% (y no estaba ya en 100%), avisa a
+    Departamento/Jefatura de que el proyecto quedo listo para que confirmen
+    su cierre - ver ProyectoFinalizarView. Sin este aviso, nadie se enteraria
+    de que hay un proyecto esperando en la bandeja de para-finalizar.
     """
+    porcentaje_anterior = proyecto.porcentaje_ejecucion
+
     actividades = proyecto.actividades.all()
     total = actividades.count()
     if total == 0:
@@ -956,6 +1069,11 @@ def _recalcular_porcentaje_ejecucion(proyecto):
         pct = (Decimal(completadas) / Decimal(total) * 100).quantize(Decimal('0.01'))
     proyecto.porcentaje_ejecucion = pct
     proyecto.save(update_fields=['porcentaje_ejecucion', 'updated_at'])
+
+    llego_a_100_ahora = pct == Decimal('100.00') and porcentaje_anterior != Decimal('100.00')
+    if llego_a_100_ahora and proyecto.estado == 'en_ejecucion':
+        _notificar_listo_para_cerrar(proyecto)
+
     return pct
 
 

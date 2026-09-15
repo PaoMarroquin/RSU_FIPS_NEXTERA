@@ -72,6 +72,10 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/', views.EvidenciaAvanceListCreateView.as_view(), name='evidencia-list'),
     path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/<int:pk>/', views.EvidenciaAvanceDetailView.as_view(), name='evidencia-detail'),
 
+    # Cierre de proyecto: solo si esta en_ejecucion con 100% de actividades
+    path('proyectos/para-finalizar/', views.ProyectosParaFinalizarView.as_view(), name='proyecto-para-finalizar'),
+    path('proyectos/<int:pk>/finalizar/', views.ProyectoFinalizarView.as_view(), name='proyecto-finalizar'),
+
     # ── Reportes ──────────────────────────────────────────────────────────────
     path('reportes/general/', ReporteGeneralView.as_view(), name='reporte-general'),
     path('reportes/facultad/<int:facultad_pk>/', ReporteFacultadView.as_view(), name='reporte-facultad'),

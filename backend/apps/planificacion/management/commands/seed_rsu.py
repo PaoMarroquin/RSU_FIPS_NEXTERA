@@ -20,7 +20,7 @@ from apps.planificacion.models import (
     PeriodoAcademico, EjeRSU, LineaEstrategica, MatrizOperativa,
     ObjetivoInstitucional, IndicadorInstitucional, ActividadSugerida,
 )
-from apps.usuarios.models import Facultad, Rol
+from apps.usuarios.models import DepartamentoAcademico, Facultad, Rol
 
 User = get_user_model()
 
@@ -39,8 +39,10 @@ class Command(BaseCommand):
         rol_dpto = Rol.objects.get(nombre=Rol.DEPARTAMENTO)
         rol_jefe = Rol.objects.get(nombre=Rol.JEFATURA)
 
-        # Facultad ya existe desde la migracion 0004_seed_facultades_unsa
+        # Facultad y departamento ya existen desde las migraciones
+        # 0004_seed_facultades_unsa y 0014_fips_departamentos_y_escuelas
         facultad = Facultad.objects.get(codigo='FIPS')
+        departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
 
         # Usuarios de prueba
         admin, creado = User.objects.get_or_create(
@@ -64,7 +66,7 @@ class Command(BaseCommand):
         dpto, creado = User.objects.get_or_create(
             correo_institucional='departamento@unsa.edu.pe',
             defaults={'nombres': 'Revisor', 'apellidos': 'Departamento FIPS', 'rol': rol_dpto,
-                      'facultad': facultad, 'estado': 'activo'},
+                      'facultad': facultad, 'departamento': departamento, 'estado': 'activo'},
         )
         if creado:
             dpto.set_password(PASSWORD)

@@ -38,6 +38,7 @@ from apps.proyectos.models import (
     ProyectoRSU, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, DocumentoSustentoProyecto,
     AvanceActividad, EvidenciaAvance, Notificacion, FuenteFinanciamiento,
+    HistorialEstadoProyecto,
 )
 
 class ProyectosAPITests(APITestCase):
@@ -1089,6 +1090,230 @@ class AvancesEvidenciasAPITests(APITestCase):
         self.client.force_authenticate(user=self.docente)
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Cierre de proyecto (ProyectoFinalizarView)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ProyectoFinalizarAPITests(APITestCase):
+    """
+    Sin este endpoint, un proyecto con porcentaje_ejecucion=100 se quedaba en
+    'en_ejecucion' para siempre: no habia ningun camino, automatico ni manual,
+    para que llegara a 'finalizado'. Estas pruebas cubren las reglas del
+    cierre: solo institucional, solo con 100% de actividades, solo desde
+    'en_ejecucion', y que deje rastro (historial + notificacion).
+    """
+
+    def setUp(self):
+        self.rol_docente = Rol.objects.get(nombre='Docente')
+        self.rol_departamento = Rol.objects.get(nombre='Departamento')
+        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
+        self.facultad = Facultad.objects.get(codigo='FIPS')
+        self.otra_facultad = Facultad.objects.get(codigo='FCNF')
+        self.escuela = EscuelaProfesional.objects.get(codigo='EPIS')
+        self.departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
+
+        self.docente = Usuario.objects.create_user(
+            correo_institucional='docente.cierre@unsa.edu.pe', password=None,
+            nombres='Docente Cierre', rol=self.rol_docente, facultad=self.facultad,
+        )
+        self.depto_user = Usuario.objects.create_user(
+            correo_institucional='depto.cierre@unsa.edu.pe', password=None,
+            nombres='Departamento Cierre', rol=self.rol_departamento,
+            facultad=self.facultad, departamento=self.departamento,
+        )
+        self.jefatura_otra_facultad = Usuario.objects.create_user(
+            correo_institucional='jefatura.otra@unsa.edu.pe', password=None,
+            nombres='Jefatura Otra Facultad', rol=self.rol_jefatura,
+            facultad=self.otra_facultad,
+        )
+
+        self.periodo = PeriodoAcademico.objects.create(
+            nombre='2026-Cierre', anio=2026, semestre='II',
+            fecha_inicio='2026-09-01', fecha_fin='2027-01-31', activo=True,
+        )
+        self.proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto listo para cerrar',
+            periodo=self.periodo,
+            facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
+            docente_responsable=self.docente, semestre_academico='2026-II',
+            estado='en_ejecucion', porcentaje_ejecucion=Decimal('100.00'),
+        )
+
+    def _url(self, proyecto=None):
+        return reverse('proyecto-finalizar', kwargs={'pk': (proyecto or self.proyecto).pk})
+
+    def test_docente_no_puede_finalizar_su_propio_proyecto(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_rechaza_si_no_llega_a_100_por_ciento(self):
+        self.proyecto.porcentaje_ejecucion = Decimal('90.00')
+        self.proyecto.save(update_fields=['porcentaje_ejecucion'])
+
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
+
+    def test_rechaza_si_el_proyecto_no_esta_en_ejecucion(self):
+        self.proyecto.estado = 'aprobado'
+        self.proyecto.save(update_fields=['estado'])
+
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_jefatura_de_otra_facultad_no_puede_finalizar(self):
+        self.client.force_authenticate(user=self.jefatura_otra_facultad)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_departamento_finaliza_proyecto_al_100_por_ciento(self):
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'finalizado')
+        self.assertIsNotNone(self.proyecto.fecha_cierre)
+
+        self.assertTrue(HistorialEstadoProyecto.objects.filter(
+            proyecto=self.proyecto, estado_anterior='en_ejecucion',
+            estado_nuevo='finalizado').exists())
+        self.assertTrue(Notificacion.objects.filter(
+            proyecto=self.proyecto, destinatario=self.docente,
+            tipo='finalizacion').exists())
+
+    def test_no_se_puede_finalizar_dos_veces(self):
+        self.client.force_authenticate(user=self.depto_user)
+        self.client.post(self._url(), {}, format='json')
+
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ── ProyectosParaFinalizarView: bandeja de pendientes ───────────────────
+
+    def test_bandeja_para_finalizar_solo_lista_100_por_ciento_en_ejecucion(self):
+        otro_proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto a mitad de camino', periodo=self.periodo,
+            facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
+            docente_responsable=self.docente, semestre_academico='2026-II',
+            estado='en_ejecucion', porcentaje_ejecucion=Decimal('60.00'),
+        )
+        url = reverse('proyecto-para-finalizar')
+
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        items = response.data['results'] if isinstance(response.data, dict) else response.data
+        ids = [p['id'] for p in items]
+        self.assertIn(self.proyecto.id, ids)         # 100% -> si aparece
+        self.assertNotIn(otro_proyecto.id, ids)       # 60% -> no aparece
+
+    def test_bandeja_para_finalizar_respeta_alcance_por_facultad(self):
+        url = reverse('proyecto-para-finalizar')
+        self.client.force_authenticate(user=self.jefatura_otra_facultad)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        items = response.data['results'] if isinstance(response.data, dict) else response.data
+        ids = [p['id'] for p in items]
+        self.assertNotIn(self.proyecto.id, ids)
+
+    def test_docente_no_puede_ver_la_bandeja_para_finalizar(self):
+        url = reverse('proyecto-para-finalizar')
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class NotificarListoParaCerrarAPITests(APITestCase):
+    """
+    Cuando un proyecto llega al 100% de actividades completadas, Departamento
+    y Jefatura RSU (con alcance sobre ese proyecto) deben enterarse sin tener
+    que revisar la lista de proyectos a mano.
+    """
+
+    def setUp(self):
+        self.rol_docente = Rol.objects.get(nombre='Docente')
+        self.rol_departamento = Rol.objects.get(nombre='Departamento')
+        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
+        self.facultad = Facultad.objects.get(codigo='FIPS')
+        self.escuela = EscuelaProfesional.objects.get(codigo='EPIS')
+        self.departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
+
+        self.docente = Usuario.objects.create_user(
+            correo_institucional='docente.notif100@unsa.edu.pe', password=None,
+            nombres='Docente Notif', rol=self.rol_docente, facultad=self.facultad,
+        )
+        self.depto_user = Usuario.objects.create_user(
+            correo_institucional='depto.notif100@unsa.edu.pe', password=None,
+            nombres='Departamento Notif', rol=self.rol_departamento,
+            facultad=self.facultad, departamento=self.departamento,
+        )
+        self.jefatura_user = Usuario.objects.create_user(
+            correo_institucional='jefatura.notif100@unsa.edu.pe', password=None,
+            nombres='Jefatura Notif', rol=self.rol_jefatura, facultad=self.facultad,
+        )
+
+        self.periodo = PeriodoAcademico.objects.create(
+            nombre='2026-Notif100', anio=2026, semestre='II',
+            fecha_inicio='2026-09-01', fecha_fin='2027-01-31', activo=True,
+        )
+        self.proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto a punto de completarse', periodo=self.periodo,
+            facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
+            docente_responsable=self.docente, semestre_academico='2026-II',
+            estado='en_ejecucion', porcentaje_ejecucion=Decimal('50.00'),
+        )
+        self.act1 = ActividadProyecto.objects.create(
+            proyecto=self.proyecto, nombre='Actividad 1', orden=1, estado='completada')
+        self.act2 = ActividadProyecto.objects.create(
+            proyecto=self.proyecto, nombre='Actividad 2', orden=2, estado='pendiente')
+
+    def test_notifica_a_departamento_y_jefatura_al_llegar_a_100(self):
+        url = reverse('avance-list', kwargs={'proyecto_pk': self.proyecto.pk})
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(url, {
+            'actividad': self.act2.pk,
+            'descripcion': 'Se completo la ultima actividad.',
+            'estado_actividad': 'completada',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.porcentaje_ejecucion, Decimal('100.00'))
+
+        self.assertTrue(Notificacion.objects.filter(
+            proyecto=self.proyecto, destinatario=self.depto_user,
+            tipo='listo_para_cerrar').exists())
+        self.assertTrue(Notificacion.objects.filter(
+            proyecto=self.proyecto, destinatario=self.jefatura_user,
+            tipo='listo_para_cerrar').exists())
+
+    def test_no_notifica_de_nuevo_si_ya_estaba_en_100(self):
+        self.act2.estado = 'completada'
+        self.act2.save(update_fields=['estado'])
+        self.proyecto.porcentaje_ejecucion = Decimal('100.00')
+        self.proyecto.save(update_fields=['porcentaje_ejecucion'])
+
+        # Un avance mas sobre una actividad ya completada no debe re-notificar
+        url = reverse('avance-list', kwargs={'proyecto_pk': self.proyecto.pk})
+        self.client.force_authenticate(user=self.docente)
+        self.client.post(url, {
+            'actividad': self.act1.pk,
+            'descripcion': 'Nota adicional sobre una actividad ya completada.',
+            'estado_actividad': 'completada',
+        }, format='json')
+
+        self.assertFalse(Notificacion.objects.filter(
+            proyecto=self.proyecto, tipo='listo_para_cerrar').exists())
 
 
 # ──────────────────────────────────────────────────────────────────────────────

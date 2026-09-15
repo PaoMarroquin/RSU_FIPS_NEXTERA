@@ -18,8 +18,25 @@ export default function EditarProyecto() {
         const data = await proyectoApi.obtenerProyectoPorId(id);
 
         // 1. MAPEAMOS DEL BACKEND AL FORMATO EXACTO DEL FRONTEND
+        // Detalle de la ultima observacion del Departamento, para mostrarla
+        // al docente mientras corrige el proyecto (reportado por Maria-UNSA:
+        // el comentario tecnico ya lo devuelve el backend en `revisiones`,
+        // pero esta pantalla nunca lo leia).
+        const observaciones = Array.isArray(data.revisiones)
+          ? data.revisiones.filter(r => r.decision === 'observado')
+          : [];
+        const ultimaObservacion = observaciones.length > 0
+          ? [...observaciones].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+          : null;
+
         const frontendDraft = {
           id: data.id,
+          estado: data.estado || '',
+          ultima_observacion: ultimaObservacion ? {
+            comentario: ultimaObservacion.comentario_tecnico || '',
+            revisor: ultimaObservacion.revisor_nombre || '',
+            fecha: ultimaObservacion.created_at || '',
+          } : null,
           // Paso 1
           facultad: data.facultad || '',
           facultad_nombre: data.facultad_nombre || '',
