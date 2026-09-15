@@ -360,4 +360,21 @@ descargarInformeConsolidadoExcel: async (params = {}) => {
   return response;
 },
 
+// ── FINALIZACIÓN DE PROYECTOS ─────────────────────────────────────────────
+
+obtenerProyectosParaFinalizar: async (params = {}) => {
+  const response = await api.get(
+    '/api/v1/proyectos/para-finalizar/',
+    { params }
+  );
+  return response.data;
+},
+
+finalizarProyecto: async (id) => {
+  const response = await api.post(
+    `/api/v1/proyectos/${id}/finalizar/`
+  );
+  return response.data;
+},
+
 };

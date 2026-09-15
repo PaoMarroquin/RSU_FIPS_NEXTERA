@@ -153,58 +153,93 @@ export const useActividades = () => {
   // =========================================================
   // CAMBIAR ESTADO DE ACTIVIDAD
   // =========================================================
+const cambiarEstadoActividad = async (
+  actividadId,
+  estadoActual
+) => {
+  try {
+    // Si ya está completada, no permitir cambios
+    if (estadoActual === "completada") {
+      showToast(
+        "info",
+        "Esta actividad ya fue completada y no puede modificarse."
+      );
+      return;
+    }
 
-  const cambiarEstadoActividad = async (
-    actividadId,
-    estadoActual
-  ) => {
-    try {
-      let nuevoEstado;
+    let nuevoEstado;
 
-      if (estadoActual === "pendiente") {
-        nuevoEstado = "en_ejecucion";
-      } else if (estadoActual === "en_ejecucion") {
-        nuevoEstado = "completada";
-      } else {
-        nuevoEstado = "pendiente";
-      }
+    if (estadoActual === "pendiente") {
+      nuevoEstado = "en_ejecucion";
+    } else if (estadoActual === "en_ejecucion") {
+      nuevoEstado = "completada";
+    }
 
-      const actividadActualizada =
-        await proyectoApi.actualizarActividad(
+    // Actualizar actividad
+    const actividadActualizada =
+      await proyectoApi.actualizarActividad(
+        proyectoSeleccionado.id,
+        actividadId,
+        {
+          estado: nuevoEstado
+        }
+      );
+
+    setActividades((prev) =>
+      prev.map((actividad) =>
+        actividad.id === actividadId
+          ? actividadActualizada
+          : actividad
+      )
+    );
+
+    // Si se completó, registrar el avance
+    if (nuevoEstado === "completada") {
+      const nuevoAvance =
+        await proyectoApi.crearAvance(
           proyectoSeleccionado.id,
-          actividadId,
           {
-            estado: nuevoEstado
+            actividad: actividadId,
+            descripcion: "Actividad completada",
+            estado_actividad: "completada",
+            observaciones: ""
           }
         );
 
-      setActividades((prev) =>
-        prev.map((actividad) =>
-          actividad.id === actividadId
-            ? actividadActualizada
-            : actividad
-        )
-      );
+      setAvances((prev) => [
+        ...prev,
+        nuevoAvance
+      ]);
 
-      showToast(
-        "success",
-        `Actividad actualizada a: ${nuevoEstado
-          .replace("_", " ")
-          .toUpperCase()}`
-      );
-
-      return actividadActualizada;
-    } catch (error) {
-      console.error("Error actualizando actividad:", error);
-
-      showToast(
-        "error",
-        "No se pudo actualizar el estado de la actividad."
-      );
-
-      throw error;
+      setEvidencias((prev) => ({
+        ...prev,
+        [nuevoAvance.id]: []
+      }));
     }
-  };
+
+    showToast(
+      "success",
+      `Actividad actualizada a: ${nuevoEstado
+        .replace("_", " ")
+        .toUpperCase()}`
+    );
+
+    return actividadActualizada;
+
+  } catch (error) {
+    console.error(
+      "Error actualizando actividad:",
+      error
+    );
+
+    showToast(
+      "error",
+      "No se pudo actualizar el estado de la actividad."
+    );
+
+    throw error;
+  }
+};
 
   // =========================================================
   // REGISTRAR AVANCE

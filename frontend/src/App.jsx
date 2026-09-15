@@ -19,6 +19,7 @@ import GestionUsuarios from './usuario/gestion/GestionUsuarios';
 import ImportarUsuarios from './usuario/importar/ImportarUsuarios';
 import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
 import ProyectosJefatura from './proyectos/jefatura/ProyectosJefatura';
+import FinalizarProyectos from "./proyectos/revision/FinalizarProyectos";
 
 function App() {
   return (
@@ -62,20 +63,18 @@ function App() {
           </Route>
 
           <Route
-            element={
-              <ProtectedRoute 
-               allowedRoles={[
-        "departamento",
-        "autoridad",
-        "jefatura rsu",
-        "administrador",
-      ]}
-              
-              />
-            }
-          >
+            element={ <ProtectedRoute allowedRoles={["departamento","autoridad","jefatura rsu","administrador",]}/>}>
               <Route path="/informes-consolidado" element={<InformeConsolidado />}  />
           </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={["departamento","jefatura rsu","administrador",]}/>
+  }
+>
+  <Route
+    path="/FinalizarProyectos"
+    element={<FinalizarProyectos />}
+  />
+</Route>
 
           {/* General Autenticado */}
           <Route element={<ProtectedRoute />}>
