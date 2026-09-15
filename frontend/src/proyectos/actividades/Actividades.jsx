@@ -6,12 +6,32 @@ import TableroProyecto from './components/TableroProyecto';
 
 export default function Actividades() {
   const {
-    proyectos, proyectoSeleccionado, metasIndicadores, actividadesFiltradas,
-    loading, loadingDetalle, filtroEstado, setFiltroEstado, urlInputs,
-    totalActividades, actividadesCompletadas, porcentajeProgreso,
-    seleccionarProyecto, deseleccionarProyecto, cambiarEstadoActividad,
-    subirEvidencia, guardarUrlEvidencia, actualizarUrlInput
-  } = useActividades();
+  proyectos,
+  proyectoSeleccionado,
+  actividades,
+  actividadesFiltradas,
+  avances,
+  evidencias,
+  metasIndicadores,
+  loading,
+  loadingDetalle,
+  filtroEstado,
+  setFiltroEstado,
+  urlInputs,
+  totalActividades,
+  actividadesCompletadas,
+  porcentajeProgreso,
+  seleccionarProyecto,
+  deseleccionarProyecto,
+  cambiarEstadoActividad,
+  registrarAvance,
+  subirEvidencia,
+  guardarUrlEvidencia,
+  actualizarUrlInput,
+  eliminarEvidencia,
+  observarAvance,
+  corregirAvance
+} = useActividades();
 
   return (
     <Layout>
@@ -23,23 +43,30 @@ export default function Actividades() {
             onSelect={seleccionarProyecto} 
           />
         ) : (
-          <TableroProyecto 
-            proyecto={proyectoSeleccionado}
-            metasIndicadores={metasIndicadores}
-            actividadesFiltradas={actividadesFiltradas}
-            loadingDetalle={loadingDetalle}
-            filtroEstado={filtroEstado}
-            setFiltroEstado={setFiltroEstado}
-            urlInputs={urlInputs}
-            totalActividades={totalActividades}
-            actividadesCompletadas={actividadesCompletadas}
-            porcentajeProgreso={porcentajeProgreso}
-            onBack={deseleccionarProyecto}
-            onCambiarEstado={cambiarEstadoActividad}
-            onSubirEvidencia={subirEvidencia}
-            onGuardarUrl={guardarUrlEvidencia}
-            onUpdateUrl={actualizarUrlInput}
-          />
+          <TableroProyecto
+  proyecto={proyectoSeleccionado}
+  metasIndicadores={metasIndicadores}
+  actividades={actividades}
+  actividadesFiltradas={actividadesFiltradas}
+  avances={avances}
+  evidencias={evidencias}
+  loadingDetalle={loadingDetalle}
+  filtroEstado={filtroEstado}
+  setFiltroEstado={setFiltroEstado}
+  urlInputs={urlInputs}
+  totalActividades={totalActividades}
+  actividadesCompletadas={actividadesCompletadas}
+  porcentajeProgreso={porcentajeProgreso}
+  onBack={deseleccionarProyecto}
+  onCambiarEstado={cambiarEstadoActividad}
+  onRegistrarAvance={registrarAvance}
+  onSubirEvidencia={subirEvidencia}
+  onGuardarUrl={guardarUrlEvidencia}
+  onUpdateUrl={actualizarUrlInput}
+  onEliminarEvidencia={eliminarEvidencia}
+  onObservarAvance={observarAvance}
+  onCorregirAvance={corregirAvance}
+/>
         )}
       </div>
     </Layout>

@@ -291,4 +291,18 @@ export const proyectoApi = {
     const response = await api.post(`/api/v1/proyectos/${id}/observar/`, datosObservacion);
     return response.data;
   },
+
+
+  // =====================================================
+// METAS E INDICADORES
+// =====================================================
+
+obtenerMetasIndicadores: async (proyectoPk) => {
+  const response = await api.get(
+    `/api/v1/proyectos/${proyectoPk}/metas-indicadores/`
+  );
+
+  return response.data;
+},
+
 };
