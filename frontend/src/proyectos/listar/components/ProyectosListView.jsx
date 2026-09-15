@@ -66,7 +66,11 @@ export default function ProyectosListView({
                 <ProjectActions
                   statusKey={statusKey}
                   onView={() => onView(project.dbId)}
-                  onEdit={canEdit ? () => onEdit(project.dbId) : null}
+                  onEdit={
+  canEdit && ["borrador", "observado"].includes(project.status)
+    ? () => onEdit(project.dbId)
+    : null
+}
                   onDelete={canDelete ? () => onDelete(project.dbId) : null}
                 />
               </div>
