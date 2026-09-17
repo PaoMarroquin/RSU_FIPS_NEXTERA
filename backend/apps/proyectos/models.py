@@ -159,18 +159,25 @@ class ProyectoRSU(models.Model):
     # SECCIÓN I - DATOS GENERALES
     # ──────────────────────────────────────────────────────────────────────────
 
+    # Salvo facultad y titulo, los campos del ANEXO 4 son opcionales a nivel de
+    # modelo: un borrador se guarda incompleto y la obligatoriedad se exige
+    # recien al enviar a revision (_validar_campos_obligatorios en views.py).
+
     # 1.1 - 1.4  Información institucional
     facultad = models.ForeignKey(
         Facultad, on_delete=models.PROTECT, related_name='proyectos',
         help_text="1.1 Facultad")
     escuela = models.ForeignKey(
         EscuelaProfesional, on_delete=models.PROTECT, related_name='proyectos',
+        null=True, blank=True,
         help_text="1.2 Escuela Profesional")
     departamento = models.ForeignKey(
         DepartamentoAcademico, on_delete=models.PROTECT, related_name='proyectos',
+        null=True, blank=True,
         help_text="1.3 Departamento Académico")
     semestre_academico = models.CharField(
-        max_length=20, help_text="1.4 Semestre académico (ej: 2023-A)")
+        max_length=20, blank=True, default='',
+        help_text="1.4 Semestre académico (ej: 2023-A)")
 
     # 1.5 Asignaturas → modelo ProyectoAsignatura (FK inverso)
 
@@ -211,7 +218,7 @@ class ProyectoRSU(models.Model):
     # un eje RSU a la vez (caso real reportado: un proyecto marcado en dos
     # ejes que el formulario anterior no permitía guardar).
     ejes_rsu = models.ManyToManyField(
-        EjeRSU, related_name='proyectos', db_table='proyecto_ejes_rsu',
+        EjeRSU, related_name='proyectos', db_table='proyecto_ejes_rsu', blank=True,
         help_text="1.10 Eje(s) RSU del proyecto (se permite más de uno)")
     eje_detalle = models.TextField(
         blank=True, null=True,
@@ -373,7 +380,8 @@ class ProyectoRSU(models.Model):
     es_tesis_quinto_anio = models.BooleanField(default=False)
 
     # ODS (many-to-many)
-    ods = models.ManyToManyField(ODS, related_name='proyectos', db_table='proyecto_ods')
+    ods = models.ManyToManyField(
+        ODS, related_name='proyectos', db_table='proyecto_ods', blank=True)
 
     # Matriz de alineamiento estratégico: correlación con Objetivos
     # Regionales y Objetivos Nacionales (además de ODS, ya de arriba).

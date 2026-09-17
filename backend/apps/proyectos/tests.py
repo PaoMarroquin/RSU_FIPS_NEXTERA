@@ -1710,3 +1710,44 @@ class InformesConsolidadosAPITests(APITestCase):
             with self.subTest(ruta=nombre):
                 response = self.client.get(reverse(nombre))
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class BorradorMinimoAPITests(BaseProyectoTestCase):
+    """El borrador se guarda incompleto; la obligatoriedad recae en el envio.
+
+    Pedido del cliente (reunion 2026-09-16): el docente debe poder guardar un
+    borrador apenas llena datos generales y titulo, sin recorrer las 9
+    secciones del ANEXO 4.
+    """
+
+    def test_crear_borrador_solo_con_facultad_y_titulo(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(reverse('proyecto-list'), {
+            'facultad': self.facultad.pk,
+            'titulo': 'Borrador recien empezado',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['estado'], 'borrador')
+        self.assertEqual(response.data['semestre_academico'], '')
+        self.assertIsNone(response.data['escuela'])
+
+    def test_enviar_a_revision_sigue_exigiendo_todo(self):
+        self.client.force_authenticate(user=self.docente)
+        proyecto = ProyectoRSU.objects.create(
+            facultad=self.facultad,
+            titulo='Borrador incompleto',
+            docente_responsable=self.docente,
+            estado='borrador',
+        )
+
+        response = self.client.post(
+            reverse('proyecto-revisar', args=[proyecto.pk]), {}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        errores = response.data['errors']
+        for campo in ('semestre_academico', 'escuela', 'departamento',
+                      'ejes_rsu', 'ods', 'cronograma'):
+            self.assertIn(campo, errores)
+        proyecto.refresh_from_db()
+        self.assertEqual(proyecto.estado, 'borrador')
