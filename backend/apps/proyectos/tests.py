@@ -15,6 +15,8 @@ Casos cubiertos:
   porcentaje de ejecucion y caracter no editable del historial.
 - Informes consolidados (HU-06): alcance por estado y por rol, filtros,
   caracter de solo lectura y descarga en PDF y Excel.
+- Repositorio historico (HU-07): solo proyectos finalizados, filtros simples
+  y combinados, ficha tecnica, informe final y lecciones aprendidas.
 
 Conecta con:
 - apps/proyectos/views.py y serializers.py: comportamiento bajo prueba.
@@ -28,6 +30,7 @@ from io import BytesIO
 import openpyxl
 from django.urls import reverse
 from django.test import override_settings
+from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import ValidationError
 from rest_framework import status
@@ -1700,6 +1703,140 @@ class InformesConsolidadosAPITests(APITestCase):
             with self.subTest(ruta=nombre):
                 response = self.client.get(reverse(nombre))
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class RepositorioHistoricoAPITests(APITestCase):
+    """Pruebas del Repositorio Historico (Sprint 7, HU-07, T-120 a T-124).
+
+    Escenario: tres proyectos finalizados que se reparten entre dos
+    facultades, dos semestres, dos ejes RSU y dos ODS, para poder comprobar
+    cada filtro por separado y combinado; mas un proyecto aprobado y otro en
+    ejecucion que nunca deben aparecer en el repositorio.
+    """
+
+    _cred = None
+
+    def setUp(self):
+        self.docente = Usuario.objects.create_user(
+            correo_institucional='docente.hu07@unsa.edu.pe', password=self._cred,
+            nombres='Ana', apellidos='Quispe',
+            rol=Rol.objects.get(nombre='Docente'))
+        self.jefatura = Usuario.objects.create_user(
+            correo_institucional='jefatura.hu07@unsa.edu.pe', password=self._cred,
+            nombres='Jefatura', rol=Rol.objects.get(nombre='Jefatura RSU'),
+            facultad=Facultad.objects.get(codigo='FCNF'))
+        self.sin_rol = Usuario.objects.create_user(
+            correo_institucional='sinrol.hu07@unsa.edu.pe', password=self._cred,
+            nombres='Sin rol')
+
+        self.fips = Facultad.objects.get(codigo='FIPS')
+        self.epis = EscuelaProfesional.objects.get(codigo='EPIS')
+        self.daisi = DepartamentoAcademico.objects.get(codigo='DAISI')
+        self.fcnf = Facultad.objects.get(codigo='FCNF')
+        self.epmat = EscuelaProfesional.objects.get(codigo='EPMAT')
+        self.damat = DepartamentoAcademico.objects.get(codigo='DAMAT')
+
+        self.gestion = EjeRSU.objects.get(nombre='Gestión')
+        self.extension = EjeRSU.objects.get(nombre='Extensión')
+        self.ods4 = ODS.objects.get(numero=4)
+        self.ods11 = ODS.objects.get(numero=11)
+
+        self.periodo_a = PeriodoAcademico.objects.create(
+            nombre='2025-A', anio=2025, semestre='I',
+            fecha_inicio='2025-03-01', fecha_fin='2025-07-31')
+        self.periodo_b = PeriodoAcademico.objects.create(
+            nombre='2025-B', anio=2025, semestre='II',
+            fecha_inicio='2025-08-01', fecha_fin='2025-12-20')
+
+        self.reciclaje = self._crear(
+            'Reciclaje en colegios', self.fips, self.epis, self.daisi,
+            self.periodo_a, [self.gestion], [self.ods4, self.ods11],
+            lecciones_aprendidas='Coordinar con los directores antes de empezar.',
+            conclusiones='Se capacito a 120 escolares.',
+            recomendaciones='Ampliar a secundaria.',
+            medio_difusion='Facebook de la escuela')
+        self.alfabetizacion = self._crear(
+            'Alfabetizacion digital', self.fips, self.epis, self.daisi,
+            self.periodo_b, [self.extension], [self.ods4])
+        self.matematica = self._crear(
+            'Matematica para todos', self.fcnf, self.epmat, self.damat,
+            self.periodo_b, [self.extension], [self.ods11],
+            lecciones_aprendidas='Los talleres cortos funcionan mejor.')
+
+        self.aprobado = self._crear(
+            'Proyecto aprobado', self.fips, self.epis, self.daisi,
+            self.periodo_a, [self.gestion], [self.ods4], estado='aprobado')
+        self.en_ejecucion = self._crear(
+            'Proyecto en ejecucion', self.fips, self.epis, self.daisi,
+            self.periodo_a, [self.gestion], [self.ods4], estado='en_ejecucion')
+
+        self._cargar_detalle(self.reciclaje)
+
+    def _crear(self, titulo, facultad, escuela, departamento, periodo, ejes, ods,
+               estado='finalizado', **extra):
+        proyecto = ProyectoRSU.objects.create(
+            titulo=titulo, estado=estado, facultad=facultad, escuela=escuela,
+            departamento=departamento, periodo=periodo,
+            semestre_academico=periodo.nombre, docente_responsable=self.docente,
+            porcentaje_ejecucion=Decimal('100.00'),
+            fecha_cierre=timezone.now() if estado == 'finalizado' else None,
+            **extra)
+        proyecto.ejes_rsu.set(ejes)
+        proyecto.ods.set(ods)
+        return proyecto
+
+    def _cargar_detalle(self, proyecto):
+        proyecto.fund_por_que_grupo = 'Colegios sin programa de reciclaje.'
+        proyecto.resultado_en_beneficiarios = 'Escolares separan residuos.'
+        proyecto.save()
+        actividad = ActividadProyecto.objects.create(
+            proyecto=proyecto, nombre='Taller de segregacion', estado='completada')
+        CronogramaAccion.objects.create(
+            proyecto=proyecto, descripcion='Talleres en aula', estado_avance='finalizado')
+        PartidaPresupuestaria.objects.create(
+            proyecto=proyecto, descripcion='Bolsas', categoria='otros',
+            cantidad=10, costo_unitario=Decimal('5.00'),
+            monto_ejecutado=Decimal('40.00'))
+        MetaIndicadorProyecto.objects.create(
+            proyecto=proyecto, meta_descripcion='Capacitar escolares',
+            indicador_nombre='Escolares capacitados',
+            valor_meta=Decimal('100.00'), valor_alcanzado=Decimal('120.00'))
+        AvanceActividad.objects.create(
+            proyecto=proyecto, actividad=actividad, descripcion='Taller dictado.',
+            estado_actividad='completada', autor=self.docente)
+
+    def _titulos(self, response):
+        return {p['titulo'] for p in response.data['results']}
+
+    # ── Alcance y acceso ──────────────────────────────────────────────────────
+
+    def test_solo_lista_proyectos_finalizados(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._titulos(response), {
+            'Reciclaje en colegios', 'Alfabetizacion digital', 'Matematica para todos'})
+        self.assertTrue(response.data['solo_lectura'])
+
+    def test_el_repositorio_no_se_recorta_por_facultad(self):
+        """La Jefatura de FCNF tambien ve los proyectos finalizados de FIPS."""
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.data['count'], 3)
+
+    def test_requiere_autenticacion_y_rol(self):
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(user=self.sin_rol)
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_ordenamiento(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'), {'ordering': 'titulo'})
+        self.assertEqual(
+            [p['titulo'] for p in response.data['results']],
+            ['Alfabetizacion digital', 'Matematica para todos', 'Reciclaje en colegios'])
 
 
 class BorradorMinimoAPITests(BaseProyectoTestCase):

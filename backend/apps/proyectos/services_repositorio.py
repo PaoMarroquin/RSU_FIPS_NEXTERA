@@ -187,3 +187,72 @@ def ordenar(qs, params):
         return qs.order_by(*ORDEN_POR_DEFECTO), '-fecha_cierre'
     prefijo = '-' if pedido.startswith('-') else ''
     return qs.order_by(prefijo + campo, '-id'), pedido
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Piezas comunes de las respuestas
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _iso(valor):
+    return valor.isoformat() if valor else None
+
+
+def _ref(objeto):
+    """{id, nombre} de un catalogo, o None si no esta asignado."""
+    return {'id': objeto.id, 'nombre': objeto.nombre} if objeto else None
+
+
+def _nombre_usuario(usuario):
+    return f'{usuario.nombres} {usuario.apellidos}'.strip() if usuario else None
+
+
+def _ods(proyecto):
+    return [
+        {'id': o.id, 'numero': o.numero, 'nombre': o.nombre, 'icono_url': o.icono_url}
+        for o in sorted(proyecto.ods.all(), key=lambda o: o.numero)
+    ]
+
+
+def _cabecera(proyecto):
+    """Datos de identificacion que comparten todas las respuestas."""
+    return {
+        'id': proyecto.id,
+        'codigo': proyecto.codigo or '',
+        'titulo': proyecto.titulo,
+        'estado': proyecto.estado,
+        'estado_display': proyecto.get_estado_display(),
+        'semestre_academico': proyecto.semestre_academico,
+        'periodo': _ref(proyecto.periodo),
+        'facultad': _ref(proyecto.facultad),
+        'escuela': _ref(proyecto.escuela),
+        'departamento': _ref(proyecto.departamento),
+        'ejes_rsu': [_ref(e) for e in proyecto.ejes_rsu.all()],
+        'ods': _ods(proyecto),
+        'docente_responsable': _nombre_usuario(proyecto.docente_responsable),
+        'fecha_inicio': _iso(proyecto.fecha_inicio),
+        'fecha_termino': _iso(proyecto.fecha_termino),
+        'fecha_cierre': _iso(proyecto.fecha_cierre),
+    }
+
+
+def _tiene_texto(valor):
+    return bool(valor and valor.strip())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-121: tarjeta del listado
+# ─────────────────────────────────────────────────────────────────────────────
+
+def resumen_proyecto(proyecto):
+    """Tarjeta de un proyecto en el listado del repositorio."""
+    resumen = _cabecera(proyecto)
+    resumen.update({
+        'nro_docentes': proyecto.nro_docentes or 0,
+        'nro_estudiantes': proyecto.nro_estudiantes or 0,
+        'lugar_ejecucion': proyecto.lugar_ejecucion,
+        'tiene_informe_final': any(_tiene_texto(v) for v in (
+            proyecto.conclusiones, proyecto.recomendaciones,
+            proyecto.lecciones_aprendidas)),
+        'tiene_lecciones_aprendidas': _tiene_texto(proyecto.lecciones_aprendidas),
+    })
+    return resumen
