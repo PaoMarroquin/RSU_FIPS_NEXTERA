@@ -41,7 +41,7 @@ from apps.usuarios.models import DepartamentoAcademico, EscuelaProfesional, Facu
 from apps.utils.permissions import PuedeConsultarRepositorioHistorico
 
 from .services_repositorio import (
-    ORDENAMIENTOS, aplicar_filtros, ordenar, queryset_historico, resumen_proyecto,
+    ORDENAMIENTOS, aplicar_filtros, ficha_tecnica, ordenar, queryset_ficha, queryset_historico, resumen_proyecto,
 )
 
 
@@ -137,3 +137,28 @@ class RepositorioFiltrosView(_BaseRepositorioView):
             'ods': ods,
             'ordenamientos': sorted(ORDENAMIENTOS),
         })
+
+
+class _BaseProyectoHistoricoView(_BaseRepositorioView):
+    """Obtiene un proyecto finalizado o responde 404."""
+
+    def get_proyecto(self, pk):
+        proyecto = queryset_ficha().filter(pk=pk).first()
+        if proyecto is None:
+            raise Http404('No existe un proyecto finalizado con ese identificador.')
+        return proyecto
+
+    def responder(self, datos):
+        datos['solo_lectura'] = True
+        datos['generado_en'] = timezone.now().isoformat()
+        return Response(datos)
+
+
+class RepositorioFichaTecnicaView(_BaseProyectoHistoricoView):
+    """GET /repositorio/proyectos/<pk>/  (T-123)
+
+    Ficha tecnica del proyecto historico con todas las secciones del ANEXO 4.
+    """
+
+    def get(self, request, pk):
+        return self.responder(ficha_tecnica(self.get_proyecto(pk)))

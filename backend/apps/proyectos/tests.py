@@ -1831,6 +1831,15 @@ class RepositorioHistoricoAPITests(APITestCase):
         response = self.client.get(reverse('repositorio-proyectos'))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_los_metodos_de_escritura_estan_bloqueados(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('repositorio-ficha-tecnica', args=[self.reciclaje.pk])
+        for metodo in ('post', 'put', 'patch', 'delete'):
+            with self.subTest(metodo=metodo):
+                response = getattr(self.client, metodo)(url, {}, format='json')
+                self.assertEqual(
+                    response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
     # ── T-120 / T-122: filtros ────────────────────────────────────────────────
 
     def test_filtros_individuales(self):
@@ -1890,6 +1899,33 @@ class RepositorioHistoricoAPITests(APITestCase):
         self.assertEqual({e['id'] for e in response.data['ejes_rsu']},
                          {self.gestion.pk, self.extension.pk})
         self.assertEqual([o['numero'] for o in response.data['ods']], [4, 11])
+
+    # ── T-123: ficha tecnica ──────────────────────────────────────────────────
+
+    def test_ficha_tecnica_trae_las_secciones_del_anexo_4(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-ficha-tecnica', args=[self.reciclaje.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data['titulo'], 'Reciclaje en colegios')
+        self.assertEqual(data['facultad']['id'], self.fips.pk)
+        self.assertEqual(data['fundamentacion']['por_que_grupo'],
+                         'Colegios sin programa de reciclaje.')
+        self.assertEqual(data['actividades'][0]['nombre'], 'Taller de segregacion')
+        self.assertEqual(len(data['cronograma']), 1)
+        self.assertEqual(data['financiamiento']['partidas'][0]['monto_presupuestado'], 50.0)
+        self.assertEqual(data['metas_indicadores'][0]['valor_alcanzado'], 120.0)
+        self.assertNotIn('historial_estados', data)
+        self.assertTrue(data['solo_lectura'])
+
+    def test_ficha_de_proyecto_no_finalizado_responde_404(self):
+        self.client.force_authenticate(user=self.docente)
+        for proyecto in (self.aprobado, self.en_ejecucion):
+            with self.subTest(estado=proyecto.estado):
+                for nombre in ('repositorio-ficha-tecnica',):
+                    response = self.client.get(reverse(nombre, args=[proyecto.pk]))
+                    self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
 class BorradorMinimoAPITests(BaseProyectoTestCase):

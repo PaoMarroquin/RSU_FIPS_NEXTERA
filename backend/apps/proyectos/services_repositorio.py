@@ -73,6 +73,14 @@ ORDEN_POR_DEFECTO = ('-fecha_cierre', '-id')
 
 _VACIOS = (None, '', 'null', 'undefined')
 
+TIPOS_ACTIVIDAD_LABELS = {
+    'programas_formativos': 'Programas formativos',
+    'acompanamiento': 'Acompañamiento a sectores identificados',
+    'asesoria': 'Asesoría',
+    'acercamiento_comunidad': 'Iniciativas de acercamiento a la comunidad',
+    'otro': 'Otros',
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # T-120 / T-121: consultas base
@@ -86,6 +94,22 @@ def queryset_historico():
         .select_related('facultad', 'escuela', 'departamento', 'periodo',
                         'docente_responsable')
         .prefetch_related('ejes_rsu', 'ods')
+    )
+
+
+def queryset_ficha():
+    """Proyectos finalizados con todo lo que necesita la ficha tecnica."""
+    return (
+        queryset_historico()
+        .select_related('linea_estrategica', 'objetivo_institucional')
+        .prefetch_related(
+            'beneficiarios', 'objetivos_regionales', 'objetivos_nacionales',
+            'asignaturas', 'docentes_adicionales__docente',
+            'ejes_subitems__sub_eje__eje_rsu',
+            'actividades', 'cronograma', 'metas_indicadores',
+            'fuentes_financiamiento', 'partidas_presupuesto__fuente',
+            'documentos_sustento',
+        )
     )
 
 
@@ -256,3 +280,208 @@ def resumen_proyecto(proyecto):
         'tiene_lecciones_aprendidas': _tiene_texto(proyecto.lecciones_aprendidas),
     })
     return resumen
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-123: ficha tecnica
+# ─────────────────────────────────────────────────────────────────────────────
+
+def ficha_tecnica(proyecto):
+    """Ficha tecnica completa del proyecto historico, por secciones del ANEXO 4.
+
+    Espera un proyecto obtenido de queryset_ficha() para no disparar una
+    consulta por relacion. Deja fuera a proposito la bitacora interna del
+    flujo de aprobacion (revisiones e historial de estados con IP): el
+    repositorio muestra el proyecto, no su tramite.
+    """
+    ficha = _cabecera(proyecto)
+
+    ficha['datos_generales'] = {
+        'asignaturas': [
+            {
+                'nombre': a.nombre_asignatura,
+                'codigo': a.codigo_asignatura,
+                'anio_carrera': a.anio_carrera,
+                'semestre': a.semestre,
+            }
+            for a in proyecto.asignaturas.all()
+        ],
+        'nro_docentes': proyecto.nro_docentes or 0,
+        'nro_estudiantes': proyecto.nro_estudiantes or 0,
+        'docentes_adicionales': [
+            {'nombre': _nombre_usuario(d.docente), 'rol': d.rol_en_proyecto}
+            for d in proyecto.docentes_adicionales.all()
+        ],
+        'beneficiarios': [b.label for b in proyecto.beneficiarios.all()],
+        'beneficiarios_otro_detalle': proyecto.benef_otro_detalle,
+        'ejes_subitems': [
+            {
+                'eje_rsu': s.sub_eje.eje_rsu.nombre,
+                'subitem': s.sub_eje.nombre,
+                'detalle': s.detalle,
+            }
+            for s in proyecto.ejes_subitems.all()
+        ],
+        'eje_detalle': proyecto.eje_detalle,
+        'tipo_actividad': [
+            TIPOS_ACTIVIDAD_LABELS.get(t, t) for t in (proyecto.tipo_actividad or [])],
+        'tipo_actividad_otro': proyecto.tipo_actividad_otro,
+        'anio_carrera': proyecto.get_anio_carrera_display() if proyecto.anio_carrera else None,
+        'es_tesis_quinto_anio': proyecto.es_tesis_quinto_anio,
+        'fecha_evaluacion_avance': _iso(proyecto.fecha_evaluacion_avance),
+        'fecha_encuesta_docentes': _iso(proyecto.fecha_encuesta_docentes),
+        'fecha_encuesta_alumnos': _iso(proyecto.fecha_encuesta_alumnos),
+        'fecha_encuesta_grupo_destinatario': _iso(proyecto.fecha_encuesta_grupo_destinatario),
+        'lugar_ejecucion': proyecto.lugar_ejecucion,
+    }
+
+    ficha['alineamiento'] = {
+        'linea_estrategica': _ref(proyecto.linea_estrategica),
+        'objetivo_institucional': _ref(proyecto.objetivo_institucional),
+        'objetivos_regionales': [
+            {'id': o.id, 'codigo': o.codigo, 'nombre': o.nombre}
+            for o in proyecto.objetivos_regionales.all()
+        ],
+        'objetivos_nacionales': [
+            {'id': o.id, 'codigo': o.codigo, 'nombre': o.nombre}
+            for o in proyecto.objetivos_nacionales.all()
+        ],
+    }
+
+    ficha['fundamentacion'] = {
+        'por_que_grupo': proyecto.fund_por_que_grupo,
+        'para_que_proyecto': proyecto.fund_para_que_proyecto,
+        'mecanismo_ensenanza': proyecto.fund_mecanismo_ensenanza,
+    }
+
+    ficha['diagnostico'] = {
+        'estado_grupo': proyecto.diag_estado_grupo,
+        'problemas_detectados': proyecto.diag_problemas_detectados,
+        'aportes_formacion': proyecto.diag_aportes_formacion,
+        'justificacion_intervencion': proyecto.diag_justificacion_intervencion,
+    }
+
+    ficha['objetivos'] = {
+        'logro_intervencion': proyecto.obj_logro_intervencion,
+        'mejora_curricular': proyecto.obj_mejora_curricular,
+    }
+
+    ficha['resultados_esperados'] = _resultados_esperados(proyecto)
+
+    ficha['actividades'] = [
+        {
+            'nombre': a.nombre,
+            'descripcion': a.descripcion,
+            'curso_vinculado': a.curso_vinculado,
+            'responsable': a.responsable,
+            'fecha': _iso(a.fecha),
+            'evidencia_esperada': a.evidencia_esperada,
+            'estado': a.estado,
+            'estado_display': a.get_estado_display(),
+        }
+        for a in proyecto.actividades.all()
+    ]
+
+    ficha['cronograma'] = [
+        {
+            'descripcion': c.descripcion,
+            'fecha_inicio': _iso(c.fecha_inicio),
+            'fecha_fin': _iso(c.fecha_fin),
+            'responsable': c.responsable,
+            'estado_avance': c.estado_avance,
+            'estado_avance_display': c.get_estado_avance_display(),
+        }
+        for c in proyecto.cronograma.all()
+    ]
+
+    ficha['recursos'] = {
+        'humanos': {
+            'docentes': proyecto.rec_hum_docentes,
+            'administrativos': proyecto.rec_hum_administrativos,
+            'estudiantes': proyecto.rec_hum_estudiantes,
+            'egresados': proyecto.rec_hum_egresados,
+            'voluntarios': proyecto.rec_hum_voluntarios,
+            'otros': proyecto.rec_hum_otros,
+        },
+        'materiales': {
+            'material_didactico': proyecto.rec_mat_material_didactico,
+            'afiches': proyecto.rec_mat_afiches,
+            'equipos': proyecto.rec_mat_equipos,
+            'utiles': proyecto.rec_mat_utiles,
+            'otros': proyecto.rec_mat_otros,
+        },
+    }
+
+    ficha['financiamiento'] = {
+        'monto_total': float(proyecto.monto_financiamiento or 0),
+        'fuente_principal': proyecto.get_fuente_financiamiento_display() or None,
+        'descripcion_gastos': proyecto.descripcion_gastos,
+        'observaciones': proyecto.observaciones_financiamiento,
+        'fuentes': [
+            {
+                'fuente': f.get_fuente_display(),
+                'monto': float(f.monto),
+                'descripcion': f.descripcion,
+            }
+            for f in proyecto.fuentes_financiamiento.all()
+        ],
+        'partidas': [
+            {
+                'categoria': p.get_categoria_display() if p.categoria else '',
+                'tipo_recurso': p.get_tipo_recurso_display() if p.tipo_recurso else '',
+                'descripcion': p.descripcion,
+                'unidad': p.unidad,
+                'cantidad': p.cantidad,
+                'costo_unitario': float(p.costo_unitario),
+                'monto_presupuestado': float(p.monto_presupuestado),
+                'monto_ejecutado': float(p.monto_ejecutado),
+                'fuente': p.fuente.get_fuente_display() if p.fuente else '',
+            }
+            for p in proyecto.partidas_presupuesto.all()
+        ],
+    }
+
+    ficha['metas_indicadores'] = [
+        {
+            'meta': m.meta_descripcion,
+            'indicador': m.indicador_nombre,
+            'unidad_medida': m.unidad_medida,
+            'linea_base': float(m.linea_base) if m.linea_base is not None else None,
+            'valor_meta': float(m.valor_meta) if m.valor_meta is not None else None,
+            'valor_alcanzado': (
+                float(m.valor_alcanzado) if m.valor_alcanzado is not None else None),
+            'metodo_verificacion': m.metodo_verificacion,
+            'fuente_verificacion': m.fuente_verificacion,
+        }
+        for m in proyecto.metas_indicadores.all()
+    ]
+
+    ficha['documentos_sustento'] = [
+        {
+            'id': d.id,
+            'nombre': d.nombre or d.archivo.name.rsplit('/', 1)[-1],
+            'url': d.archivo.url if d.archivo else None,
+            'uploaded_at': _iso(d.uploaded_at),
+        }
+        for d in proyecto.documentos_sustento.all()
+    ]
+
+    ficha['trazabilidad'] = {
+        'created_at': _iso(proyecto.created_at),
+        'fecha_envio_revision': _iso(proyecto.fecha_envio_revision),
+        'fecha_aprobacion': _iso(proyecto.fecha_aprobacion),
+        'fecha_inicio_ejecucion': _iso(proyecto.fecha_inicio_ejecucion),
+        'fecha_cierre': _iso(proyecto.fecha_cierre),
+        'es_continuacion': proyecto.es_continuacion,
+        'proyecto_origen_id': proyecto.proyecto_origen_id,
+    }
+
+    return ficha
+
+
+def _resultados_esperados(proyecto):
+    return {
+        'en_beneficiarios': proyecto.resultado_en_beneficiarios,
+        'en_curriculo': proyecto.resultado_en_curriculo,
+        'impacto_esperado': proyecto.impacto_esperado,
+    }
