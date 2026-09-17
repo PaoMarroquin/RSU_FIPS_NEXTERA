@@ -33,7 +33,7 @@ from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.test import APITestCase
 from apps.usuarios.models import Usuario, Rol, Facultad, EscuelaProfesional, DepartamentoAcademico
-from apps.planificacion.models import PeriodoAcademico, MatrizOperativa, EjeRSU, ODS, LineaEstrategica, ObjetivoInstitucional
+from apps.planificacion.models import PeriodoAcademico, EjeRSU, ODS, LineaEstrategica, ObjetivoInstitucional
 from apps.proyectos.models import (
     ProyectoRSU, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, DocumentoSustentoProyecto,
@@ -97,18 +97,8 @@ class ProyectosAPITests(APITestCase):
             eje_rsu=self.eje_gestion
         )
 
-        # Create MatrizOperativa
-        self.matriz = MatrizOperativa.objects.create(
-            periodo=self.periodo,
-            facultad=self.facultad,
-            coordinador=self.coord_user,
-            presupuesto_global=10000.00,
-            estado='publicada'
-        )
-
         # Create Objetivo
         self.objetivo = ObjetivoInstitucional.objects.create(
-            matriz=self.matriz,
             linea_estrategica=self.linea,
             eje_rsu=self.eje_gestion,
             nombre='Reducir huella de carbono',

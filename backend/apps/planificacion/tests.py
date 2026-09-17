@@ -1,8 +1,8 @@
 """
 Pruebas de la API de planificacion.
 
-Verifican el acceso por rol a los catalogos y a la matriz operativa: que la
-Jefatura RSU solo pueda tocar la matriz de su facultad, que el Administrador
+Verifican el acceso por rol a los catalogos y a los documentos de guia: que la
+Jefatura RSU pueda publicarlos, que el Administrador
 pueda gestionar catalogos y que un usuario sin rol adecuado reciba 403.
 
 Conecta con:
@@ -65,91 +65,67 @@ class PlanificacionAPITests(APITestCase):
             eje_rsu=self.eje_gestion
         )
 
-    def test_coordinador_can_create_matriz_and_assign_budget(self):
-        """
-        Verify that a coordinator can configure a Matrix, setting a global budget.
-        """
+    def test_jefatura_puede_publicar_matriz_con_archivo(self):
+        """La matriz es un documento de guia: nombre, descripcion y archivo."""
         self.client.force_authenticate(user=self.coord_user)
-        
-        url = reverse('matriz-list')
-        data = {
-            'periodo': self.periodo.id,
-            'facultad': self.facultad.id,
-            'presupuesto_global': 50000.00,
-            'estado': 'borrador',
-            'observaciones': 'Matriz operativa 2026 FIPS'
-        }
-        
-        response = self.client.post(url, data, format='json')
+        archivo = SimpleUploadedFile(
+            'lineas.pdf', b'contenido', content_type='application/pdf')
+
+        response = self.client.post(reverse('matriz-list'), {
+            'nombre': 'Líneas de Investigación 2026',
+            'descripcion': 'Líneas vigentes para formular proyectos',
+            'archivo': archivo,
+        }, format='multipart')
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(float(response.data['presupuesto_global']), 50000.00)
-        self.assertEqual(response.data['coordinador_nombre'], self.coord_user.nombres)
+        self.assertEqual(response.data['nombre'], 'Líneas de Investigación 2026')
+        self.assertIn('lineas', response.data['archivo'])
+
+    def test_matriz_requiere_archivo(self):
+        self.client.force_authenticate(user=self.coord_user)
+        response = self.client.post(reverse('matriz-list'), {
+            'nombre': 'Sin adjunto',
+        }, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('archivo', response.data['errors'])
 
     def test_docente_cannot_create_matriz(self):
         """
         Verify that a standard teacher cannot create a matrix.
         """
         self.client.force_authenticate(user=self.docente_user)
-        url = reverse('matriz-list')
-        data = {
-            'periodo': self.periodo.id,
-            'facultad': self.facultad.id,
-            'presupuesto_global': 50000.00,
-        }
-        response = self.client.post(url, data, format='json')
+        archivo = SimpleUploadedFile(
+            'guia.pdf', b'contenido', content_type='application/pdf')
+        response = self.client.post(reverse('matriz-list'), {
+            'nombre': 'Intento de docente',
+            'archivo': archivo,
+        }, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_docente_can_only_view_published_matrices(self):
-        """
-        Verify that a teacher can only view matrices in 'publicada' state.
-        """
-        # Create draft matrix
-        matriz_borrador = MatrizOperativa.objects.create(
-            periodo=self.periodo,
-            facultad=self.facultad,
-            coordinador=self.coord_user,
-            presupuesto_global=30000.00,
-            estado='borrador'
-        )
-        
-        # Create published matrix
-        matriz_publicada = MatrizOperativa.objects.create(
-            periodo=self.periodo,
-            facultad=self.facultad,
-            coordinador=self.coord_user,
-            presupuesto_global=45000.00,
-            estado='publicada'
+    def test_docente_puede_consultar_las_matrices(self):
+        """El docente las consulta como guia, aunque no pueda publicarlas."""
+        matriz = MatrizOperativa.objects.create(
+            nombre='Objetivos Regionales',
+            archivo=SimpleUploadedFile('obj.pdf', b'x', content_type='application/pdf'),
         )
 
-        # Authenticate as teacher
         self.client.force_authenticate(user=self.docente_user)
-        url = reverse('matriz-list')
-        response = self.client.get(url, format='json')
-        
+        response = self.client.get(reverse('matriz-list'), format='json')
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Should only return the published matrix (la respuesta viene paginada)
         resultados = response.data['results']
         self.assertEqual(len(resultados), 1)
-        self.assertEqual(resultados[0]['id'], matriz_publicada.id)
+        self.assertEqual(resultados[0]['id'], matriz.id)
 
     def test_configure_objectives_indicators_and_suggested_activities(self):
         """
         Verify institutional objective, indicator, and suggested activities parameterization.
         """
-        matriz = MatrizOperativa.objects.create(
-            periodo=self.periodo,
-            facultad=self.facultad,
-            coordinador=self.coord_user,
-            presupuesto_global=10000.00,
-            estado='publicada'
-        )
-
         self.client.force_authenticate(user=self.coord_user)
 
         # 1. Create Objective
         obj_url = reverse('objetivo-list')
         obj_data = {
-            'matriz': matriz.id,
             'linea_estrategica': self.linea.id,
             'eje_rsu': self.eje_gestion.id,
             'nombre': 'Reducir huella de carbono',
@@ -173,7 +149,6 @@ class PlanificacionAPITests(APITestCase):
         # 3. Create Suggested Activity for 1st Year (e.g. "Afiches")
         act_url = reverse('actividad-sugerida-list')
         act_data = {
-            'matriz': matriz.id,
             'objetivo': objetivo_id,
             'eje_rsu': self.eje_gestion.id,
             'nombre': 'Elaboración de Afiches y Campaña de Sensibilización',
@@ -186,7 +161,6 @@ class PlanificacionAPITests(APITestCase):
 
         # 4. Create Suggested Activity for 2nd Year (e.g. "Foros")
         act_data_2 = {
-            'matriz': matriz.id,
             'objetivo': objetivo_id,
             'eje_rsu': self.eje_gestion.id,
             'nombre': 'Foro Universitario sobre Reciclaje',

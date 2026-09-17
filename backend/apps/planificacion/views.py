@@ -2,30 +2,22 @@
 Vistas del modulo de planificacion.
 
 Exponen los catalogos que alimentan los formularios de proyecto (periodos,
-ejes RSU, ODS, lineas estrategicas) y el CRUD de la matriz operativa con sus
-objetivos, indicadores y actividades sugeridas.
+ejes RSU, ODS, lineas estrategicas), los objetivos institucionales con sus
+indicadores y actividades sugeridas, y los documentos de guia que publica la
+Jefatura RSU (matriz operativa y documentos de apoyo).
 
 Regla de acceso: los catalogos son de lectura para cualquier usuario
-autenticado; crearlos o modificarlos es tarea del Administrador. La matriz
-operativa la gestiona la Jefatura RSU, y solo sobre su propia facultad, lo
-que comprueba el helper _verificar_facultad_propia.
-
-Tambien publica la exportacion de la matriz a Excel y PDF, delegando el
-armado del archivo en services.py.
+autenticado; crearlos o modificarlos es tarea del Administrador. Los
+documentos de guia los publica la Jefatura RSU o el Administrador.
 
 Conecta con:
 - apps/planificacion/models.py y serializers.py: datos y validacion.
-- apps/planificacion/services.py: generacion de Excel y PDF.
 - apps/planificacion/urls.py: rutas que exponen estas vistas.
 - apps/utils/permissions.py: IsAdministrador e IsJefaturaRSU.
 """
 from rest_framework import generics, filters
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
 from apps.utils.permissions import IsAdministrador, IsJefaturaRSU
 from .models import (
     PeriodoAcademico,
@@ -54,7 +46,6 @@ from .serializers import (
     DocumentoApoyoSerializer,
 )
 from apps.usuarios.models import Rol
-from .services import export_matriz_excel, export_matriz_pdf
 
 
 class PeriodoAcademicoListCreateView(generics.ListCreateAPIView):
@@ -163,101 +154,35 @@ class LineaEstrategicaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAP
         return [IsAuthenticated()]
 
 
-def _verificar_facultad_propia(user, facultad_id):
-    """
-    La Jefatura RSU solo configura la matriz operativa de su propia facultad;
-    el Administrador puede operar sobre cualquiera.
-
-    Necesario porque los endpoints de la matriz reciben el id de matriz/objetivo
-    en el payload y no filtran por facultad.
-    """
-    if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
-        return
-    if not user.facultad_id or facultad_id != user.facultad_id:
-        raise PermissionDenied('Solo puedes configurar la matriz de tu propia facultad.')
-
-
 class MatrizOperativaListCreateView(generics.ListCreateAPIView):
+    """
+    Documentos de guia para la formulacion de proyectos.
+
+    Lectura: cualquier usuario autenticado (los docentes los consultan).
+    Escritura: Jefatura RSU o Administrador, que son quienes los publican.
+    """
+    queryset = MatrizOperativa.objects.all()
     serializer_class = MatrizOperativaSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['facultad__nombre', 'periodo__nombre', 'coordinador__nombres']
-    ordering_fields = ['created_at', 'estado', 'periodo__nombre', 'facultad__nombre']
+    search_fields = ['nombre', 'descripcion']
+    ordering_fields = ['created_at', 'nombre']
     ordering = ['-created_at']
-
-    def get_queryset(self):
-        user = self.request.user
-        qs = (
-            MatrizOperativa.objects
-            .select_related('periodo', 'facultad', 'coordinador')
-            .prefetch_related(
-                'objetivos__indicadores',
-                'objetivos__linea_estrategica',
-                'objetivos__eje_rsu',
-                'actividades_sugeridas__eje_rsu',
-                'actividades_sugeridas__objetivo',
-            )
-            .order_by('-created_at')
-        )
-
-        # Aislamiento por rol
-        if user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR):
-            # Admin: ve todo; ?facultad respetado
-            facultad_id = self.request.query_params.get('facultad')
-            if facultad_id:
-                qs = qs.filter(facultad_id=facultad_id)
-        elif user.rol and user.rol.nombre == Rol.JEFATURA:
-            # Jefatura RSU: solo su facultad, ignora ?facultad externo
-            qs = qs.filter(facultad=user.facultad) if user.facultad_id else qs.none()
-        elif user.rol and user.rol.nombre == Rol.DOCENTE:
-            # Docente: solo matrices publicadas de su facultad
-            qs = qs.filter(estado='publicada')
-            if user.facultad_id:
-                qs = qs.filter(facultad=user.facultad)
-        else:
-            qs = qs.none()
-
-        periodo_id = self.request.query_params.get('periodo')
-        if periodo_id:
-            qs = qs.filter(periodo_id=periodo_id)
-
-        return qs
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            # La Jefatura RSU (ex "Coordinador RSU") configura la matriz de su facultad;
-            # perform_create la registra como su coordinador.
             return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
         return [IsAuthenticated()]
 
-    def perform_create(self, serializer):
-        periodo = serializer.validated_data.get('periodo')
-        if not periodo:
-            periodo = PeriodoAcademico.objects.filter(activo=True).first()
-
-        facultad = serializer.validated_data.get('facultad')
-        if facultad:
-            _verificar_facultad_propia(self.request.user, facultad.pk)
-
-        serializer.save(coordinador=self.request.user, periodo=periodo)
-
 
 class MatrizOperativaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = (
-        MatrizOperativa.objects
-        .select_related('periodo', 'facultad', 'coordinador')
-        .prefetch_related(
-            'objetivos__indicadores',
-            'objetivos__linea_estrategica',
-            'objetivos__eje_rsu',
-            'actividades_sugeridas__eje_rsu',
-            'actividades_sugeridas__objetivo',
-        )
-    )
+    queryset = MatrizOperativa.objects.all()
     serializer_class = MatrizOperativaSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), IsAdministrador()]
+            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
         return [IsAuthenticated()]
 
 
@@ -271,21 +196,12 @@ class ObjetivoInstitucionalListCreateView(generics.ListCreateAPIView):
             .prefetch_related('indicadores')
             .order_by('nombre')
         )
-        matriz_id = self.request.query_params.get('matriz')
-        if matriz_id:
-            qs = qs.filter(matriz_id=matriz_id)
         return qs
 
     def get_permissions(self):
         if self.request.method == 'POST':
             return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
         return [IsAuthenticated()]
-
-    def perform_create(self, serializer):
-        matriz = serializer.validated_data.get('matriz')
-        if matriz:
-            _verificar_facultad_propia(self.request.user, matriz.facultad_id)
-        serializer.save()
 
 
 class ObjetivoInstitucionalRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -317,12 +233,6 @@ class IndicadorInstitucionalListCreateView(generics.ListCreateAPIView):
             return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
         return [IsAuthenticated()]
 
-    def perform_create(self, serializer):
-        objetivo = serializer.validated_data.get('objetivo')
-        if objetivo:
-            _verificar_facultad_propia(self.request.user, objetivo.matriz.facultad_id)
-        serializer.save()
-
 
 class IndicadorInstitucionalRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = IndicadorInstitucional.objects.select_related('objetivo').all()
@@ -340,13 +250,9 @@ class ActividadSugeridaListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         qs = (
             ActividadSugerida.objects
-            .select_related('eje_rsu', 'objetivo', 'matriz')
+            .select_related('eje_rsu', 'objetivo')
             .order_by('anio_academico', 'nombre')
         )
-
-        matriz_id = self.request.query_params.get('matriz')
-        if matriz_id:
-            qs = qs.filter(matriz_id=matriz_id)
 
         anio = self.request.query_params.get('anio_academico')
         if anio:
@@ -359,15 +265,9 @@ class ActividadSugeridaListCreateView(generics.ListCreateAPIView):
             return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
         return [IsAuthenticated()]
 
-    def perform_create(self, serializer):
-        matriz = serializer.validated_data.get('matriz')
-        if matriz:
-            _verificar_facultad_propia(self.request.user, matriz.facultad_id)
-        serializer.save()
-
 
 class ActividadSugeridaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = ActividadSugerida.objects.select_related('eje_rsu', 'objetivo', 'matriz').all()
+    queryset = ActividadSugerida.objects.select_related('eje_rsu', 'objetivo').all()
     serializer_class = ActividadSugeridaSerializer
 
     def get_permissions(self):
@@ -376,49 +276,6 @@ class ActividadSugeridaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyA
         return [IsAuthenticated()]
 
 
-class MatrizOperativaExportExcelView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, pk):
-        matriz = get_object_or_404(
-            MatrizOperativa.objects.select_related('periodo', 'facultad', 'coordinador')
-            .prefetch_related(
-                'objetivos__indicadores',
-                'objetivos__linea_estrategica',
-                'objetivos__eje_rsu',
-                'actividades_sugeridas__eje_rsu',
-                'actividades_sugeridas__objetivo',
-            ), 
-            pk=pk
-        )
-        excel_file = export_matriz_excel(matriz)
-        response = HttpResponse(
-            excel_file.read(),
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        response['Content-Disposition'] = f'attachment; filename="matriz_operativa_{matriz.id}.xlsx"'
-        return response
-
-
-class MatrizOperativaExportPDFView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, pk):
-        matriz = get_object_or_404(
-            MatrizOperativa.objects.select_related('periodo', 'facultad', 'coordinador')
-            .prefetch_related(
-                'objetivos__indicadores',
-                'objetivos__linea_estrategica',
-                'objetivos__eje_rsu',
-                'actividades_sugeridas__eje_rsu',
-                'actividades_sugeridas__objetivo',
-            ), 
-            pk=pk
-        )
-        pdf_file = export_matriz_pdf(matriz)
-        response = HttpResponse(pdf_file.read(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="matriz_operativa_{matriz.id}.pdf"'
-        return response
 
 
 class DocumentoApoyoListCreateView(generics.ListCreateAPIView):

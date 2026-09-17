@@ -8,7 +8,6 @@ Rutas:
 - /objetivos-nacionales/, /objetivos-nacionales/<id>/
 - /lineas-estrategicas/, /lineas-estrategicas/<id>/
 - /matrices/, /matrices/<id>/
-- /matrices/<id>/export/excel/, /matrices/<id>/export/pdf/
 - /objetivos-institucionales/, /objetivos-institucionales/<id>/
 - /indicadores-institucionales/, /indicadores-institucionales/<id>/
 - /actividades-sugeridas/, /actividades-sugeridas/<id>/
@@ -40,9 +39,7 @@ urlpatterns = [
     
     path('matrices/', views.MatrizOperativaListCreateView.as_view(), name='matriz-list'),
     path('matrices/<int:pk>/', views.MatrizOperativaRetrieveUpdateDestroyView.as_view(), name='matriz-detail'),
-    path('matrices/<int:pk>/export/excel/', views.MatrizOperativaExportExcelView.as_view(), name='matriz-export-excel'),
-    path('matrices/<int:pk>/export/pdf/', views.MatrizOperativaExportPDFView.as_view(), name='matriz-export-pdf'),
-    
+
     path('objetivos-institucionales/', views.ObjetivoInstitucionalListCreateView.as_view(), name='objetivo-list'),
     path('objetivos-institucionales/<int:pk>/', views.ObjetivoInstitucionalRetrieveUpdateDestroyView.as_view(), name='objetivo-detail'),
     

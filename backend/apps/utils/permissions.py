@@ -131,8 +131,7 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
     facultad/departamento mientras esta en estado 'observado' (el unico
     estado no-borrador que el serializer aun deja editar) sin ser su dueno.
 
-    Se considera dueno al `docente_responsable` (proyectos) o al
-    `coordinador` (matriz operativa), segun el atributo que exista.
+    Se considera dueno al `docente_responsable` del proyecto.
     """
 
     def has_object_permission(self, request, view, obj):
@@ -144,8 +143,6 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
         if hasattr(obj, 'docente_responsable'):
             return obj.docente_responsable == request.user
-        if hasattr(obj, 'coordinador'):
-            return obj.coordinador == request.user
         return False
 
 

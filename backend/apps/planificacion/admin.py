@@ -81,28 +81,16 @@ class LineaEstrategicaAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
 
 
-class ObjetivoInstitucionalInline(admin.TabularInline):
-    model = ObjetivoInstitucional
-    extra = 1
-
-
-class ActividadSugeridaInline(admin.TabularInline):
-    model = ActividadSugerida
-    extra = 1
-
-
 @admin.register(MatrizOperativa)
 class MatrizOperativaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'facultad', 'periodo', 'coordinador', 'presupuesto_global', 'estado')
-    list_filter = ('facultad', 'periodo', 'estado')
-    search_fields = ('coordinador__nombres', 'observaciones')
-    inlines = [ObjetivoInstitucionalInline, ActividadSugeridaInline]
+    list_display = ('nombre', 'created_at')
+    search_fields = ('nombre', 'descripcion')
 
 
 @admin.register(ObjetivoInstitucional)
 class ObjetivoInstitucionalAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'matriz', 'eje_rsu', 'linea_estrategica', 'meta_cuantitativa')
-    list_filter = ('matriz__facultad', 'eje_rsu')
+    list_display = ('nombre', 'eje_rsu', 'linea_estrategica', 'meta_cuantitativa')
+    list_filter = ('eje_rsu',)
     search_fields = ('nombre', 'descripcion')
 
 
@@ -114,8 +102,8 @@ class IndicadorInstitucionalAdmin(admin.ModelAdmin):
 
 @admin.register(ActividadSugerida)
 class ActividadSugeridaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'matriz', 'eje_rsu', 'anio_academico', 'tipo_actividad', 'presupuesto_ref')
-    list_filter = ('matriz__facultad', 'anio_academico', 'eje_rsu')
+    list_display = ('nombre', 'eje_rsu', 'anio_academico', 'tipo_actividad', 'presupuesto_ref')
+    list_filter = ('anio_academico', 'eje_rsu')
     search_fields = ('nombre', 'tipo_actividad')
 
 

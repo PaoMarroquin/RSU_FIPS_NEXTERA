@@ -21,8 +21,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
 from apps.planificacion.models import (
-    PeriodoAcademico, EjeRSU, ODS, LineaEstrategica,
-    MatrizOperativa, ObjetivoInstitucional,
+    PeriodoAcademico, EjeRSU, ODS, LineaEstrategica, ObjetivoInstitucional,
 )
 from apps.proyectos.models import ProyectoRSU, ProyectoAsignatura, ProyectoDocente
 
@@ -68,8 +67,7 @@ class Command(BaseCommand):
         ods_13 = ODS.objects.get(numero=13)
         ods_16 = ODS.objects.get(numero=16)
 
-        # Matriz y lineas creadas por seed_rsu
-        matriz = MatrizOperativa.objects.get(periodo=periodo, facultad=facultad)
+        # Lineas y objetivos creados por seed_rsu
         linea_amb = LineaEstrategica.objects.get(
             nombre='Gestion Ambiental y Campus Sostenible', eje_rsu=eje_gestion)
         linea_edu = LineaEstrategica.objects.get(
@@ -79,14 +77,10 @@ class Command(BaseCommand):
         linea_soc = LineaEstrategica.objects.get(
             nombre='Proyectos de Extension y Apoyo Comunitario', eje_rsu=eje_extension)
 
-        obj_1 = ObjetivoInstitucional.objects.get(
-            matriz=matriz, eje_rsu=eje_gestion)
-        obj_2 = ObjetivoInstitucional.objects.get(
-            matriz=matriz, eje_rsu=eje_formacion)
-        obj_3 = ObjetivoInstitucional.objects.get(
-            matriz=matriz, eje_rsu=eje_investigacion)
-        obj_4 = ObjetivoInstitucional.objects.get(
-            matriz=matriz, eje_rsu=eje_extension)
+        obj_1 = ObjetivoInstitucional.objects.get(eje_rsu=eje_gestion)
+        obj_2 = ObjetivoInstitucional.objects.get(eje_rsu=eje_formacion)
+        obj_3 = ObjetivoInstitucional.objects.get(eje_rsu=eje_investigacion)
+        obj_4 = ObjetivoInstitucional.objects.get(eje_rsu=eje_extension)
 
         self.stdout.write('  Catalogos cargados OK')
 
