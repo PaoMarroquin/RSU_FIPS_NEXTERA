@@ -1182,6 +1182,61 @@ class ProyectoFinalizarAPITests(APITestCase):
             proyecto=self.proyecto, destinatario=self.docente,
             tipo='finalizacion').exists())
 
+    def test_finalizar_registra_el_informe_final(self):
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {
+            'conclusiones': 'Se cumplieron los objetivos.',
+            'recomendaciones': 'Repetir en otro distrito.',
+            'lecciones_aprendidas': 'Coordinar antes con la comunidad.',
+            'medio_difusion': 'Pagina web de la facultad',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'finalizado')
+        self.assertEqual(self.proyecto.conclusiones, 'Se cumplieron los objetivos.')
+        self.assertEqual(self.proyecto.lecciones_aprendidas, 'Coordinar antes con la comunidad.')
+        self.assertEqual(self.proyecto.medio_difusion, 'Pagina web de la facultad')
+
+    def test_finalizar_sin_body_no_borra_el_informe_existente(self):
+        self.proyecto.conclusiones = 'Cargadas antes del cierre.'
+        self.proyecto.save(update_fields=['conclusiones'])
+
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.conclusiones, 'Cargadas antes del cierre.')
+
+    def test_informe_final_invalido_no_finaliza_el_proyecto(self):
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {
+            'lecciones_aprendidas': 'Valida.',
+            'medio_difusion': 'x' * 201,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('medio_difusion', response.data['errors'])
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
+        self.assertIsNone(self.proyecto.lecciones_aprendidas)
+
+    def test_informe_registrado_al_cerrar_aparece_en_el_repositorio(self):
+        self.client.force_authenticate(user=self.depto_user)
+        self.client.post(self._url(), {
+            'conclusiones': 'Objetivos cumplidos.',
+            'recomendaciones': 'Ampliar el alcance.',
+            'lecciones_aprendidas': 'Planificar la logistica con tiempo.',
+        }, format='json')
+
+        response = self.client.get(
+            reverse('repositorio-informe-final', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['informe_final']['completo'])
+        self.assertEqual(response.data['informe_final']['lecciones_aprendidas'],
+                         'Planificar la logistica con tiempo.')
+
     def test_no_se_puede_finalizar_dos_veces(self):
         self.client.force_authenticate(user=self.depto_user)
         self.client.post(self._url(), {}, format='json')
@@ -1923,9 +1978,50 @@ class RepositorioHistoricoAPITests(APITestCase):
         self.client.force_authenticate(user=self.docente)
         for proyecto in (self.aprobado, self.en_ejecucion):
             with self.subTest(estado=proyecto.estado):
-                for nombre in ('repositorio-ficha-tecnica',):
+                for nombre in ('repositorio-ficha-tecnica', 'repositorio-informe-final'):
                     response = self.client.get(reverse(nombre, args=[proyecto.pk]))
                     self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # ── T-124: informe final y lecciones aprendidas ───────────────────────────
+
+    def test_informe_final_con_resultados_alcanzados(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-informe-final', args=[self.reciclaje.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        informe = response.data['informe_final']
+        self.assertEqual(informe['conclusiones'], 'Se capacito a 120 escolares.')
+        self.assertTrue(informe['completo'])
+        self.assertEqual(informe['campos_pendientes'], [])
+
+        alcanzados = response.data['resultados_alcanzados']
+        self.assertEqual(alcanzados['metas']['cumplidas'], 1)
+        self.assertEqual(alcanzados['presupuesto']['monto_ejecutado'], 40.0)
+        self.assertEqual(alcanzados['avance']['actividades_completadas'], 1)
+        self.assertEqual(response.data['resultados_esperados']['en_beneficiarios'],
+                         'Escolares separan residuos.')
+
+    def test_informe_final_incompleto_indica_campos_pendientes(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-informe-final', args=[self.alfabetizacion.pk]))
+        informe = response.data['informe_final']
+        self.assertFalse(informe['completo'])
+        self.assertEqual(informe['campos_pendientes'],
+                         ['conclusiones', 'recomendaciones', 'lecciones_aprendidas'])
+
+    def test_lecciones_aprendidas_solo_de_proyectos_que_las_registraron(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-lecciones-aprendidas'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._titulos(response),
+                         {'Reciclaje en colegios', 'Matematica para todos'})
+
+        response = self.client.get(reverse('repositorio-lecciones-aprendidas'),
+                                   {'eje_rsu': self.extension.pk})
+        self.assertEqual(self._titulos(response), {'Matematica para todos'})
+        self.assertEqual(response.data['results'][0]['lecciones_aprendidas'],
+                         'Los talleres cortos funcionan mejor.')
 
 
 class BorradorMinimoAPITests(BaseProyectoTestCase):

@@ -41,7 +41,9 @@ from apps.usuarios.models import DepartamentoAcademico, EscuelaProfesional, Facu
 from apps.utils.permissions import PuedeConsultarRepositorioHistorico
 
 from .services_repositorio import (
-    ORDENAMIENTOS, aplicar_filtros, ficha_tecnica, ordenar, queryset_ficha, queryset_historico, resumen_proyecto,
+    ORDENAMIENTOS, aplicar_filtros, con_lecciones_aprendidas, ficha_tecnica,
+    informe_final, leccion_aprendida, ordenar, queryset_ficha,
+    queryset_historico, resumen_proyecto,
 )
 
 
@@ -80,6 +82,20 @@ class RepositorioProyectosView(_BaseRepositorioView):
 
     def get(self, request):
         return self.listar(request, queryset_historico(), resumen_proyecto)
+
+
+class RepositorioLeccionesAprendidasView(_BaseRepositorioView):
+    """GET /repositorio/lecciones-aprendidas/  (T-124)
+
+    Lecciones aprendidas de todos los proyectos finalizados que las
+    registraron, con los mismos filtros y orden que el listado de proyectos.
+    Permite consultarlas de forma transversal (p. ej. todas las de un eje RSU)
+    sin entrar proyecto por proyecto.
+    """
+
+    def get(self, request):
+        qs = con_lecciones_aprendidas(queryset_historico())
+        return self.listar(request, qs, leccion_aprendida)
 
 
 class RepositorioFiltrosView(_BaseRepositorioView):
@@ -162,3 +178,15 @@ class RepositorioFichaTecnicaView(_BaseProyectoHistoricoView):
 
     def get(self, request, pk):
         return self.responder(ficha_tecnica(self.get_proyecto(pk)))
+
+
+class RepositorioInformeFinalView(_BaseProyectoHistoricoView):
+    """GET /repositorio/proyectos/<pk>/informe-final/  (T-124)
+
+    Conclusiones, recomendaciones, lecciones aprendidas y medio de difusion,
+    junto con los resultados esperados y los alcanzados (actividades, metas y
+    presupuesto ejecutado).
+    """
+
+    def get(self, request, pk):
+        return self.responder(informe_final(self.get_proyecto(pk)))

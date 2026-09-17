@@ -299,6 +299,23 @@ class NotificacionSerializer(serializers.ModelSerializer):
 # Main serializer
 # ──────────────────────────────────────────────────────────────────────────────
 
+class InformeFinalSerializer(serializers.ModelSerializer):
+    """Informe final que se registra al finalizar el proyecto (HU-07, T-124).
+
+    Todos los campos son opcionales: solo se actualizan los que llegan en la
+    peticion. Lo que quede vacio lo reporta el repositorio historico como
+    `campos_pendientes` del informe final.
+    """
+
+    class Meta:
+        model = ProyectoRSU
+        fields = ['conclusiones', 'recomendaciones', 'lecciones_aprendidas', 'medio_difusion']
+        extra_kwargs = {
+            campo: {'required': False, 'allow_blank': True, 'allow_null': True}
+            for campo in fields
+        }
+
+
 class ProyectoRSUSerializer(serializers.ModelSerializer):
     # Nested writable
     asignaturas = ProyectoAsignaturaSerializer(many=True, required=False)

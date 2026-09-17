@@ -42,6 +42,8 @@ from .views_repositorio import (
     RepositorioProyectosView,
     RepositorioFiltrosView,
     RepositorioFichaTecnicaView,
+    RepositorioInformeFinalView,
+    RepositorioLeccionesAprendidasView,
 )
 
 urlpatterns = [
@@ -122,4 +124,8 @@ urlpatterns = [
          RepositorioProyectosView.as_view(), name='repositorio-proyectos'),
     path('repositorio/proyectos/<int:pk>/',
          RepositorioFichaTecnicaView.as_view(), name='repositorio-ficha-tecnica'),
+    path('repositorio/proyectos/<int:pk>/informe-final/',
+         RepositorioInformeFinalView.as_view(), name='repositorio-informe-final'),
+    path('repositorio/lecciones-aprendidas/',
+         RepositorioLeccionesAprendidasView.as_view(), name='repositorio-lecciones-aprendidas'),
 ]

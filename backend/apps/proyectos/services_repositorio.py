@@ -44,6 +44,7 @@ from datetime import date
 from django.db.models import Q
 
 from .models import ProyectoRSU
+from .services_consolidado import consolidar_proyecto
 
 # Un proyecto solo forma parte del repositorio historico una vez finalizado.
 ESTADO_HISTORICO = 'finalizado'
@@ -485,3 +486,61 @@ def _resultados_esperados(proyecto):
         'en_curriculo': proyecto.resultado_en_curriculo,
         'impacto_esperado': proyecto.impacto_esperado,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-124: informe final y lecciones aprendidas
+# ─────────────────────────────────────────────────────────────────────────────
+
+def informe_final(proyecto):
+    """Informe final del proyecto: cierre, resultados alcanzados y lecciones.
+
+    Pone lado a lado lo que el proyecto se propuso (resultados esperados) y
+    lo que logro (actividades, metas y presupuesto ejecutado), junto con las
+    conclusiones, recomendaciones y lecciones aprendidas registradas. Los
+    resultados alcanzados se calculan con la misma consolidacion del informe
+    de HU-06, para que ambos modulos den las mismas cifras.
+    """
+    consolidado = consolidar_proyecto(proyecto)
+
+    textos = {
+        'conclusiones': proyecto.conclusiones,
+        'recomendaciones': proyecto.recomendaciones,
+        'lecciones_aprendidas': proyecto.lecciones_aprendidas,
+        'medio_difusion': proyecto.medio_difusion,
+    }
+    pendientes = [
+        campo for campo in ('conclusiones', 'recomendaciones', 'lecciones_aprendidas')
+        if not _tiene_texto(textos[campo])
+    ]
+
+    informe = _cabecera(proyecto)
+    informe['informe_final'] = {
+        **textos,
+        'completo': not pendientes,
+        'campos_pendientes': pendientes,
+    }
+    informe['resultados_esperados'] = _resultados_esperados(proyecto)
+    informe['resultados_alcanzados'] = {
+        'avance': consolidado['avance'],
+        'metas': consolidado['metas'],
+        'presupuesto': consolidado['presupuesto'],
+        'detalle_metas': consolidado['detalle_metas'],
+    }
+    return informe
+
+
+def leccion_aprendida(proyecto):
+    """Item del listado transversal de lecciones aprendidas."""
+    item = _cabecera(proyecto)
+    item.update({
+        'lecciones_aprendidas': proyecto.lecciones_aprendidas,
+        'recomendaciones': proyecto.recomendaciones,
+    })
+    return item
+
+
+def con_lecciones_aprendidas(qs):
+    """Solo los proyectos que registraron lecciones aprendidas."""
+    return qs.exclude(lecciones_aprendidas__isnull=True).exclude(
+        lecciones_aprendidas__regex=r'^\s*$')
