@@ -23,7 +23,6 @@ from .models import (
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
-    DocumentoApoyo,
 )
 
 class PeriodoAcademicoSerializer(serializers.ModelSerializer):
@@ -116,29 +115,3 @@ class MatrizOperativaSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre', 'descripcion', 'archivo',
                   'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
-
-
-class DocumentoApoyoSerializer(serializers.ModelSerializer):
-    """Repositorio de documentos guía (Jefatura RSU) para la formulación de proyectos."""
-    categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
-    publicado_por_nombre = serializers.CharField(source='publicado_por.nombres', read_only=True)
-
-    class Meta:
-        model = DocumentoApoyo
-        fields = [
-            'id', 'titulo', 'descripcion', 'categoria', 'categoria_display',
-            'archivo', 'enlace_externo', 'publicado_por', 'publicado_por_nombre',
-            'activo', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['publicado_por', 'created_at', 'updated_at']
-
-    def validate(self, attrs):
-        archivo = attrs.get('archivo', getattr(self.instance, 'archivo', None))
-        enlace = attrs.get('enlace_externo', getattr(self.instance, 'enlace_externo', None))
-        if not archivo and not enlace:
-            raise serializers.ValidationError(
-                'Debe adjuntar un archivo o indicar un enlace externo.')
-        if archivo and enlace:
-            raise serializers.ValidationError(
-                'Use un archivo o un enlace externo, no ambos.')
-        return attrs

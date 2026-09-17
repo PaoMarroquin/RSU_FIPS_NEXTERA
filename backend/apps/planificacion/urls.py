@@ -11,7 +11,6 @@ Rutas:
 - /objetivos-institucionales/, /objetivos-institucionales/<id>/
 - /indicadores-institucionales/, /indicadores-institucionales/<id>/
 - /actividades-sugeridas/, /actividades-sugeridas/<id>/
-- /documentos-apoyo/, /documentos-apoyo/<id>/
 
 Conecta con:
 - apps/planificacion/views.py: vistas a las que apunta cada ruta.
@@ -48,7 +47,4 @@ urlpatterns = [
     
     path('actividades-sugeridas/', views.ActividadSugeridaListCreateView.as_view(), name='actividad-sugerida-list'),
     path('actividades-sugeridas/<int:pk>/', views.ActividadSugeridaRetrieveUpdateDestroyView.as_view(), name='actividad-sugerida-detail'),
-
-    path('documentos-apoyo/', views.DocumentoApoyoListCreateView.as_view(), name='documento-apoyo-list'),
-    path('documentos-apoyo/<int:pk>/', views.DocumentoApoyoRetrieveUpdateDestroyView.as_view(), name='documento-apoyo-detail'),
 ]

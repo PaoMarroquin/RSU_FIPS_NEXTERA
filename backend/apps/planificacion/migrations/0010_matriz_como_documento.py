@@ -71,7 +71,7 @@ class Migration(migrations.Migration):
                 validators=[
                     django.core.validators.FileExtensionValidator(
                         allowed_extensions=['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']),
-                    apps.planificacion.models.validate_documento_apoyo_size,
+                    apps.planificacion.models.validate_documento_size,
                 ]),
             preserve_default=False,
         ),

@@ -3,8 +3,8 @@ Vistas del modulo de planificacion.
 
 Exponen los catalogos que alimentan los formularios de proyecto (periodos,
 ejes RSU, ODS, lineas estrategicas), los objetivos institucionales con sus
-indicadores y actividades sugeridas, y los documentos de guia que publica la
-Jefatura RSU (matriz operativa y documentos de apoyo).
+indicadores y actividades sugeridas, y la matriz operativa: los documentos de
+guia que publica la Jefatura RSU.
 
 Regla de acceso: los catalogos son de lectura para cualquier usuario
 autenticado; crearlos o modificarlos es tarea del Administrador. Los
@@ -30,7 +30,6 @@ from .models import (
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
-    DocumentoApoyo,
 )
 from .serializers import (
     PeriodoAcademicoSerializer,
@@ -43,9 +42,7 @@ from .serializers import (
     ObjetivoInstitucionalSerializer,
     IndicadorInstitucionalSerializer,
     ActividadSugeridaSerializer,
-    DocumentoApoyoSerializer,
 )
-from apps.usuarios.models import Rol
 
 
 class PeriodoAcademicoListCreateView(generics.ListCreateAPIView):
@@ -273,61 +270,4 @@ class ActividadSugeridaRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyA
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
             return [IsAuthenticated(), IsAdministrador()]
-        return [IsAuthenticated()]
-
-
-
-
-class DocumentoApoyoListCreateView(generics.ListCreateAPIView):
-    """
-    Repositorio de documentos guía para la formulación de proyectos.
-
-    Lectura: cualquier usuario autenticado (los docentes solo ven los
-    documentos activos; Administrador y Jefatura RSU ven también los
-    inactivos para poder reactivarlos).
-    Escritura: Administrador o Jefatura RSU, que es quien sube las guías
-    (líneas de investigación, objetivos regionales, normativa, etc.).
-    """
-    serializer_class = DocumentoApoyoSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['titulo', 'descripcion']
-    ordering_fields = ['created_at', 'titulo', 'categoria']
-    ordering = ['-created_at']
-
-    def get_queryset(self):
-        qs = DocumentoApoyo.objects.select_related('publicado_por').all()
-        user = self.request.user
-        es_gestor = user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.JEFATURA])
-        if not es_gestor:
-            qs = qs.filter(activo=True)
-        categoria = self.request.query_params.get('categoria')
-        if categoria:
-            qs = qs.filter(categoria=categoria)
-        return qs
-
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
-        return [IsAuthenticated()]
-
-    def perform_create(self, serializer):
-        serializer.save(publicado_por=self.request.user)
-
-
-class DocumentoApoyoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = DocumentoApoyoSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
-
-    def get_queryset(self):
-        qs = DocumentoApoyo.objects.select_related('publicado_por').all()
-        user = self.request.user
-        es_gestor = user.is_staff or (user.rol and user.rol.nombre in [Rol.ADMINISTRADOR, Rol.JEFATURA])
-        if not es_gestor:
-            qs = qs.filter(activo=True)
-        return qs
-
-    def get_permissions(self):
-        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [IsAuthenticated(), (IsAdministrador | IsJefaturaRSU)()]
         return [IsAuthenticated()]

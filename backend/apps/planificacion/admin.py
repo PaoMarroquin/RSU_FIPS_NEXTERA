@@ -23,7 +23,6 @@ from .models import (
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
-    DocumentoApoyo,
 )
 
 @admin.register(PeriodoAcademico)
@@ -105,10 +104,3 @@ class ActividadSugeridaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'eje_rsu', 'anio_academico', 'tipo_actividad', 'presupuesto_ref')
     list_filter = ('anio_academico', 'eje_rsu')
     search_fields = ('nombre', 'tipo_actividad')
-
-
-@admin.register(DocumentoApoyo)
-class DocumentoApoyoAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'categoria', 'publicado_por', 'activo', 'created_at')
-    list_filter = ('categoria', 'activo')
-    search_fields = ('titulo', 'descripcion')

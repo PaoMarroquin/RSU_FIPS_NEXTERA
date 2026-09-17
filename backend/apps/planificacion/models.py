@@ -30,7 +30,6 @@ Conecta con:
   EjeRSUSubitem, ODS, LineaEstrategica y ObjetivoInstitucional.
 """
 from django.db import models
-from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
 
@@ -171,14 +170,14 @@ class LineaEstrategica(models.Model):
         return self.nombre
 
 
-DOCUMENTO_APOYO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
-DOCUMENTO_APOYO_MAX_SIZE_MB = 20
+DOCUMENTO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+DOCUMENTO_MAX_SIZE_MB = 20
 
 
-def validate_documento_apoyo_size(archivo):
-    if archivo.size > DOCUMENTO_APOYO_MAX_SIZE_MB * 1024 * 1024:
+def validate_documento_size(archivo):
+    if archivo.size > DOCUMENTO_MAX_SIZE_MB * 1024 * 1024:
         raise ValidationError(
-            f'El archivo no puede superar los {DOCUMENTO_APOYO_MAX_SIZE_MB}MB.')
+            f'El archivo no puede superar los {DOCUMENTO_MAX_SIZE_MB}MB.')
 
 
 class MatrizOperativa(models.Model):
@@ -190,8 +189,8 @@ class MatrizOperativa(models.Model):
     archivo = models.FileField(
         upload_to='planificacion/matriz/',
         validators=[
-            FileExtensionValidator(allowed_extensions=DOCUMENTO_APOYO_EXTENSIONS),
-            validate_documento_apoyo_size,
+            FileExtensionValidator(allowed_extensions=DOCUMENTO_EXTENSIONS),
+            validate_documento_size,
         ],
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -268,62 +267,3 @@ class ActividadSugerida(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.get_anio_academico_display()})'
-
-
-class DocumentoApoyo(models.Model):
-    """
-    Repositorio de documentos de apoyo para la formulación de proyectos RSU.
-
-    Publicado por Jefatura RSU (o Administrador) para que los docentes
-    consulten lineamientos al formular su proyecto: líneas de investigación,
-    objetivos regionales, guías de formulación, normativa vigente, etc.
-    Admite archivo local (PDF/Word/Excel/PowerPoint) o enlace externo (Drive,
-    p. ej.), igual que las evidencias de HU-05, para no saturar el servidor.
-    El ocultamiento es lógico (`activo=False`) para conservar el historial.
-    """
-    CATEGORIAS = [
-        ('linea_investigacion', 'Línea de Investigación'),
-        ('objetivo_regional',   'Objetivo Regional'),
-        ('objetivo_nacional',   'Objetivo Nacional'),
-        ('ods',                 'ODS'),
-        ('guia_formulacion',    'Guía de Formulación'),
-        ('normativa',           'Normativa / Directiva'),
-        ('otro',                'Otro'),
-    ]
-
-    titulo = models.CharField(max_length=255, help_text='Nombre del documento')
-    descripcion = models.TextField(blank=True, default='', help_text='Descripción del contenido')
-    categoria = models.CharField(max_length=30, choices=CATEGORIAS, default='otro', db_index=True)
-    archivo = models.FileField(
-        upload_to='planificacion/documentos_apoyo/', null=True, blank=True,
-        validators=[
-            FileExtensionValidator(allowed_extensions=DOCUMENTO_APOYO_EXTENSIONS),
-            validate_documento_apoyo_size,
-        ],
-    )
-    enlace_externo = models.URLField(
-        blank=True, null=True,
-        help_text='Enlace externo (Drive, etc.) cuando no se adjunta archivo')
-    publicado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
-        related_name='documentos_apoyo_publicados')
-    activo = models.BooleanField(
-        default=True, db_index=True,
-        help_text='Los documentos inactivos dejan de listarse para los docentes')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'documentos_apoyo'
-        verbose_name = 'Documento de Apoyo'
-        verbose_name_plural = 'Documentos de Apoyo'
-        ordering = ['-created_at']
-
-    def clean(self):
-        if not self.archivo and not self.enlace_externo:
-            raise ValidationError('Debe adjuntar un archivo o indicar un enlace externo.')
-        if self.archivo and self.enlace_externo:
-            raise ValidationError('Use un archivo o un enlace externo, no ambos.')
-
-    def __str__(self):
-        return self.titulo
