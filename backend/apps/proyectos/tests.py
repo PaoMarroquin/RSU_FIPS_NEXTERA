@@ -1831,12 +1831,65 @@ class RepositorioHistoricoAPITests(APITestCase):
         response = self.client.get(reverse('repositorio-proyectos'))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    # ── T-120 / T-122: filtros ────────────────────────────────────────────────
+
+    def test_filtros_individuales(self):
+        self.client.force_authenticate(user=self.docente)
+        casos = [
+            ({'semestre': '2025-a'}, {'Reciclaje en colegios'}),
+            ({'facultad': self.fcnf.pk}, {'Matematica para todos'}),
+            ({'escuela': self.epis.pk}, {'Reciclaje en colegios', 'Alfabetizacion digital'}),
+            ({'eje_rsu': self.gestion.pk}, {'Reciclaje en colegios'}),
+            ({'ods': self.ods11.pk}, {'Reciclaje en colegios', 'Matematica para todos'}),
+            ({'periodo': self.periodo_b.pk},
+             {'Alfabetizacion digital', 'Matematica para todos'}),
+        ]
+        for params, esperados in casos:
+            with self.subTest(params=params):
+                response = self.client.get(reverse('repositorio-proyectos'), params)
+                self.assertEqual(self._titulos(response), esperados)
+
+    def test_filtros_combinados_se_intersectan(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'), {
+            'facultad': self.fips.pk, 'semestre': '2025-B', 'ods': self.ods4.pk})
+        self.assertEqual(self._titulos(response), {'Alfabetizacion digital'})
+        self.assertEqual(response.data['filtros_aplicados'], {
+            'facultad': [self.fips.pk], 'ods': [self.ods4.pk], 'semestre': ['2025-B']})
+
+    def test_varios_valores_en_un_filtro_se_suman_sin_duplicar(self):
+        """Reciclaje tiene ODS 4 y 11: debe salir una sola vez."""
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-proyectos'), {'ods': f'{self.ods4.pk},{self.ods11.pk}'})
+        self.assertEqual(response.data['count'], 3)
+        ids = [p['id'] for p in response.data['results']]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_busqueda_libre_y_valores_invalidos(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'),
+                                   {'q': 'talleres cortos', 'facultad': 'abc'})
+        self.assertEqual(self._titulos(response), {'Matematica para todos'})
+        self.assertEqual(response.data['filtros_aplicados'], {'q': 'talleres cortos'})
+
     def test_ordenamiento(self):
         self.client.force_authenticate(user=self.docente)
         response = self.client.get(reverse('repositorio-proyectos'), {'ordering': 'titulo'})
         self.assertEqual(
             [p['titulo'] for p in response.data['results']],
             ['Alfabetizacion digital', 'Matematica para todos', 'Reciclaje en colegios'])
+
+    def test_catalogo_de_filtros_solo_trae_valores_con_proyectos_finalizados(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-filtros'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['semestres'], ['2025-B', '2025-A'])
+        self.assertEqual({f['id'] for f in response.data['facultades']},
+                         {self.fips.pk, self.fcnf.pk})
+        self.assertEqual({e['id'] for e in response.data['ejes_rsu']},
+                         {self.gestion.pk, self.extension.pk})
+        self.assertEqual([o['numero'] for o in response.data['ods']], [4, 11])
 
 
 class BorradorMinimoAPITests(BaseProyectoTestCase):

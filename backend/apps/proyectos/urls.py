@@ -40,6 +40,7 @@ from .views_consolidado import (
 )
 from .views_repositorio import (
     RepositorioProyectosView,
+    RepositorioFiltrosView,
 )
 
 urlpatterns = [
@@ -114,6 +115,8 @@ urlpatterns = [
 
     # ── Módulo 7: Repositorio Histórico (HU-07) ───────────────────────────────
     # Solo lectura y solo proyectos en estado finalizado.
+    path('repositorio/filtros/',
+         RepositorioFiltrosView.as_view(), name='repositorio-filtros'),
     path('repositorio/proyectos/',
          RepositorioProyectosView.as_view(), name='repositorio-proyectos'),
 ]
