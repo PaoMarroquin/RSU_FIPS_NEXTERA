@@ -377,4 +377,48 @@ finalizarProyecto: async (id) => {
   return response.data;
 },
 
+// ── HU-07: REPOSITORIO HISTÓRICO ─────────────────────────────────────────
+
+// Filtros disponibles del repositorio
+obtenerFiltrosRepositorio: async () => {
+  const response = await api.get(
+    '/api/v1/repositorio/filtros/'
+  );
+  return response.data;
+},
+
+// Proyectos finalizados
+obtenerProyectosRepositorio: async (params = {}) => {
+  const response = await api.get(
+    '/api/v1/repositorio/proyectos/',
+    { params }
+  );
+  return response.data;
+},
+
+// Detalle de proyecto finalizado
+obtenerProyectoRepositorio: async (id) => {
+  const response = await api.get(
+    `/api/v1/repositorio/proyectos/${id}/`
+  );
+  return response.data;
+},
+
+// Informe final del proyecto
+obtenerInformeFinalRepositorio: async (id) => {
+  const response = await api.get(
+    `/api/v1/repositorio/proyectos/${id}/informe-final/`
+  );
+  return response.data;
+},
+
+// Lecciones aprendidas
+obtenerLeccionesAprendidas: async (params = {}) => {
+  const response = await api.get(
+    '/api/v1/repositorio/lecciones-aprendidas/',
+    { params }
+  );
+  return response.data;
+},
+
 };
