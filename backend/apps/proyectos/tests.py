@@ -15,6 +15,8 @@ Casos cubiertos:
   porcentaje de ejecucion y caracter no editable del historial.
 - Informes consolidados (HU-06): alcance por estado y por rol, filtros,
   caracter de solo lectura y descarga en PDF y Excel.
+- Repositorio historico (HU-07): solo proyectos finalizados, filtros simples
+  y combinados, ficha tecnica, informe final y lecciones aprendidas.
 
 Conecta con:
 - apps/proyectos/views.py y serializers.py: comportamiento bajo prueba.
@@ -28,6 +30,7 @@ from io import BytesIO
 import openpyxl
 from django.urls import reverse
 from django.test import override_settings
+from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.exceptions import ValidationError
 from rest_framework import status
@@ -1179,6 +1182,61 @@ class ProyectoFinalizarAPITests(APITestCase):
             proyecto=self.proyecto, destinatario=self.docente,
             tipo='finalizacion').exists())
 
+    def test_finalizar_registra_el_informe_final(self):
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {
+            'conclusiones': 'Se cumplieron los objetivos.',
+            'recomendaciones': 'Repetir en otro distrito.',
+            'lecciones_aprendidas': 'Coordinar antes con la comunidad.',
+            'medio_difusion': 'Pagina web de la facultad',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'finalizado')
+        self.assertEqual(self.proyecto.conclusiones, 'Se cumplieron los objetivos.')
+        self.assertEqual(self.proyecto.lecciones_aprendidas, 'Coordinar antes con la comunidad.')
+        self.assertEqual(self.proyecto.medio_difusion, 'Pagina web de la facultad')
+
+    def test_finalizar_sin_body_no_borra_el_informe_existente(self):
+        self.proyecto.conclusiones = 'Cargadas antes del cierre.'
+        self.proyecto.save(update_fields=['conclusiones'])
+
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.conclusiones, 'Cargadas antes del cierre.')
+
+    def test_informe_final_invalido_no_finaliza_el_proyecto(self):
+        self.client.force_authenticate(user=self.depto_user)
+        response = self.client.post(self._url(), {
+            'lecciones_aprendidas': 'Valida.',
+            'medio_difusion': 'x' * 201,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('medio_difusion', response.data['errors'])
+
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
+        self.assertIsNone(self.proyecto.lecciones_aprendidas)
+
+    def test_informe_registrado_al_cerrar_aparece_en_el_repositorio(self):
+        self.client.force_authenticate(user=self.depto_user)
+        self.client.post(self._url(), {
+            'conclusiones': 'Objetivos cumplidos.',
+            'recomendaciones': 'Ampliar el alcance.',
+            'lecciones_aprendidas': 'Planificar la logistica con tiempo.',
+        }, format='json')
+
+        response = self.client.get(
+            reverse('repositorio-informe-final', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data['informe_final']['completo'])
+        self.assertEqual(response.data['informe_final']['lecciones_aprendidas'],
+                         'Planificar la logistica con tiempo.')
+
     def test_no_se_puede_finalizar_dos_veces(self):
         self.client.force_authenticate(user=self.depto_user)
         self.client.post(self._url(), {}, format='json')
@@ -1700,6 +1758,270 @@ class InformesConsolidadosAPITests(APITestCase):
             with self.subTest(ruta=nombre):
                 response = self.client.get(reverse(nombre))
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class RepositorioHistoricoAPITests(APITestCase):
+    """Pruebas del Repositorio Historico (Sprint 7, HU-07, T-120 a T-124).
+
+    Escenario: tres proyectos finalizados que se reparten entre dos
+    facultades, dos semestres, dos ejes RSU y dos ODS, para poder comprobar
+    cada filtro por separado y combinado; mas un proyecto aprobado y otro en
+    ejecucion que nunca deben aparecer en el repositorio.
+    """
+
+    _cred = None
+
+    def setUp(self):
+        self.docente = Usuario.objects.create_user(
+            correo_institucional='docente.hu07@unsa.edu.pe', password=self._cred,
+            nombres='Ana', apellidos='Quispe',
+            rol=Rol.objects.get(nombre='Docente'))
+        self.jefatura = Usuario.objects.create_user(
+            correo_institucional='jefatura.hu07@unsa.edu.pe', password=self._cred,
+            nombres='Jefatura', rol=Rol.objects.get(nombre='Jefatura RSU'),
+            facultad=Facultad.objects.get(codigo='FCNF'))
+        self.sin_rol = Usuario.objects.create_user(
+            correo_institucional='sinrol.hu07@unsa.edu.pe', password=self._cred,
+            nombres='Sin rol')
+
+        self.fips = Facultad.objects.get(codigo='FIPS')
+        self.epis = EscuelaProfesional.objects.get(codigo='EPIS')
+        self.daisi = DepartamentoAcademico.objects.get(codigo='DAISI')
+        self.fcnf = Facultad.objects.get(codigo='FCNF')
+        self.epmat = EscuelaProfesional.objects.get(codigo='EPMAT')
+        self.damat = DepartamentoAcademico.objects.get(codigo='DAMAT')
+
+        self.gestion = EjeRSU.objects.get(nombre='Gestión')
+        self.extension = EjeRSU.objects.get(nombre='Extensión')
+        self.ods4 = ODS.objects.get(numero=4)
+        self.ods11 = ODS.objects.get(numero=11)
+
+        self.periodo_a = PeriodoAcademico.objects.create(
+            nombre='2025-A', anio=2025, semestre='I',
+            fecha_inicio='2025-03-01', fecha_fin='2025-07-31')
+        self.periodo_b = PeriodoAcademico.objects.create(
+            nombre='2025-B', anio=2025, semestre='II',
+            fecha_inicio='2025-08-01', fecha_fin='2025-12-20')
+
+        self.reciclaje = self._crear(
+            'Reciclaje en colegios', self.fips, self.epis, self.daisi,
+            self.periodo_a, [self.gestion], [self.ods4, self.ods11],
+            lecciones_aprendidas='Coordinar con los directores antes de empezar.',
+            conclusiones='Se capacito a 120 escolares.',
+            recomendaciones='Ampliar a secundaria.',
+            medio_difusion='Facebook de la escuela')
+        self.alfabetizacion = self._crear(
+            'Alfabetizacion digital', self.fips, self.epis, self.daisi,
+            self.periodo_b, [self.extension], [self.ods4])
+        self.matematica = self._crear(
+            'Matematica para todos', self.fcnf, self.epmat, self.damat,
+            self.periodo_b, [self.extension], [self.ods11],
+            lecciones_aprendidas='Los talleres cortos funcionan mejor.')
+
+        self.aprobado = self._crear(
+            'Proyecto aprobado', self.fips, self.epis, self.daisi,
+            self.periodo_a, [self.gestion], [self.ods4], estado='aprobado')
+        self.en_ejecucion = self._crear(
+            'Proyecto en ejecucion', self.fips, self.epis, self.daisi,
+            self.periodo_a, [self.gestion], [self.ods4], estado='en_ejecucion')
+
+        self._cargar_detalle(self.reciclaje)
+
+    def _crear(self, titulo, facultad, escuela, departamento, periodo, ejes, ods,
+               estado='finalizado', **extra):
+        proyecto = ProyectoRSU.objects.create(
+            titulo=titulo, estado=estado, facultad=facultad, escuela=escuela,
+            departamento=departamento, periodo=periodo,
+            semestre_academico=periodo.nombre, docente_responsable=self.docente,
+            porcentaje_ejecucion=Decimal('100.00'),
+            fecha_cierre=timezone.now() if estado == 'finalizado' else None,
+            **extra)
+        proyecto.ejes_rsu.set(ejes)
+        proyecto.ods.set(ods)
+        return proyecto
+
+    def _cargar_detalle(self, proyecto):
+        proyecto.fund_por_que_grupo = 'Colegios sin programa de reciclaje.'
+        proyecto.resultado_en_beneficiarios = 'Escolares separan residuos.'
+        proyecto.save()
+        actividad = ActividadProyecto.objects.create(
+            proyecto=proyecto, nombre='Taller de segregacion', estado='completada')
+        CronogramaAccion.objects.create(
+            proyecto=proyecto, descripcion='Talleres en aula', estado_avance='finalizado')
+        PartidaPresupuestaria.objects.create(
+            proyecto=proyecto, descripcion='Bolsas', categoria='otros',
+            cantidad=10, costo_unitario=Decimal('5.00'),
+            monto_ejecutado=Decimal('40.00'))
+        MetaIndicadorProyecto.objects.create(
+            proyecto=proyecto, meta_descripcion='Capacitar escolares',
+            indicador_nombre='Escolares capacitados',
+            valor_meta=Decimal('100.00'), valor_alcanzado=Decimal('120.00'))
+        AvanceActividad.objects.create(
+            proyecto=proyecto, actividad=actividad, descripcion='Taller dictado.',
+            estado_actividad='completada', autor=self.docente)
+
+    def _titulos(self, response):
+        return {p['titulo'] for p in response.data['results']}
+
+    # ── Alcance y acceso ──────────────────────────────────────────────────────
+
+    def test_solo_lista_proyectos_finalizados(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._titulos(response), {
+            'Reciclaje en colegios', 'Alfabetizacion digital', 'Matematica para todos'})
+        self.assertTrue(response.data['solo_lectura'])
+
+    def test_el_repositorio_no_se_recorta_por_facultad(self):
+        """La Jefatura de FCNF tambien ve los proyectos finalizados de FIPS."""
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.data['count'], 3)
+
+    def test_requiere_autenticacion_y_rol(self):
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.client.force_authenticate(user=self.sin_rol)
+        response = self.client.get(reverse('repositorio-proyectos'))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_los_metodos_de_escritura_estan_bloqueados(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('repositorio-ficha-tecnica', args=[self.reciclaje.pk])
+        for metodo in ('post', 'put', 'patch', 'delete'):
+            with self.subTest(metodo=metodo):
+                response = getattr(self.client, metodo)(url, {}, format='json')
+                self.assertEqual(
+                    response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # ── T-120 / T-122: filtros ────────────────────────────────────────────────
+
+    def test_filtros_individuales(self):
+        self.client.force_authenticate(user=self.docente)
+        casos = [
+            ({'semestre': '2025-a'}, {'Reciclaje en colegios'}),
+            ({'facultad': self.fcnf.pk}, {'Matematica para todos'}),
+            ({'escuela': self.epis.pk}, {'Reciclaje en colegios', 'Alfabetizacion digital'}),
+            ({'eje_rsu': self.gestion.pk}, {'Reciclaje en colegios'}),
+            ({'ods': self.ods11.pk}, {'Reciclaje en colegios', 'Matematica para todos'}),
+            ({'periodo': self.periodo_b.pk},
+             {'Alfabetizacion digital', 'Matematica para todos'}),
+        ]
+        for params, esperados in casos:
+            with self.subTest(params=params):
+                response = self.client.get(reverse('repositorio-proyectos'), params)
+                self.assertEqual(self._titulos(response), esperados)
+
+    def test_filtros_combinados_se_intersectan(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'), {
+            'facultad': self.fips.pk, 'semestre': '2025-B', 'ods': self.ods4.pk})
+        self.assertEqual(self._titulos(response), {'Alfabetizacion digital'})
+        self.assertEqual(response.data['filtros_aplicados'], {
+            'facultad': [self.fips.pk], 'ods': [self.ods4.pk], 'semestre': ['2025-B']})
+
+    def test_varios_valores_en_un_filtro_se_suman_sin_duplicar(self):
+        """Reciclaje tiene ODS 4 y 11: debe salir una sola vez."""
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-proyectos'), {'ods': f'{self.ods4.pk},{self.ods11.pk}'})
+        self.assertEqual(response.data['count'], 3)
+        ids = [p['id'] for p in response.data['results']]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_busqueda_libre_y_valores_invalidos(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'),
+                                   {'q': 'talleres cortos', 'facultad': 'abc'})
+        self.assertEqual(self._titulos(response), {'Matematica para todos'})
+        self.assertEqual(response.data['filtros_aplicados'], {'q': 'talleres cortos'})
+
+    def test_ordenamiento(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-proyectos'), {'ordering': 'titulo'})
+        self.assertEqual(
+            [p['titulo'] for p in response.data['results']],
+            ['Alfabetizacion digital', 'Matematica para todos', 'Reciclaje en colegios'])
+
+    def test_catalogo_de_filtros_solo_trae_valores_con_proyectos_finalizados(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-filtros'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['semestres'], ['2025-B', '2025-A'])
+        self.assertEqual({f['id'] for f in response.data['facultades']},
+                         {self.fips.pk, self.fcnf.pk})
+        self.assertEqual({e['id'] for e in response.data['ejes_rsu']},
+                         {self.gestion.pk, self.extension.pk})
+        self.assertEqual([o['numero'] for o in response.data['ods']], [4, 11])
+
+    # ── T-123: ficha tecnica ──────────────────────────────────────────────────
+
+    def test_ficha_tecnica_trae_las_secciones_del_anexo_4(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-ficha-tecnica', args=[self.reciclaje.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+        self.assertEqual(data['titulo'], 'Reciclaje en colegios')
+        self.assertEqual(data['facultad']['id'], self.fips.pk)
+        self.assertEqual(data['fundamentacion']['por_que_grupo'],
+                         'Colegios sin programa de reciclaje.')
+        self.assertEqual(data['actividades'][0]['nombre'], 'Taller de segregacion')
+        self.assertEqual(len(data['cronograma']), 1)
+        self.assertEqual(data['financiamiento']['partidas'][0]['monto_presupuestado'], 50.0)
+        self.assertEqual(data['metas_indicadores'][0]['valor_alcanzado'], 120.0)
+        self.assertNotIn('historial_estados', data)
+        self.assertTrue(data['solo_lectura'])
+
+    def test_ficha_de_proyecto_no_finalizado_responde_404(self):
+        self.client.force_authenticate(user=self.docente)
+        for proyecto in (self.aprobado, self.en_ejecucion):
+            with self.subTest(estado=proyecto.estado):
+                for nombre in ('repositorio-ficha-tecnica', 'repositorio-informe-final'):
+                    response = self.client.get(reverse(nombre, args=[proyecto.pk]))
+                    self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    # ── T-124: informe final y lecciones aprendidas ───────────────────────────
+
+    def test_informe_final_con_resultados_alcanzados(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-informe-final', args=[self.reciclaje.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        informe = response.data['informe_final']
+        self.assertEqual(informe['conclusiones'], 'Se capacito a 120 escolares.')
+        self.assertTrue(informe['completo'])
+        self.assertEqual(informe['campos_pendientes'], [])
+
+        alcanzados = response.data['resultados_alcanzados']
+        self.assertEqual(alcanzados['metas']['cumplidas'], 1)
+        self.assertEqual(alcanzados['presupuesto']['monto_ejecutado'], 40.0)
+        self.assertEqual(alcanzados['avance']['actividades_completadas'], 1)
+        self.assertEqual(response.data['resultados_esperados']['en_beneficiarios'],
+                         'Escolares separan residuos.')
+
+    def test_informe_final_incompleto_indica_campos_pendientes(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-informe-final', args=[self.alfabetizacion.pk]))
+        informe = response.data['informe_final']
+        self.assertFalse(informe['completo'])
+        self.assertEqual(informe['campos_pendientes'],
+                         ['conclusiones', 'recomendaciones', 'lecciones_aprendidas'])
+
+    def test_lecciones_aprendidas_solo_de_proyectos_que_las_registraron(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('repositorio-lecciones-aprendidas'))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._titulos(response),
+                         {'Reciclaje en colegios', 'Matematica para todos'})
+
+        response = self.client.get(reverse('repositorio-lecciones-aprendidas'),
+                                   {'eje_rsu': self.extension.pk})
+        self.assertEqual(self._titulos(response), {'Matematica para todos'})
+        self.assertEqual(response.data['results'][0]['lecciones_aprendidas'],
+                         'Los talleres cortos funcionan mejor.')
 
 
 class BorradorMinimoAPITests(BaseProyectoTestCase):
