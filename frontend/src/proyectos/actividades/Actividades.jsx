@@ -35,7 +35,7 @@ export default function Actividades() {
 
   return (
     <Layout>
-      <div className="p-6 md:p-8 flex-1 max-w-4xl w-full mx-auto space-y-6">
+      <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
         {!proyectoSeleccionado ? (
           <ListaProyectos 
             proyectos={proyectos} 

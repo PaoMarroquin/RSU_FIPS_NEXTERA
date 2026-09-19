@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import Layout from "../../shared/layout/Layout"; // <--- Orquestador Global
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { FiCheckSquare, FiBell } from "react-icons/fi";
+import { FiCheckSquare, FiBell, FiLoader } from "react-icons/fi";
 import { useNotificaciones } from "./hooks/useNotificaciones"; // <--- Ruta local
 import { getTipoConfig } from "../../shared/utils/notificacionTipos"; // <--- Ruta compartida
 
@@ -22,85 +22,145 @@ export default function Notificaciones() {
     return notificaciones;
   }, [notificaciones, filtro]);
 
+  const mensajeVacio =
+    filtro === 'no_leidas'
+      ? 'No tienes notificaciones sin leer.'
+      : filtro === 'leidas'
+      ? 'No tienes notificaciones leídas todavía.'
+      : 'No tienes notificaciones por el momento.';
+
   return (
     <Layout>
-      <main className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-800">Todas las Notificaciones</h1>
+      <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
+
+          {/* =====================================================
+              HEADER
+          ===================================================== */}
+
+          <div className="mb-6 shrink-0 flex items-start justify-between gap-4 flex-wrap">
+
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">
+                Todas las Notificaciones
+              </h2>
+
+              <p className="text-sm text-slate-500 mt-1">
+                Historial de alertas y avisos asociados a tus proyectos y actividades.
+              </p>
+            </div>
+
             {unreadCount > 0 && (
               <button
                 onClick={marcarTodasComoLeidas}
-                className="flex items-center gap-1.5 text-sm font-semibold text-[#b1122b] hover:text-[#8a0e21] transition-colors"
+                className="flex items-center gap-1.5 text-xs font-semibold text-[#b1122b] hover:text-[#941020] transition-colors shrink-0"
               >
                 <FiCheckSquare className="text-base" />
                 Marcar todas como leídas
               </button>
             )}
+
           </div>
 
-          <div className="flex items-center gap-2 mb-6">
-            {FILTROS.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setFiltro(f.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                  filtro === f.id
-                    ? 'bg-[#b1122b] text-white'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:border-[#b1122b]/40'
-                }`}
-              >
-                {f.label}
-                {f.id === 'no_leidas' && unreadCount > 0 && (
-                  <span className={`ml-1.5 ${filtro === f.id ? 'text-white/80' : 'text-slate-400'}`}>
-                    ({unreadCount})
-                  </span>
-                )}
-              </button>
-            ))}
+          {/* =====================================================
+              BARRA DE FILTROS
+          ===================================================== */}
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
+
+            <div className="flex items-center gap-2 flex-wrap">
+
+              {FILTROS.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setFiltro(f.id)}
+                  className={`px-4 h-9 rounded-lg text-xs font-semibold transition-colors ${
+                    filtro === f.id
+                      ? 'bg-[#b1122b] text-white'
+                      : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {f.label}
+                  {f.id === 'no_leidas' && unreadCount > 0 && (
+                    <span className={`ml-1.5 ${filtro === f.id ? 'text-white/80' : 'text-slate-400'}`}>
+                      ({unreadCount})
+                    </span>
+                  )}
+                </button>
+              ))}
+
+            </div>
+
           </div>
+
+          {/* =====================================================
+              LOADING / RESULTADOS
+          ===================================================== */}
 
           {loading ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin h-8 w-8 border-4 border-[#b1122b] border-t-transparent rounded-full"></div>
+
+            <div className="flex flex-col items-center justify-center flex-1 py-12">
+
+              <FiLoader className="animate-spin text-[#b1122b] text-4xl mb-4" />
+
+              <span className="text-slate-500 font-medium">
+                Cargando notificaciones...
+              </span>
+
             </div>
+
           ) : notificacionesFiltradas.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-500 flex flex-col items-center gap-3">
-              <FiBell className="text-3xl text-slate-300" />
-              {filtro === 'no_leidas'
-                ? 'No tienes notificaciones sin leer.'
-                : filtro === 'leidas'
-                ? 'No tienes notificaciones leídas todavía.'
-                : 'No tienes notificaciones por el momento.'}
+
+            <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
+
+              <FiBell className="w-10 h-10 text-slate-300 mb-2" />
+
+              <span className="text-slate-500 text-sm font-semibold">
+                {mensajeVacio}
+              </span>
+
+              <span className="text-slate-400 text-xs mt-1">
+                Aquí aparecerán tus notificaciones cuando existan.
+              </span>
+
             </div>
+
           ) : (
-            <div className="space-y-4">
+
+            <div className="flex flex-col gap-3 mb-6">
+
               {notificacionesFiltradas.map(notificacion => {
                 const tipoConfig = getTipoConfig(notificacion.tipo);
                 const TipoIcon = tipoConfig.icon;
+
                 return (
                   <div
                     key={notificacion.id}
-                    className={`bg-white p-5 rounded-xl border transition-all flex gap-4 ${
+                    className={`bg-white p-4 rounded-xl border transition-all flex gap-4 shadow-sm ${
                       notificacion.leida
                         ? 'border-slate-200'
-                        : `${tipoConfig.border} shadow-md ring-1 ${tipoConfig.ring}`
+                        : `${tipoConfig.border} ring-1 ${tipoConfig.ring}`
                     }`}
                   >
-                    <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${tipoConfig.bg}`}>
+
+                    <div className={`h-10 w-10 shrink-0 rounded-lg flex items-center justify-center ${tipoConfig.bg}`}>
                       <TipoIcon className={`text-lg ${tipoConfig.text}`} />
                     </div>
+
                     <div className="min-w-0 flex-1">
+
                       <div className="flex justify-between items-start mb-1 gap-4">
+
                         <div className="min-w-0">
-                          <span className={`inline-block text-[10px] font-bold uppercase tracking-wide mb-1 ${tipoConfig.text}`}>
+                          <span className={`inline-block text-[10px] font-bold uppercase tracking-wider mb-1 ${tipoConfig.text}`}>
                             {tipoConfig.label}
                           </span>
-                          <h3 className={`font-bold ${notificacion.leida ? 'text-slate-700' : 'text-slate-900'}`}>
+
+                          <h3 className={`text-sm font-bold ${notificacion.leida ? 'text-slate-700' : 'text-slate-900'}`}>
                             {notificacion.titulo}
                           </h3>
                         </div>
-                        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+
+                        <span className="text-[10px] text-slate-400 font-semibold whitespace-nowrap">
                           {(() => {
                             try {
                               const d = new Date(notificacion.created_at);
@@ -108,27 +168,33 @@ export default function Notificaciones() {
                             } catch { return "Fecha no disponible"; }
                           })()}
                         </span>
+
                       </div>
-                      <p className="text-sm text-slate-600 whitespace-pre-line mb-3">
+
+                      <p className="text-xs text-slate-600 whitespace-pre-line mb-3">
                         {notificacion.mensaje}
                       </p>
 
                       {!notificacion.leida && (
                         <button
                           onClick={() => marcarComoLeida(notificacion.id)}
-                          className="text-xs font-semibold text-[#b1122b] hover:text-[#8a0e21] transition-colors"
+                          className="text-xs font-semibold text-[#b1122b] hover:text-[#941020] transition-colors"
                         >
                           Marcar como leída
                         </button>
                       )}
+
                     </div>
+
                   </div>
                 );
               })}
+
             </div>
+
           )}
-        </div>
-      </main>
+
+      </div>
     </Layout>
   );
 }

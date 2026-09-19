@@ -8,6 +8,7 @@ import {
   FiAlertCircle,
   FiCalendar,
   FiFilter,
+  FiLoader,
 } from "react-icons/fi";
 
 export default function ListaProyectos({ proyectos, loading, onSelect }) {
@@ -177,22 +178,30 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <FiFolder className="text-[#b1122b]" />
-          Mis Proyectos Aprobados (Ejecución RSU)
+    <div className="flex-1 flex flex-col">
+
+      {/* =====================================================
+          HEADER (mismo patrón que Repositorio / Notificaciones)
+      ===================================================== */}
+
+      <div className="mb-6 shrink-0">
+        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          Actividades Proyectos Aprobados
         </h2>
 
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           Selecciona un proyecto para registrar el cumplimiento de
           indicadores y subir evidencias.
         </p>
       </div>
 
+      {/* =====================================================
+          BARRA DE FILTROS
+      ===================================================== */}
+
       {!loading && proyectos.length > 0 && (
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
+
           <div className="flex flex-wrap gap-2">
             {[
               {
@@ -220,10 +229,10 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                 key={opcion.id}
                 type="button"
                 onClick={() => setFiltro(opcion.id)}
-                className={`px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors border ${
+                className={`px-4 h-9 rounded-lg text-xs font-semibold transition-colors ${
                   filtro === opcion.id
-                    ? "bg-[#b1122b] text-white border-[#b1122b]"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-[#b1122b]/40"
+                    ? "bg-[#b1122b] text-white"
+                    : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50"
                 }`}
               >
                 {opcion.label}
@@ -243,42 +252,62 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
         </div>
       )}
 
+      {/* =====================================================
+          LOADING / RESULTADOS
+      ===================================================== */}
+
       {loading ? (
-        <div className="text-center py-12 flex flex-col items-center justify-center gap-2 text-xs text-slate-400 font-medium">
-          <div className="w-6 h-6 border-2 border-[#b1122b] border-t-transparent rounded-full animate-spin" />
-          Consultando registros...
+
+        <div className="flex flex-col items-center justify-center flex-1 py-12">
+
+          <FiLoader className="animate-spin text-[#b1122b] text-4xl mb-4" />
+
+          <span className="text-slate-500 font-medium">
+            Consultando proyectos...
+          </span>
+
         </div>
+
       ) : proyectos.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center gap-3">
-          <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 text-lg">
-            <FiInbox />
-          </div>
 
-          <div>
-            <h4 className="text-sm font-bold text-slate-700">
-              No registras proyectos en ejecución
-            </h4>
+        <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
 
-            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-              Actualmente no cuentas con planes de trabajo en estado
-              "Aprobado" o "En Ejecución".
-            </p>
-          </div>
+          <FiInbox className="w-10 h-10 text-slate-300 mb-2" />
+
+          <span className="text-slate-500 text-sm font-semibold">
+            No registras proyectos en ejecución
+          </span>
+
+          <span className="text-slate-400 text-xs mt-1 max-w-xs">
+            Actualmente no cuentas con planes de trabajo en estado
+            "Aprobado" o "En Ejecución".
+          </span>
+
         </div>
+
       ) : proyectosFiltrados.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
-          <FiFilter className="mx-auto text-2xl text-slate-300 mb-2" />
+
+        <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
+
+          <FiFilter className="w-10 h-10 text-slate-300 mb-2" />
+
+          <span className="text-slate-500 text-sm font-semibold">
+            No hay proyectos con este filtro
+          </span>
 
           <button
             type="button"
             onClick={() => setFiltro("todos")}
-            className="mt-3 text-[11px] font-bold text-[#b1122b] hover:text-[#8a0e21] transition-colors"
+            className="mt-3 text-xs font-semibold text-[#b1122b] hover:text-[#941020] transition-colors"
           >
             Ver todos los proyectos
           </button>
+
         </div>
+
       ) : (
-        <div className="grid grid-cols-1 gap-3">
+
+        <div className="flex flex-col gap-3">
           {proyectosFiltrados.map((proy) => {
             const {
               total,
@@ -296,11 +325,11 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
               <div
                 key={proy.id}
                 onClick={() => onSelect(proy)}
-                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#b1122b] shadow-sm hover:shadow transition-all cursor-pointer group"
+                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#b1122b] shadow-sm hover:shadow-md transition-all cursor-pointer group"
               >
                 <div className="flex justify-between items-start">
                   <div className="space-y-1 min-w-0">
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-600">
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-600">
                       {proy.codigo || `ID #${proy.id}`}
                     </span>
 
@@ -308,7 +337,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                       {proy.titulo}
                     </h3>
 
-                    <p className="text-[11px] text-slate-400 font-medium">
+                    <p className="text-xs text-slate-400 font-medium">
                       {proy.escuela_nombre} —{" "}
                       <span className="text-slate-500">
                         {proy.periodo_nombre}
@@ -355,11 +384,11 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-slate-50 rounded-lg p-3">
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                       <FiCalendar className="text-slate-500 text-sm" />
 
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         Próxima actividad
                       </span>
                     </div>
@@ -383,17 +412,17 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                     )}
                   </div>
 
-                  <div className="bg-slate-50 rounded-lg p-3">
+                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                       {prioridadIcono}
 
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         Prioridad
                       </span>
                     </div>
 
                     <span
-                      className={`inline-flex px-2 py-1 rounded-md text-[10px] font-bold ${prioridadClase}`}
+                      className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${prioridadClase}`}
                     >
                       {prioridad}
                     </span>
@@ -403,6 +432,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
             );
           })}
         </div>
+
       )}
     </div>
   );

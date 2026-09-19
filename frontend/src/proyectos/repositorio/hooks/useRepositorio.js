@@ -284,6 +284,24 @@ export const useRepositorio = () => {
     }
   };
 
+
+  const continuarProyecto = async (id, periodoId) => {
+  try {
+    setError(null);
+
+    const response = await proyectoApi.continuarProyecto(id, {
+      periodo: periodoId,
+      docentes_adicionales: [],
+    });
+
+    return response;
+  } catch (err) {
+    console.error('Error continuando proyecto:', err);
+    setError(err);
+    return null;
+  }
+};
+
   return {
     // UI
     searchTerm,
@@ -323,5 +341,6 @@ export const useRepositorio = () => {
 
     // Lecciones aprendidas
     obtenerLeccionesAprendidas,
+     continuarProyecto,
   };
 };

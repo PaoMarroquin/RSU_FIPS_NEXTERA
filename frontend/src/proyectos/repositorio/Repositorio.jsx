@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Layout from '../../shared/layout/Layout';
 import {
   FiSearch,
@@ -9,7 +9,6 @@ import {
   FiUser,
   FiMapPin,
   FiDollarSign,
-  FiClock,
   FiCheckCircle,
   FiLoader,
   FiChevronLeft,
@@ -18,7 +17,8 @@ import {
   FiFileText,
   FiBookOpen,
   FiTarget,
-  FiUsers,
+  FiCopy,
+  FiAlertCircle,
 } from 'react-icons/fi';
 
 import { useRepositorio } from './hooks/useRepositorio';
@@ -50,6 +50,7 @@ const Repositorio = () => {
     obtenerDetalleProyecto,
     obtenerInformeFinal,
     obtenerLeccionesAprendidas,
+    continuarProyecto,
   } = useRepositorio();
 
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -62,11 +63,24 @@ const Repositorio = () => {
   const [leccionesLoading, setLeccionesLoading] = useState(false);
 
   // =========================================================
+  // CONTINUACIÓN DE PROYECTO
+  // =========================================================
+
+  const [mostrarContinuacion, setMostrarContinuacion] = useState(false);
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState('');
+  const [continuandoProyecto, setContinuandoProyecto] = useState(false);
+  const [errorContinuacion, setErrorContinuacion] = useState('');
+
+  // =========================================================
   // CARGAR DETALLE
   // =========================================================
 
   const abrirDetalle = async (proyecto) => {
     setDetalleLoading(true);
+
+    setInformeFinal(null);
+    setLecciones(null);
+    setErrorContinuacion('');
 
     const detalle = await obtenerDetalleProyecto(proyecto.id);
 
@@ -98,9 +112,12 @@ const Repositorio = () => {
   // =========================================================
 
   const cargarLecciones = async () => {
+    if (!proyectoSeleccionado?.id) return;
+
     setLeccionesLoading(true);
 
     const response = await obtenerLeccionesAprendidas({
+      proyecto: proyectoSeleccionado.id,
       page: 1,
       page_size: 20,
     });
@@ -111,12 +128,102 @@ const Repositorio = () => {
   };
 
   // =========================================================
-  // CERRAR MODAL
+  // ABRIR MODAL DE CONTINUACIÓN
+  // =========================================================
+
+  const abrirModalContinuacion = () => {
+    setPeriodoSeleccionado('');
+    setErrorContinuacion('');
+    setMostrarContinuacion(true);
+  };
+
+  // =========================================================
+  // CERRAR MODAL DE CONTINUACIÓN
+  // =========================================================
+
+  const cerrarModalContinuacion = () => {
+    if (continuandoProyecto) return;
+
+    setMostrarContinuacion(false);
+    setPeriodoSeleccionado('');
+    setErrorContinuacion('');
+  };
+
+  // =========================================================
+  // CONTINUAR PROYECTO
+  // =========================================================
+
+  const handleContinuarProyecto = async () => {
+    if (!periodoSeleccionado) {
+      setErrorContinuacion(
+        'Selecciona el periodo académico para continuar el proyecto.'
+      );
+      return;
+    }
+
+    if (!proyectoSeleccionado?.id) {
+      setErrorContinuacion(
+        'No se encontró el proyecto seleccionado.'
+      );
+      return;
+    }
+
+    setContinuandoProyecto(true);
+    setErrorContinuacion('');
+
+    try {
+      const nuevoProyecto = await continuarProyecto(
+        proyectoSeleccionado.id,
+        periodoSeleccionado
+      );
+
+      if (!nuevoProyecto) {
+        setErrorContinuacion(
+          'No fue posible crear la continuación del proyecto.'
+        );
+        return;
+      }
+
+      console.log('Proyecto creado:', nuevoProyecto);
+
+      setMostrarContinuacion(false);
+      setPeriodoSeleccionado('');
+
+      alert(
+        `Proyecto creado correctamente en estado Borrador.\nCódigo: ${
+          nuevoProyecto.codigo || 'N/A'
+        }`
+      );
+    } catch (err) {
+      console.error(
+        'Error continuando proyecto:',
+        err
+      );
+
+      const mensaje =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error ||
+        'No fue posible crear la continuación del proyecto.';
+
+      setErrorContinuacion(mensaje);
+    } finally {
+      setContinuandoProyecto(false);
+    }
+  };
+
+  // =========================================================
+  // CERRAR DETALLE
   // =========================================================
 
   const cerrarDetalle = () => {
+    if (continuandoProyecto) return;
+
     setProyectoSeleccionado(null);
     setInformeFinal(null);
+    setLecciones(null);
+    setMostrarContinuacion(false);
+    setPeriodoSeleccionado('');
+    setErrorContinuacion('');
   };
 
   // =========================================================
@@ -135,7 +242,7 @@ const Repositorio = () => {
 
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-50 text-slate-700 border border-slate-200">
-        {estado?.toUpperCase().replace(/_/g, ' ') || 'FINALIZADO'}
+        {estado?.toUpperCase().replace(/_/g, ' ') || 'N/A'}
       </span>
     );
   };
@@ -148,6 +255,7 @@ const Repositorio = () => {
 
   const getNombre = (objeto) => {
     if (!objeto) return 'N/A';
+
     return objeto.nombre || objeto.name || 'N/A';
   };
 
@@ -158,6 +266,13 @@ const Repositorio = () => {
   const getODS = (proyecto) => {
     return proyecto?.ods || [];
   };
+
+  // =========================================================
+  // PERIODOS DISPONIBLES
+  // =========================================================
+
+  const periodosDisponibles =
+    opcionesFiltros?.periodos || [];
 
   // =========================================================
   // RENDER
@@ -193,6 +308,7 @@ const Repositorio = () => {
             {/* BUSCADOR */}
 
             <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white w-full lg:max-w-xl focus-within:ring-2 focus-within:ring-[#b1122b]/10 focus-within:border-[#b1122b]">
+
               <FiSearch className="text-slate-400 shrink-0" />
 
               <input
@@ -204,6 +320,7 @@ const Repositorio = () => {
                   setSearchTerm(e.target.value)
                 }
               />
+
             </div>
 
             <div className="flex gap-2">
@@ -269,7 +386,9 @@ const Repositorio = () => {
                 </button>
 
               </div>
+
             </div>
+
           </div>
 
           {/* =================================================
@@ -310,6 +429,7 @@ const Repositorio = () => {
                         </option>
                       )
                     )}
+
                   </select>
                 </div>
 
@@ -342,6 +462,7 @@ const Repositorio = () => {
                         </option>
                       )
                     )}
+
                   </select>
                 </div>
 
@@ -381,6 +502,7 @@ const Repositorio = () => {
                           {escuela.nombre}
                         </option>
                       ))}
+
                   </select>
                 </div>
 
@@ -420,6 +542,7 @@ const Repositorio = () => {
                           {departamento.nombre}
                         </option>
                       ))}
+
                   </select>
                 </div>
 
@@ -452,6 +575,7 @@ const Repositorio = () => {
                         </option>
                       )
                     )}
+
                   </select>
                 </div>
 
@@ -482,6 +606,7 @@ const Repositorio = () => {
                         ODS {ods.numero} - {ods.nombre}
                       </option>
                     ))}
+
                   </select>
                 </div>
 
@@ -512,6 +637,7 @@ const Repositorio = () => {
                         {anio}
                       </option>
                     ))}
+
                   </select>
                 </div>
 
@@ -555,6 +681,7 @@ const Repositorio = () => {
                     <option value="-codigo">
                       Código Z-A
                     </option>
+
                   </select>
                 </div>
 
@@ -603,12 +730,14 @@ const Repositorio = () => {
               </div>
 
               <div className="flex justify-end mt-3">
+
                 <button
                   onClick={limpiarFiltros}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
                 >
                   Limpiar filtros
                 </button>
+
               </div>
 
             </div>
@@ -625,7 +754,8 @@ const Repositorio = () => {
                     key={key}
                     className="px-2 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold"
                   >
-                    {key}: {Array.isArray(value)
+                    {key}:{' '}
+                    {Array.isArray(value)
                       ? value.join(', ')
                       : value}
                   </span>
@@ -649,23 +779,26 @@ const Repositorio = () => {
         )}
 
         {/* =====================================================
-            LOADING
+            LOADING / RESULTADOS
         ===================================================== */}
 
         {loading ? (
+
           <div className="flex flex-col items-center justify-center flex-1 py-12">
+
             <FiLoader className="animate-spin text-[#b1122b] text-4xl mb-4" />
 
             <span className="text-slate-500 font-medium">
               Consultando Repositorio RSU...
             </span>
+
           </div>
+
         ) : proyectosRepositorio.length > 0 ? (
 
           <>
-            {/* =================================================
-                RESULTADOS
-            ================================================= */}
+
+            {/* RESULTADOS */}
 
             <div
               className={
@@ -693,8 +826,6 @@ const Repositorio = () => {
                         : 'flex-1 w-full'
                     }
                   >
-
-                    {/* IMAGEN / CABECERA */}
 
                     {viewMode === 'grid' && (
                       <div className="h-32 bg-slate-100 border-b border-slate-100 flex items-center justify-center relative">
@@ -803,9 +934,7 @@ const Repositorio = () => {
 
             </div>
 
-            {/* =================================================
-                PAGINACIÓN
-            ================================================= */}
+            {/* PAGINACIÓN */}
 
             {totalPages > 1 && (
               <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-200">
@@ -913,7 +1042,8 @@ const Repositorio = () => {
 
               <button
                 onClick={cerrarDetalle}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200"
+                disabled={continuandoProyecto}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-50"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -1075,6 +1205,7 @@ const Repositorio = () => {
                         <b>Ejes RSU:</b>
 
                         <div className="flex flex-wrap gap-1 mt-1">
+
                           {getEjes(
                             proyectoSeleccionado
                           ).map((eje) => (
@@ -1085,13 +1216,16 @@ const Repositorio = () => {
                               {eje.nombre}
                             </span>
                           ))}
+
                         </div>
+
                       </div>
 
                       <div>
                         <b>ODS:</b>
 
                         <div className="flex flex-wrap gap-1 mt-1">
+
                           {getODS(
                             proyectoSeleccionado
                           ).map((ods) => (
@@ -1102,7 +1236,9 @@ const Repositorio = () => {
                               ODS {ods.numero}
                             </span>
                           ))}
+
                         </div>
+
                       </div>
 
                     </div>
@@ -1122,6 +1258,7 @@ const Repositorio = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+
                       <span className="text-[10px] text-slate-400 block">
                         Inicio
                       </span>
@@ -1131,9 +1268,11 @@ const Repositorio = () => {
                           proyectoSeleccionado.fecha_inicio
                         )}
                       </span>
+
                     </div>
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+
                       <span className="text-[10px] text-slate-400 block">
                         Término
                       </span>
@@ -1143,9 +1282,11 @@ const Repositorio = () => {
                           proyectoSeleccionado.fecha_termino
                         )}
                       </span>
+
                     </div>
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+
                       <span className="text-[10px] text-slate-400 block">
                         Cierre
                       </span>
@@ -1155,6 +1296,7 @@ const Repositorio = () => {
                           proyectoSeleccionado.fecha_cierre
                         )}
                       </span>
+
                     </div>
 
                   </div>
@@ -1162,7 +1304,76 @@ const Repositorio = () => {
                 </div>
 
                 {/* =================================================
-                    ACCIONES DEL REPOSITORIO
+                    CONTINUAR PROYECTO
+                ================================================= */}
+
+                <div className="border-t border-slate-200 pt-6">
+
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                    Continuidad del proyecto
+                  </h4>
+
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+
+                    <div className="flex items-start gap-3">
+
+                      <div className="p-2 rounded-lg bg-white border border-blue-100 shrink-0">
+                        <FiCopy className="w-5 h-5 text-blue-600" />
+                      </div>
+
+                      <div className="flex-1">
+
+                        <h5 className="text-sm font-bold text-slate-800">
+                          Continuar este proyecto
+                        </h5>
+
+                        <p className="text-xs text-slate-500 mt-1">
+                          Genera un nuevo proyecto en estado
+                          Borrador tomando como base la información
+                          del proyecto histórico.
+                        </p>
+
+                        <button
+                          onClick={abrirModalContinuacion}
+                          disabled={
+                            continuandoProyecto ||
+                            ![
+                              'aprobado',
+                              'en_ejecucion',
+                              'finalizado',
+                            ].includes(
+                              proyectoSeleccionado.estado
+                            )
+                          }
+                          className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#b1122b] text-white text-xs font-semibold hover:bg-[#941020] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <FiCopy />
+                          Crear continuación
+                        </button>
+
+                        {![
+                          'aprobado',
+                          'en_ejecucion',
+                          'finalizado',
+                        ].includes(
+                          proyectoSeleccionado.estado
+                        ) && (
+                          <p className="text-[10px] text-amber-700 mt-2">
+                            Este proyecto no puede ser continuado
+                            desde su estado actual.
+                          </p>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    DOCUMENTACIÓN HISTÓRICA
                 ================================================= */}
 
                 <div className="border-t border-slate-200 pt-6">
@@ -1188,6 +1399,7 @@ const Repositorio = () => {
                           Resultados, conclusiones y recomendaciones
                         </span>
                       </div>
+
                     </button>
 
                     <button
@@ -1205,6 +1417,7 @@ const Repositorio = () => {
                           Buenas prácticas y recomendaciones
                         </span>
                       </div>
+
                     </button>
 
                   </div>
@@ -1242,10 +1455,13 @@ const Repositorio = () => {
                     {!informeFinal.informe_final.completo &&
                       informeFinal.informe_final.campos_pendientes?.length > 0 && (
                         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+
                           <b>Campos pendientes:</b>{' '}
+
                           {informeFinal.informe_final.campos_pendientes.join(
                             ', '
                           )}
+
                         </div>
                       )}
 
@@ -1427,9 +1643,202 @@ const Repositorio = () => {
 
               <button
                 onClick={cerrarDetalle}
-                className="px-4 py-2 bg-slate-800 text-white font-semibold text-xs rounded-lg hover:bg-slate-700"
+                disabled={continuandoProyecto}
+                className="px-4 py-2 bg-slate-800 text-white font-semibold text-xs rounded-lg hover:bg-slate-700 disabled:opacity-50"
               >
                 Cerrar
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL CONTINUAR PROYECTO
+      ========================================================= */}
+
+      {mostrarContinuacion && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            {/* HEADER */}
+
+            <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+
+              <div>
+
+                <div className="flex items-center gap-2">
+
+                  <div className="p-2 rounded-lg bg-blue-50">
+                    <FiCopy className="w-5 h-5 text-blue-600" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">
+                      Continuar proyecto
+                    </h3>
+
+                    <p className="text-[11px] text-slate-400">
+                      Crear una nueva versión en Borrador
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <button
+                onClick={cerrarModalContinuacion}
+                disabled={continuandoProyecto}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+              >
+                <FiX />
+              </button>
+
+            </div>
+
+            {/* BODY */}
+
+            <div className="p-5 space-y-4">
+
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+
+                <span className="text-[10px] text-slate-400 block">
+                  Proyecto histórico
+                </span>
+
+                <span className="text-xs font-bold text-slate-700 block mt-1">
+                  {proyectoSeleccionado?.codigo}
+                </span>
+
+                <span className="text-xs text-slate-600 block mt-1">
+                  {proyectoSeleccionado?.titulo}
+                </span>
+
+              </div>
+
+              <div>
+
+                <label className="text-xs font-semibold text-slate-700">
+                  Nuevo periodo académico
+                </label>
+
+                <select
+                  value={periodoSeleccionado}
+                  onChange={(e) => {
+                    setPeriodoSeleccionado(
+                      e.target.value
+                    );
+                    setErrorContinuacion('');
+                  }}
+                  disabled={continuandoProyecto}
+                  className="mt-1 w-full h-10 px-3 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] disabled:bg-slate-100"
+                >
+
+                  <option value="">
+                    Selecciona un periodo
+                  </option>
+
+                  {periodosDisponibles.map(
+                    (periodo) => {
+
+                      const id =
+                        typeof periodo === 'object'
+                          ? periodo.id
+                          : periodo;
+
+                      const nombre =
+                        typeof periodo === 'object'
+                          ? periodo.nombre
+                          : periodo;
+
+                      return (
+                        <option
+                          key={id}
+                          value={id}
+                        >
+                          {nombre}
+                        </option>
+                      );
+                    }
+                  )}
+
+                </select>
+
+              </div>
+
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+
+                <div className="flex items-start gap-2">
+
+                  <FiAlertCircle className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+
+                  <p className="text-[11px] text-blue-700 leading-relaxed">
+                    El nuevo proyecto se creará automáticamente
+                    en estado <b>Borrador</b> y conservará la
+                    información base disponible del proyecto
+                    histórico.
+                  </p>
+
+                </div>
+
+              </div>
+
+              {errorContinuacion && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+
+                  <div className="flex items-start gap-2">
+
+                    <FiAlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+
+                    <span>
+                      {errorContinuacion}
+                    </span>
+
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+
+            {/* FOOTER */}
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+
+              <button
+                onClick={cerrarModalContinuacion}
+                disabled={continuandoProyecto}
+                className="px-4 py-2 border border-slate-300 text-slate-600 text-xs font-semibold rounded-lg hover:bg-white disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                onClick={handleContinuarProyecto}
+                disabled={
+                  continuandoProyecto ||
+                  !periodoSeleccionado
+                }
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#b1122b] text-white text-xs font-semibold rounded-lg hover:bg-[#941020] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+
+                {continuandoProyecto ? (
+                  <>
+                    <FiLoader className="animate-spin" />
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <FiCopy />
+                    Crear proyecto
+                  </>
+                )}
+
               </button>
 
             </div>
