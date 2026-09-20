@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../shared/layout/Layout';
 import {
   FiSearch,
@@ -24,6 +25,8 @@ import {
 import { useRepositorio } from './hooks/useRepositorio';
 
 const Repositorio = () => {
+  const navigate = useNavigate();
+
   const {
     searchTerm,
     setSearchTerm,
@@ -51,6 +54,9 @@ const Repositorio = () => {
     obtenerInformeFinal,
     obtenerLeccionesAprendidas,
     continuarProyecto,
+
+    periodosAcademicos,
+    cargarPeriodosAcademicos,
   } = useRepositorio();
 
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
@@ -131,9 +137,12 @@ const Repositorio = () => {
   // ABRIR MODAL DE CONTINUACIÓN
   // =========================================================
 
-  const abrirModalContinuacion = () => {
+  const abrirModalContinuacion = async () => {
     setPeriodoSeleccionado('');
     setErrorContinuacion('');
+
+    await cargarPeriodosAcademicos();
+
     setMostrarContinuacion(true);
   };
 
@@ -172,6 +181,7 @@ const Repositorio = () => {
     setErrorContinuacion('');
 
     try {
+      // Crear el nuevo proyecto a partir del histórico
       const nuevoProyecto = await continuarProyecto(
         proyectoSeleccionado.id,
         periodoSeleccionado
@@ -186,14 +196,18 @@ const Repositorio = () => {
 
       console.log('Proyecto creado:', nuevoProyecto);
 
+      // Cerrar modales
       setMostrarContinuacion(false);
+      setProyectoSeleccionado(null);
       setPeriodoSeleccionado('');
 
-      alert(
-        `Proyecto creado correctamente en estado Borrador.\nCódigo: ${
-          nuevoProyecto.codigo || 'N/A'
-        }`
-      );
+      /*
+       * REDIRECCIÓN
+       * El nuevo proyecto ya fue creado en estado BORRADOR.
+       * Se envía directamente al formulario de edición.
+       */
+      navigate(`/proyectos/editar/${nuevoProyecto.id}`);
+
     } catch (err) {
       console.error(
         'Error continuando proyecto:',
@@ -267,12 +281,7 @@ const Repositorio = () => {
     return proyecto?.ods || [];
   };
 
-  // =========================================================
-  // PERIODOS DISPONIBLES
-  // =========================================================
-
-  const periodosDisponibles =
-    opcionesFiltros?.periodos || [];
+  const periodosDisponibles = periodosAcademicos || [];
 
   // =========================================================
   // RENDER
@@ -282,9 +291,7 @@ const Repositorio = () => {
     <Layout>
       <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
 
-        {/* =====================================================
-            HEADER
-        ===================================================== */}
+        {/* HEADER */}
 
         <div className="mb-6 shrink-0">
           <h2 className="text-2xl font-bold text-slate-800">
@@ -297,15 +304,11 @@ const Repositorio = () => {
           </p>
         </div>
 
-        {/* =====================================================
-            BARRA DE HERRAMIENTAS
-        ===================================================== */}
+        {/* BARRA DE HERRAMIENTAS */}
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
 
           <div className="flex flex-col lg:flex-row gap-3 justify-between">
-
-            {/* BUSCADOR */}
 
             <div className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg bg-white w-full lg:max-w-xl focus-within:ring-2 focus-within:ring-[#b1122b]/10 focus-within:border-[#b1122b]">
 
@@ -325,8 +328,6 @@ const Repositorio = () => {
 
             <div className="flex gap-2">
 
-              {/* FILTROS */}
-
               <button
                 onClick={() =>
                   setMostrarFiltros(!mostrarFiltros)
@@ -340,8 +341,6 @@ const Repositorio = () => {
                 <FiFilter />
                 Filtros
               </button>
-
-              {/* GRID / LIST */}
 
               <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden h-[40px]">
 
@@ -391,16 +390,12 @@ const Repositorio = () => {
 
           </div>
 
-          {/* =================================================
-              FILTROS
-          ================================================= */}
+          {/* FILTROS */}
 
           {mostrarFiltros && (
             <div className="mt-4 pt-4 border-t border-slate-200">
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-
-                {/* SEMESTRE */}
 
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
@@ -433,8 +428,6 @@ const Repositorio = () => {
                   </select>
                 </div>
 
-                {/* FACULTAD */}
-
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
                     Facultad
@@ -465,8 +458,6 @@ const Repositorio = () => {
 
                   </select>
                 </div>
-
-                {/* ESCUELA */}
 
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
@@ -506,8 +497,6 @@ const Repositorio = () => {
                   </select>
                 </div>
 
-                {/* DEPARTAMENTO */}
-
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
                     Departamento
@@ -546,8 +535,6 @@ const Repositorio = () => {
                   </select>
                 </div>
 
-                {/* EJE RSU */}
-
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
                     Eje RSU
@@ -579,8 +566,6 @@ const Repositorio = () => {
                   </select>
                 </div>
 
-                {/* ODS */}
-
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
                     ODS
@@ -610,8 +595,6 @@ const Repositorio = () => {
                   </select>
                 </div>
 
-                {/* AÑO */}
-
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
                     Año
@@ -640,8 +623,6 @@ const Repositorio = () => {
 
                   </select>
                 </div>
-
-                {/* ORDENAMIENTO */}
 
                 <div>
                   <label className="text-xs font-semibold text-slate-600">
@@ -681,13 +662,10 @@ const Repositorio = () => {
                     <option value="-codigo">
                       Código Z-A
                     </option>
-
                   </select>
                 </div>
 
               </div>
-
-              {/* FECHAS */}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
 
@@ -767,9 +745,7 @@ const Repositorio = () => {
 
         </div>
 
-        {/* =====================================================
-            ERROR
-        ===================================================== */}
+        {/* ERROR */}
 
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
@@ -778,9 +754,7 @@ const Repositorio = () => {
           </div>
         )}
 
-        {/* =====================================================
-            LOADING / RESULTADOS
-        ===================================================== */}
+        {/* RESULTADOS */}
 
         {loading ? (
 
@@ -797,8 +771,6 @@ const Repositorio = () => {
         ) : proyectosRepositorio.length > 0 ? (
 
           <>
-
-            {/* RESULTADOS */}
 
             <div
               className={
@@ -906,8 +878,6 @@ const Repositorio = () => {
                     </div>
                   </div>
 
-                  {/* ACCIONES */}
-
                   <div
                     className={
                       viewMode === 'grid'
@@ -933,8 +903,6 @@ const Repositorio = () => {
               ))}
 
             </div>
-
-            {/* PAGINACIÓN */}
 
             {totalPages > 1 && (
               <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-200">
@@ -1017,36 +985,68 @@ const Repositorio = () => {
 
             {/* HEADER */}
 
-            <div className="p-6 border-b border-slate-100 flex items-start justify-between bg-slate-50 sticky top-0 z-10">
+            <div className="p-5 md:p-6 border-b border-slate-200 bg-white sticky top-0 z-10">
 
-              <div>
+              <div className="flex items-start justify-between gap-4">
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-0">
 
-                  <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">
-                    {proyectoSeleccionado.codigo ||
-                      `ID #${proyectoSeleccionado.id}`}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
 
-                  {renderEstadoBadge(
-                    proyectoSeleccionado.estado
-                  )}
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-1 rounded-md">
+                      {proyectoSeleccionado.codigo ||
+                        `ID #${proyectoSeleccionado.id}`}
+                    </span>
+
+                    {renderEstadoBadge(
+                      proyectoSeleccionado.estado
+                    )}
+
+                  </div>
+
+                  <h3 className="text-lg font-bold text-slate-900 mt-2 leading-snug">
+                    {proyectoSeleccionado.titulo}
+                  </h3>
+
+                  <p className="text-xs text-slate-400 mt-1">
+                    Proyecto histórico · Repositorio Institucional
+                  </p>
 
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-900 mt-2">
-                  {proyectoSeleccionado.titulo}
-                </h3>
+                {/* BOTÓN CONTINUAR ARRIBA */}
+
+                <div className="flex items-center gap-2 shrink-0">
+
+                  {[
+                    'aprobado',
+                    'en_ejecucion',
+                    'finalizado',
+                  ].includes(
+                    proyectoSeleccionado.estado
+                  ) && (
+                    <button
+                      onClick={abrirModalContinuacion}
+                      disabled={continuandoProyecto}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#b1122b] text-white text-xs font-semibold hover:bg-[#941020] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      <FiCopy className="w-4 h-4" />
+                      Continuar proyecto
+                    </button>
+                  )}
+
+                  <button
+                    onClick={cerrarDetalle}
+                    disabled={continuandoProyecto}
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                    title="Cerrar"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+
+                </div>
 
               </div>
-
-              <button
-                onClick={cerrarDetalle}
-                disabled={continuandoProyecto}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200 disabled:opacity-50"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
 
             </div>
 
@@ -1073,7 +1073,6 @@ const Repositorio = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-
                     <FiUser className="text-[#b1122b] w-5 h-5" />
 
                     <div>
@@ -1086,11 +1085,9 @@ const Repositorio = () => {
                           'N/A'}
                       </span>
                     </div>
-
                   </div>
 
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-
                     <FiCalendar className="text-blue-600 w-5 h-5" />
 
                     <div>
@@ -1103,11 +1100,9 @@ const Repositorio = () => {
                           'N/A'}
                       </span>
                     </div>
-
                   </div>
 
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-
                     <FiMapPin className="text-emerald-600 w-5 h-5" />
 
                     <div>
@@ -1120,11 +1115,9 @@ const Repositorio = () => {
                           'N/A'}
                       </span>
                     </div>
-
                   </div>
 
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-
                     <FiDollarSign className="text-amber-600 w-5 h-5" />
 
                     <div>
@@ -1139,7 +1132,6 @@ const Repositorio = () => {
                           '0.00'}
                       </span>
                     </div>
-
                   </div>
 
                 </div>
@@ -1218,7 +1210,6 @@ const Repositorio = () => {
                           ))}
 
                         </div>
-
                       </div>
 
                       <div>
@@ -1238,7 +1229,6 @@ const Repositorio = () => {
                           ))}
 
                         </div>
-
                       </div>
 
                     </div>
@@ -1258,7 +1248,6 @@ const Repositorio = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-
                       <span className="text-[10px] text-slate-400 block">
                         Inicio
                       </span>
@@ -1268,11 +1257,9 @@ const Repositorio = () => {
                           proyectoSeleccionado.fecha_inicio
                         )}
                       </span>
-
                     </div>
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-
                       <span className="text-[10px] text-slate-400 block">
                         Término
                       </span>
@@ -1282,11 +1269,9 @@ const Repositorio = () => {
                           proyectoSeleccionado.fecha_termino
                         )}
                       </span>
-
                     </div>
 
                     <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-
                       <span className="text-[10px] text-slate-400 block">
                         Cierre
                       </span>
@@ -1296,85 +1281,13 @@ const Repositorio = () => {
                           proyectoSeleccionado.fecha_cierre
                         )}
                       </span>
-
                     </div>
 
                   </div>
 
                 </div>
 
-                {/* =================================================
-                    CONTINUAR PROYECTO
-                ================================================= */}
-
-                <div className="border-t border-slate-200 pt-6">
-
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Continuidad del proyecto
-                  </h4>
-
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
-
-                    <div className="flex items-start gap-3">
-
-                      <div className="p-2 rounded-lg bg-white border border-blue-100 shrink-0">
-                        <FiCopy className="w-5 h-5 text-blue-600" />
-                      </div>
-
-                      <div className="flex-1">
-
-                        <h5 className="text-sm font-bold text-slate-800">
-                          Continuar este proyecto
-                        </h5>
-
-                        <p className="text-xs text-slate-500 mt-1">
-                          Genera un nuevo proyecto en estado
-                          Borrador tomando como base la información
-                          del proyecto histórico.
-                        </p>
-
-                        <button
-                          onClick={abrirModalContinuacion}
-                          disabled={
-                            continuandoProyecto ||
-                            ![
-                              'aprobado',
-                              'en_ejecucion',
-                              'finalizado',
-                            ].includes(
-                              proyectoSeleccionado.estado
-                            )
-                          }
-                          className="mt-4 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#b1122b] text-white text-xs font-semibold hover:bg-[#941020] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <FiCopy />
-                          Crear continuación
-                        </button>
-
-                        {![
-                          'aprobado',
-                          'en_ejecucion',
-                          'finalizado',
-                        ].includes(
-                          proyectoSeleccionado.estado
-                        ) && (
-                          <p className="text-[10px] text-amber-700 mt-2">
-                            Este proyecto no puede ser continuado
-                            desde su estado actual.
-                          </p>
-                        )}
-
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-                {/* =================================================
-                    DOCUMENTACIÓN HISTÓRICA
-                ================================================= */}
+                {/* DOCUMENTACIÓN HISTÓRICA */}
 
                 <div className="border-t border-slate-200 pt-6">
 
@@ -1399,7 +1312,6 @@ const Repositorio = () => {
                           Resultados, conclusiones y recomendaciones
                         </span>
                       </div>
-
                     </button>
 
                     <button
@@ -1417,16 +1329,13 @@ const Repositorio = () => {
                           Buenas prácticas y recomendaciones
                         </span>
                       </div>
-
                     </button>
 
                   </div>
 
                 </div>
 
-                {/* =================================================
-                    INFORME FINAL
-                ================================================= */}
+                {/* INFORME FINAL */}
 
                 {informeLoading && (
                   <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1516,13 +1425,10 @@ const Repositorio = () => {
 
                     </div>
 
-                    {/* RESULTADOS */}
-
                     {informeFinal.resultados_alcanzados && (
                       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
 
                         <div className="p-3 bg-white rounded-lg border border-slate-200">
-
                           <FiTarget className="text-[#b1122b] mb-2" />
 
                           <span className="text-[10px] text-slate-400 block">
@@ -1536,11 +1442,9 @@ const Repositorio = () => {
                               0}
                             %
                           </span>
-
                         </div>
 
                         <div className="p-3 bg-white rounded-lg border border-slate-200">
-
                           <FiCheckCircle className="text-emerald-600 mb-2" />
 
                           <span className="text-[10px] text-slate-400 block">
@@ -1554,11 +1458,9 @@ const Repositorio = () => {
                               0}
                             %
                           </span>
-
                         </div>
 
                         <div className="p-3 bg-white rounded-lg border border-slate-200">
-
                           <FiDollarSign className="text-amber-600 mb-2" />
 
                           <span className="text-[10px] text-slate-400 block">
@@ -1572,7 +1474,6 @@ const Repositorio = () => {
                               ?.monto_ejecutado ??
                               0}
                           </span>
-
                         </div>
 
                       </div>
@@ -1581,9 +1482,7 @@ const Repositorio = () => {
                   </div>
                 )}
 
-                {/* =================================================
-                    LECCIONES
-                ================================================= */}
+                {/* LECCIONES */}
 
                 {leccionesLoading && (
                   <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1634,7 +1533,6 @@ const Repositorio = () => {
                 )}
 
               </div>
-
             )}
 
             {/* FOOTER */}
@@ -1667,14 +1565,14 @@ const Repositorio = () => {
 
             {/* HEADER */}
 
-            <div className="p-5 border-b border-slate-100 flex items-start justify-between">
+            <div className="p-5 border-b border-slate-200 bg-white">
 
-              <div>
+              <div className="flex items-start justify-between gap-4">
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
 
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <FiCopy className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-[#b1122b]/10 flex items-center justify-center">
+                    <FiCopy className="w-5 h-5 text-[#b1122b]" />
                   </div>
 
                   <div>
@@ -1682,22 +1580,22 @@ const Repositorio = () => {
                       Continuar proyecto
                     </h3>
 
-                    <p className="text-[11px] text-slate-400">
-                      Crear una nueva versión en Borrador
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Crear una nueva versión en estado Borrador
                     </p>
                   </div>
 
                 </div>
 
-              </div>
+                <button
+                  onClick={cerrarModalContinuacion}
+                  disabled={continuandoProyecto}
+                  className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-50"
+                >
+                  <FiX />
+                </button>
 
-              <button
-                onClick={cerrarModalContinuacion}
-                disabled={continuandoProyecto}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-50"
-              >
-                <FiX />
-              </button>
+              </div>
 
             </div>
 
@@ -1743,31 +1641,35 @@ const Repositorio = () => {
                     Selecciona un periodo
                   </option>
 
-                  {periodosDisponibles.map(
-                    (periodo) => {
+                  {periodosDisponibles.map((periodo) => {
 
-                      const id =
-                        typeof periodo === 'object'
-                          ? periodo.id
-                          : periodo;
+                    const id =
+                      typeof periodo === 'object'
+                        ? periodo.id
+                        : periodo;
 
-                      const nombre =
-                        typeof periodo === 'object'
-                          ? periodo.nombre
-                          : periodo;
+                    const nombre =
+                      typeof periodo === 'object'
+                        ? periodo.nombre
+                        : periodo;
 
-                      return (
-                        <option
-                          key={id}
-                          value={id}
-                        >
-                          {nombre}
-                        </option>
-                      );
-                    }
-                  )}
+                    return (
+                      <option
+                        key={id}
+                        value={id}
+                      >
+                        {nombre}
+                      </option>
+                    );
+                  })}
 
                 </select>
+
+                {periodosDisponibles.length === 0 && (
+                  <p className="text-[11px] text-amber-600 mt-2">
+                    No hay periodos académicos disponibles.
+                  </p>
+                )}
 
               </div>
 

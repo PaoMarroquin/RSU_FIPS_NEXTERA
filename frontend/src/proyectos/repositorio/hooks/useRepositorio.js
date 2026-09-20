@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { proyectoApi } from '../../../shared/api/proyectos/proyectoApi';
+import { periodoApi } from '../../../shared/api/planificacion/periodoApi';
 
 export const useRepositorio = () => {
   // =========================
@@ -23,6 +24,7 @@ export const useRepositorio = () => {
   const [page, setPage] = useState(1);
   const pageSize = 20;
   const [totalPages, setTotalPages] = useState(1);
+  const [periodosAcademicos, setPeriodosAcademicos] = useState([]);
 
   // =========================
   // FILTROS
@@ -284,23 +286,54 @@ export const useRepositorio = () => {
     }
   };
 
-
   const continuarProyecto = async (id, periodoId) => {
   try {
     setError(null);
 
     const response = await proyectoApi.continuarProyecto(id, {
-      periodo: periodoId,
+      periodo: Number(periodoId),
       docentes_adicionales: [],
     });
 
     return response;
   } catch (err) {
-    console.error('Error continuando proyecto:', err);
-    setError(err);
-    return null;
+    console.error(
+      'Error continuando proyecto:',
+      err.response?.data || err
+    );
+
+    const data = err.response?.data;
+
+    if (
+      data?.detail?.toLowerCase().includes('continuación') ||
+      data?.detail?.toLowerCase().includes('ya existe') ||
+      data?.detail?.toLowerCase().includes('existe')
+    ) {
+      throw new Error(
+        'Ya existe un proyecto creado usando esta plantilla para el periodo seleccionado.'
+      );
+    }
+
+    throw new Error(
+      data?.detail ||
+      'No fue posible crear la continuación del proyecto.'
+    );
   }
 };
+
+const cargarPeriodosAcademicos = async () => {
+  try {
+    const response = await periodoApi.obtenerPeriodos({
+      ordering: '-fecha_inicio',
+    });
+
+    setPeriodosAcademicos(response?.results || response || []);
+  } catch (err) {
+    console.error('Error cargando periodos académicos:', err);
+    setPeriodosAcademicos([]);
+  }
+};
+
 
   return {
     // UI
@@ -342,5 +375,7 @@ export const useRepositorio = () => {
     // Lecciones aprendidas
     obtenerLeccionesAprendidas,
      continuarProyecto,
+       periodosAcademicos,
+  cargarPeriodosAcademicos,
   };
 };
