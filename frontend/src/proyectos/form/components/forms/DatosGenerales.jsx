@@ -6,6 +6,7 @@ import BeneficiariosSelector from '../../../../shared/components/forms/Beneficia
 import EjeRSUSelector from '../../../../shared/components/forms/EjeRSUSelector';
 // Importamos el API correcto
 import { catalogoApi } from '../../../../shared/api/usuario/catalogoApi';
+import { periodoApi } from '../../../../shared/api/planificacion/periodoApi';
 
 export default function DatosGenerales({ data, updateData }) {
 
@@ -175,20 +176,21 @@ export default function DatosGenerales({ data, updateData }) {
               updateData('departamento_nombre', nombre);
             }}
           />
-
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">
-              Semestre Académico <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400"
-              name="semestre"
-              placeholder="Ej. 2026-A"
-              value={data.semestre || ''}
-              onChange={handleChange}
-            />
-          </div>
+          <PaginatedSelect
+            label="Semestre Académico"
+            name="periodo"
+            value={data.periodo}
+            selectedName={data.periodo_nombre}
+            fetchFn={async (page) => {
+              const res = await periodoApi.obtenerPeriodos({ page });
+              return res.results ? res : { results: res, next: null };
+            }}
+            placeholder="Seleccione periodo..."
+            onChange={(e, nombre) => {
+              handleChange(e);
+              updateData('periodo_nombre', nombre);
+            }}
+          />
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">
@@ -581,10 +583,10 @@ export default function DatosGenerales({ data, updateData }) {
               <input
                 type="date"
                 className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaDocentes &&
-                    ((data.fechaInicio && data.encuestaDocentes < data.fechaInicio) ||
-                      (data.fechaTermino && data.encuestaDocentes > data.fechaTermino))
-                    ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                    : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                  ((data.fechaInicio && data.encuestaDocentes < data.fechaInicio) ||
+                    (data.fechaTermino && data.encuestaDocentes > data.fechaTermino))
+                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
                   }`}
                 name="encuestaDocentes"
                 value={data.encuestaDocentes || ""}
@@ -609,10 +611,10 @@ export default function DatosGenerales({ data, updateData }) {
               <input
                 type="date"
                 className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaEstudiantes &&
-                    ((data.fechaInicio && data.encuestaEstudiantes < data.fechaInicio) ||
-                      (data.fechaTermino && data.encuestaEstudiantes > data.fechaTermino))
-                    ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                    : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                  ((data.fechaInicio && data.encuestaEstudiantes < data.fechaInicio) ||
+                    (data.fechaTermino && data.encuestaEstudiantes > data.fechaTermino))
+                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
                   }`}
                 name="encuestaEstudiantes"
                 value={data.encuestaEstudiantes || ""}
@@ -637,10 +639,10 @@ export default function DatosGenerales({ data, updateData }) {
               <input
                 type="date"
                 className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaDestinatarios &&
-                    ((data.fechaInicio && data.encuestaDestinatarios < data.fechaInicio) ||
-                      (data.fechaTermino && data.encuestaDestinatarios > data.fechaTermino))
-                    ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                    : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                  ((data.fechaInicio && data.encuestaDestinatarios < data.fechaInicio) ||
+                    (data.fechaTermino && data.encuestaDestinatarios > data.fechaTermino))
+                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
                   }`}
                 name="encuestaDestinatarios"
                 value={data.encuestaDestinatarios || ""}

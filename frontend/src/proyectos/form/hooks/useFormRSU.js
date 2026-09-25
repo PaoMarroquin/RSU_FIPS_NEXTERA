@@ -70,7 +70,7 @@ const isNumberValid = (value) => value !== null && value >= 0;
 
 const VALIDACIONES = {
   1: {
-    //periodo: (data) => isIdValid(data.periodo),
+    periodo: (data) => isIdValid(data.periodo),
     facultad: (data) => isIdValid(data.facultad),
     escuela: (data) => isIdValid(data.escuela),
     departamento: (data) => isIdValid(data.departamento),
