@@ -10,8 +10,8 @@ export default function Actividades({ data, updateData }) {
           nombre: '',
           descripcion: '',
           responsable: '',
-          fecha: '',
-          evidencia_esperada: '',
+          fecha: '', // Se mantiene en el estado para no romper el payload del backend
+          evidencia_esperada: '', // Se mantiene en el estado
           orden: 1
         }
       ]);
@@ -78,7 +78,7 @@ export default function Actividades({ data, updateData }) {
 
       {actividades.length > 0 && tieneCamposVacios && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 animate-in fade-in slide-in-from-top-2">
-          <p > El título o nombre de la actividad es obligatorio para procesar el envío al servidor.</p>
+          <p> El título o nombre de la actividad es obligatorio para procesar el envío al servidor.</p>
         </div>
       )}
 
@@ -88,12 +88,10 @@ export default function Actividades({ data, updateData }) {
           <thead>
             <tr className="text-left text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-200 uppercase tracking-wider">
               <th className="p-3 w-1/12 text-center">N°</th>
-              <th className="p-3 w-3/12">Actividad *</th>
-              <th className="p-3 w-3/12">Descripción</th>
-              <th className="p-3 w-2/12">Responsable</th>
-              <th className="p-3 w-1.5/12">Fecha</th>
-              <th className="p-3 w-1.5/12">Evidencia Esperada</th>
-              <th className="p-3 w-0.5/12 text-center"></th>
+              <th className="p-3 w-4/12">Nombre*</th>
+              <th className="p-3 w-4/12">Descripción</th>
+              <th className="p-3 w-2/12">Responsable*</th>
+              <th className="p-3 w-1/12 text-center"></th>
             </tr>
           </thead>
 
@@ -110,7 +108,7 @@ export default function Actividades({ data, updateData }) {
                     <input
                       type="text"
                       className={`w-full border rounded-md px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${esNombreInvalido ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'}`}
-                      placeholder="Ej. Taller de capacitación *"
+                      placeholder="Ej. Taller de capacitación"
                       value={item.nombre || ""}
                       onChange={(e) => handleChangeActividades(index, 'nombre', e.target.value)}
                     />
@@ -133,28 +131,6 @@ export default function Actividades({ data, updateData }) {
                       onChange={(e) => handleChangeActividades(index, 'responsable', e.target.value)}
                     />
                   </td>
-                  <td className="p-2">
-                    <input
-                      type="date"
-                      className={`w-full border rounded-md px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 ${(item.fecha && ((data.fechaInicio && item.fecha < data.fechaInicio) || (data.fechaTermino && item.fecha > data.fechaTermino))) ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-slate-300 focus:border-[#b1122b]'}`}
-                      value={item.fecha || ""}
-                      min={data.fechaInicio || undefined}
-                      max={data.fechaTermino || undefined}
-                      onChange={(e) => handleChangeActividades(index, 'fecha', e.target.value)}
-                    />
-                    {(item.fecha && ((data.fechaInicio && item.fecha < data.fechaInicio) || (data.fechaTermino && item.fecha > data.fechaTermino))) && (
-                      <span className="text-[10px] text-red-600 block mt-0.5 font-medium">⚠️ Fuera de rango</span>
-                    )}
-                  </td>
-                  <td className="p-2">
-                    <input
-                      type="text"
-                      className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-[#b1122b]"
-                      placeholder="Ej. Fotos, lista..."
-                      value={item.evidencia_esperada || ""}
-                      onChange={(e) => handleChangeActividades(index, 'evidencia_esperada', e.target.value)}
-                    />
-                  </td>
                   <td className="p-2 text-center">
                     <button
                       type="button"
@@ -172,7 +148,7 @@ export default function Actividades({ data, updateData }) {
             })}
             {actividades.length === 0 && (
               <tr>
-                <td colSpan="7" className="text-center py-8 text-xs text-slate-400">
+                <td colSpan="5" className="text-center py-8 text-xs text-slate-400">
                   No hay actividades registradas aún. Presione "Agregar Actividad".
                 </td>
               </tr>

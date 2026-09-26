@@ -449,21 +449,21 @@ export default function DatosGenerales({ data, updateData }) {
 
                 {/* 3. Números: Línea Base y Valor Meta (3 columnas) */}
                 <div className="md:col-span-3 grid grid-cols-2 gap-2 content-start">
-                  <div className="flex flex-col">
+                  <div className="flex flex-col gap-1">
                     <label
-                      className="text-xs font-semibold text-slate-600 mb-1 truncate"
+                      className="text-xs font-semibold text-slate-600 truncate"
                       title="Línea base"
                     >
                       Línea base
                     </label>
                     <input
                       type="number"
+                      min="0"
                       placeholder="0"
-                      value={meta.linea_base}
-                      onChange={(e) =>
-                        handleMetaChange(index, "linea_base", e.target.value)
-                      }
-                      className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all"
+                      onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+                      value={meta.linea_base === null || meta.linea_base === undefined ? '' : meta.linea_base}
+                      onChange={(e) => handleMetaChange(index, "linea_base", e.target.value)}
                     />
                   </div>
 

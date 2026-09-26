@@ -108,7 +108,11 @@ const VALIDACIONES = {
       resultado_en_curriculo: (data) => isTextValid(data.resultado_en_curriculo),
     },
   6: {
-    actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0,
+    actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0 &&
+    data.actividades.every(item => 
+        item.nombre?.trim() !== "",
+        item.responsable?.trim() !== "",
+      ),
   },
   7: {
     cronogramas: (data) => 
