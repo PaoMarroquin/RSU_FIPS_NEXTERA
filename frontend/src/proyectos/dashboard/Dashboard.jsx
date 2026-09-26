@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiAlertCircle } from "react-icons/fi";
 import Layout from "../../shared/layout/Layout";
+import { useNavigate } from "react-router-dom";
 import { useProyectosDashboard } from "./hooks/useProyectosDashboard";
 import DashboardHeader from "./DashboardHeader";
 import DashboardDocente from "./views/DashboardDocente";
@@ -8,6 +9,7 @@ import DashboardDepartamento from "./views/DashboardDepartamento";
 import DashboardAutoridad from "./views/DashboardAutoridad";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [userRole, setUserRole] = useState(() => {
     const role = localStorage.getItem("user_role");
     return role ? role.toLowerCase() : "docente";
@@ -19,7 +21,10 @@ export default function Dashboard() {
   }, []);
 
   const { proyectos, loading, error } = useProyectosDashboard();
-
+  if (userRole === "administrador") { // no renderizar nada
+    navigate("/informes-consolidado", { replace: true });
+    return null;
+  }
   return (
     <Layout>
       <div className="p-6 md:p-8 space-y-6">
@@ -34,7 +39,7 @@ export default function Dashboard() {
 
         {userRole === "docente" && <DashboardDocente proyectos={proyectos} loading={loading} />}
         {userRole === "departamento" && <DashboardDepartamento proyectos={proyectos} loading={loading} />}
-        {(userRole === "autoridad" || userRole === "administrador" || userRole === "jefatura rsu") && (
+        {(userRole === "autoridad" || userRole === "jefatura rsu") && (
           <DashboardAutoridad proyectos={proyectos} loading={loading} />
         )}
       </div>

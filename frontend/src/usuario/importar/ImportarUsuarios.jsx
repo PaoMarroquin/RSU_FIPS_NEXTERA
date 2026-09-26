@@ -47,10 +47,6 @@ export default function ImportarUsuarios() {
 
   useEffect(() => {
     const role = localStorage.getItem("user_role");
-    if (role?.toLowerCase() !== "departamento") {
-      navigate("/dashboard");
-      return;
-    }
 
     // Traerse todos los catálogos institucionales al iniciar
     const cargarCatalogos = async () => {
