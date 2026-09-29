@@ -23,7 +23,6 @@ from .models import (
     ObjetivoInstitucional,
     IndicadorInstitucional,
     ActividadSugerida,
-    DocumentoApoyo,
 )
 
 class PeriodoAcademicoSerializer(serializers.ModelSerializer):
@@ -86,7 +85,7 @@ class ActividadSugeridaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActividadSugerida
         fields = [
-            'id', 'matriz', 'objetivo', 'objetivo_nombre', 'eje_rsu', 'eje_rsu_nombre',
+            'id', 'objetivo', 'objetivo_nombre', 'eje_rsu', 'eje_rsu_nombre',
             'nombre', 'descripcion', 'anio_academico', 'anio_academico_display',
             'tipo_actividad', 'destinatarios', 'presupuesto_ref', 'created_at'
         ]
@@ -101,7 +100,7 @@ class ObjetivoInstitucionalSerializer(serializers.ModelSerializer):
     class Meta:
         model = ObjetivoInstitucional
         fields = [
-            'id', 'matriz', 'linea_estrategica', 'linea_estrategica_nombre',
+            'id', 'linea_estrategica', 'linea_estrategica_nombre',
             'eje_rsu', 'eje_rsu_nombre', 'nombre', 'descripcion',
             'resultado_esperado', 'meta_cuantitativa', 'indicadores', 
             'actividades_sugeridas', 'created_at'
@@ -109,45 +108,10 @@ class ObjetivoInstitucionalSerializer(serializers.ModelSerializer):
 
 
 class MatrizOperativaSerializer(serializers.ModelSerializer):
-    periodo = serializers.PrimaryKeyRelatedField(queryset=PeriodoAcademico.objects.all(), required=False)
-    periodo_nombre = serializers.CharField(source='periodo.nombre', read_only=True)
-    facultad_nombre = serializers.CharField(source='facultad.nombre', read_only=True)
-    coordinador_nombre = serializers.CharField(source='coordinador.nombres', read_only=True)
-    objetivos = ObjetivoInstitucionalSerializer(many=True, read_only=True)
-    actividades_sugeridas = ActividadSugeridaSerializer(many=True, read_only=True)
+    """Documento de guia: nombre, descripcion y archivo."""
 
     class Meta:
         model = MatrizOperativa
-        fields = [
-            'id', 'periodo', 'periodo_nombre', 'facultad', 'facultad_nombre',
-            'coordinador', 'coordinador_nombre', 'presupuesto_global',
-            'estado', 'observaciones', 'objetivos', 'actividades_sugeridas',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['coordinador']
-
-
-class DocumentoApoyoSerializer(serializers.ModelSerializer):
-    """Repositorio de documentos guía (Jefatura RSU) para la formulación de proyectos."""
-    categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
-    publicado_por_nombre = serializers.CharField(source='publicado_por.nombres', read_only=True)
-
-    class Meta:
-        model = DocumentoApoyo
-        fields = [
-            'id', 'titulo', 'descripcion', 'categoria', 'categoria_display',
-            'archivo', 'enlace_externo', 'publicado_por', 'publicado_por_nombre',
-            'activo', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['publicado_por', 'created_at', 'updated_at']
-
-    def validate(self, attrs):
-        archivo = attrs.get('archivo', getattr(self.instance, 'archivo', None))
-        enlace = attrs.get('enlace_externo', getattr(self.instance, 'enlace_externo', None))
-        if not archivo and not enlace:
-            raise serializers.ValidationError(
-                'Debe adjuntar un archivo o indicar un enlace externo.')
-        if archivo and enlace:
-            raise serializers.ValidationError(
-                'Use un archivo o un enlace externo, no ambos.')
-        return attrs
+        fields = ['id', 'nombre', 'descripcion', 'archivo',
+                  'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']

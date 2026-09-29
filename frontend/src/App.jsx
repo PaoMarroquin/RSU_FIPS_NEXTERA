@@ -11,6 +11,7 @@ import EditarProyecto from './proyectos/form/EditarProyecto';
 import Actividades from "./proyectos/actividades/Actividades";
 import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
 import Informes from "./proyectos/informes/Informes";
+import InformeConsolidado from "./proyectos/informes/components/InformeConsolidado";
 import Repositorio from "./proyectos/repositorio/Repositorio";
 import Notificaciones from './proyectos/notificaciones/Notificaciones';
 import Configuracion from "./usuario/configuracion/MiPerfil";
@@ -18,6 +19,7 @@ import GestionUsuarios from './usuario/gestion/GestionUsuarios';
 import ImportarUsuarios from './usuario/importar/ImportarUsuarios';
 import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
 import ProyectosJefatura from './proyectos/jefatura/ProyectosJefatura';
+import FinalizarProyectos from "./proyectos/revision/FinalizarProyectos";
 
 function App() {
   return (
@@ -33,6 +35,7 @@ function App() {
             <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
             <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
             <Route path="/actividades" element={<Actividades />} />
+            <Route path="/informes" element={<Informes />} />
           </Route>
 
           {/* Exclusivas Departamento */}
@@ -59,9 +62,19 @@ function App() {
             <Route path="/proyectos" element={<Proyectos />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={["docente", "autoridad"]} />}>
-            <Route path="/informes" element={<Informes />} />
+          <Route
+            element={ <ProtectedRoute allowedRoles={["departamento","autoridad","jefatura rsu","administrador",]}/>}>
+              <Route path="/informes-consolidado" element={<InformeConsolidado />}  />
           </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={["departamento","jefatura rsu","administrador",]}/>
+  }
+>
+  <Route
+    path="/FinalizarProyectos"
+    element={<FinalizarProyectos />}
+  />
+</Route>
 
           {/* General Autenticado */}
           <Route element={<ProtectedRoute />}>

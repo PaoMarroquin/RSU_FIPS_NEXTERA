@@ -14,6 +14,7 @@ Permisos disponibles:
   concreto.
 - IsDocenteOrAdmin: creacion de proyectos.
 - PuedeVerInformesConsolidados: lectura de los informes de HU-06.
+- PuedeConsultarRepositorioHistorico: lectura del repositorio de HU-07.
 - IsOwnerOrReadOnly, IsOwnerOrAdmin: permisos a nivel de objeto.
 
 Conecta con:
@@ -118,6 +119,23 @@ class PuedeVerInformesConsolidados(permissions.BasePermission):
         return bool(user.rol and user.rol.nombre in self._ROLES)
 
 
+class PuedeConsultarRepositorioHistorico(permissions.BasePermission):
+    """Lectura del Repositorio Historico de HU-07.
+
+    A diferencia del informe consolidado, el repositorio es conocimiento
+    institucional pensado para reutilizarse: acceden los cuatro roles,
+    Docente incluido, y todos ven los proyectos finalizados de toda la
+    universidad (services_repositorio.queryset_historico no recorta por
+    facultad ni departamento). Basta con estar autenticado y tener un rol.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        return bool(user.is_staff or user.rol)
+
+
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """Lectura para todos; escritura solo para el dueno o el Administrador.
 
@@ -131,8 +149,7 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
     facultad/departamento mientras esta en estado 'observado' (el unico
     estado no-borrador que el serializer aun deja editar) sin ser su dueno.
 
-    Se considera dueno al `docente_responsable` (proyectos) o al
-    `coordinador` (matriz operativa), segun el atributo que exista.
+    Se considera dueno al `docente_responsable` del proyecto.
     """
 
     def has_object_permission(self, request, view, obj):
@@ -144,8 +161,6 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
         if hasattr(obj, 'docente_responsable'):
             return obj.docente_responsable == request.user
-        if hasattr(obj, 'coordinador'):
-            return obj.coordinador == request.user
         return False
 
 

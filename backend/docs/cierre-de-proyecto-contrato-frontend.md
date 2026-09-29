@@ -69,7 +69,28 @@ de HU-04). Lo nuevo son los pasos 3, 4 y 5.
 POST /api/v1/proyectos/<id>/finalizar/
 ```
 
-No requiere body.
+El body es opcional. Sirve para registrar el **informe final** al cerrar el
+proyecto (HU-07, T-124); es lo que despues muestra el Repositorio Historico
+en `/repositorio/proyectos/<id>/informe-final/` y en
+`/repositorio/lecciones-aprendidas/`.
+
+```json
+{
+  "conclusiones": "Se cumplieron los objetivos del proyecto.",
+  "recomendaciones": "Replicar en otro distrito.",
+  "lecciones_aprendidas": "Coordinar con la comunidad antes de empezar.",
+  "medio_difusion": "Pagina web de la facultad"
+}
+```
+
+- Todos los campos son opcionales y de texto; `medio_difusion` admite hasta
+  200 caracteres.
+- Solo se actualizan los campos que se envian: un POST sin body finaliza el
+  proyecto sin tocar lo que ya hubiera cargado.
+- Si algun campo es invalido, responde `400` con el error en
+  `errors.<campo>` y el proyecto **no** se finaliza.
+- Sugerencia de UI: al pulsar "Marcar como finalizado", abrir un modal con
+  estos cuatro campos antes de confirmar.
 
 ### Reglas (en este orden)
 

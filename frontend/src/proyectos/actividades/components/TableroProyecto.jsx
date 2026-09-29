@@ -217,189 +217,6 @@ export default function TableroProyecto({
 
 
       {/* =====================================================
-          METAS E INDICADORES
-      ===================================================== */}
-
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-
-        <div className="flex items-center gap-2 mb-5">
-          <FiTarget className="text-[#b1122b]" />
-
-          <h3 className="text-base font-bold text-slate-800">
-            Metas e indicadores
-          </h3>
-        </div>
-
-        {metasIndicadores?.length > 0 ? (
-
-          <div className="space-y-4">
-
-            {[...metasIndicadores]
-              .sort(
-                (a, b) =>
-                  (a.orden || 0) - (b.orden || 0)
-              )
-              .map((item, index) => (
-
-                <div
-                  key={item.id || index}
-                  className="border border-slate-200 rounded-lg p-4"
-                >
-
-                  {/* Meta */}
-                  <div className="mb-3">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                      Meta
-                    </p>
-
-                    <p className="text-sm font-semibold text-slate-700 mt-1">
-                      {item.meta_descripcion || "Sin descripción"}
-                    </p>
-                  </div>
-
-
-                  {/* Indicador */}
-                  <div className="mb-4">
-                    <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                      Indicador
-                    </p>
-
-                    <p className="text-sm text-slate-700 mt-1">
-                      {item.indicador_nombre || "Sin indicador"}
-                    </p>
-                  </div>
-
-
-                  {/* Valores */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-                    <div className="bg-slate-50 rounded-lg p-3">
-                      <p className="text-[10px] text-slate-400">
-                        Línea base
-                      </p>
-
-                      <p className="text-sm font-bold text-slate-700 mt-1">
-                        {item.linea_base ?? "—"}
-                      </p>
-                    </div>
-
-
-                    <div className="bg-slate-50 rounded-lg p-3">
-                      <p className="text-[10px] text-slate-400">
-                        Valor meta
-                      </p>
-
-                      <p className="text-sm font-bold text-slate-700 mt-1">
-                        {item.valor_meta ?? "—"}
-                        {item.unidad_medida &&
-                          ` ${item.unidad_medida}`}
-                      </p>
-                    </div>
-
-
-                    <div className="bg-slate-50 rounded-lg p-3">
-                      <p className="text-[10px] text-slate-400">
-                        Valor alcanzado
-                      </p>
-
-                      <p className="text-sm font-bold text-slate-700 mt-1">
-                        {item.valor_alcanzado ?? "—"}
-                        {item.unidad_medida &&
-                          ` ${item.unidad_medida}`}
-                      </p>
-                    </div>
-
-                  </div>
-
-
-                  {/* Porcentaje de avance */}
-                  {item.porcentaje_avance !== null &&
-                    item.porcentaje_avance !== undefined &&
-                    item.porcentaje_avance !== "" && (
-
-                      <div className="mt-4">
-
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="text-[11px] font-semibold text-slate-500">
-                            Avance del indicador
-                          </p>
-
-                          <p className="text-xs font-bold text-[#b1122b]">
-                            {item.porcentaje_avance}
-                          </p>
-                        </div>
-
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-
-                          <div
-                            className="h-full bg-[#b1122b] rounded-full"
-                            style={{
-                              width: `${Math.min(
-                                Math.max(
-                                  parseFloat(
-                                    item.porcentaje_avance
-                                  ) || 0,
-                                  0
-                                ),
-                                100
-                              )}%`
-                            }}
-                          />
-
-                        </div>
-
-                      </div>
-                    )}
-
-
-                  {/* Método de verificación */}
-                  {item.metodo_verificacion && (
-                    <div className="mt-4">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                        Método de verificación
-                      </p>
-
-                      <p className="text-sm text-slate-600 mt-1">
-                        {item.metodo_verificacion}
-                      </p>
-                    </div>
-                  )}
-
-
-                  {/* Fuente de verificación */}
-                  {item.fuente_verificacion && (
-                    <div className="mt-3">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                        Fuente de verificación
-                      </p>
-
-                      <p className="text-sm text-slate-600 mt-1">
-                        {item.fuente_verificacion}
-                      </p>
-                    </div>
-                  )}
-
-                </div>
-              ))}
-
-          </div>
-
-        ) : (
-
-          <div className="py-6 text-center">
-            <FiAlertCircle className="mx-auto text-slate-300 text-xl" />
-
-            <p className="text-xs text-slate-400 mt-2">
-              Este proyecto no tiene metas e indicadores registrados.
-            </p>
-          </div>
-
-        )}
-
-      </div>
-
-
-      {/* =====================================================
           RESUMEN DE ACTIVIDADES
       ===================================================== */}
 
@@ -577,37 +394,32 @@ export default function TableroProyecto({
                         )}
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onCambiarEstado(
-                            actividad.id,
-                            actividad.estado
-                          )
-                        }
-                        className="text-xs font-semibold px-3 py-2 rounded-lg bg-[#b1122b] text-white hover:bg-[#8a0e21] transition-colors"
-                      >
-                        {actividad.estado === "pendiente" && (
-                          <>
-                            <FiPlayCircle className="inline mr-1" />
-                            Iniciar
-                          </>
-                        )}
+                      {actividad.estado !== "completada" && (
+  <button
+    type="button"
+    onClick={() =>
+      onCambiarEstado(
+        actividad.id,
+        actividad.estado
+      )
+    }
+    className="text-xs font-semibold px-3 py-2 rounded-lg bg-[#b1122b] text-white hover:bg-[#8a0e21] transition-colors"
+  >
+    {actividad.estado === "pendiente" && (
+      <>
+        <FiPlayCircle className="inline mr-1" />
+        Iniciar
+      </>
+    )}
 
-                        {actividad.estado === "en_ejecucion" && (
-                          <>
-                            <FiCheck className="inline mr-1" />
-                            Completar
-                          </>
-                        )}
-
-                        {actividad.estado === "completada" && (
-                          <>
-                            <FiRotateCcw className="inline mr-1" />
-                            Reiniciar
-                          </>
-                        )}
-                      </button>
+    {actividad.estado === "en_ejecucion" && (
+      <>
+        <FiCheck className="inline mr-1" />
+        Completar
+      </>
+    )}
+  </button>
+)}
 
                     </div>
 

@@ -14,23 +14,24 @@ Catalogos:
 - LineaEstrategica: lineas institucionales, cada una dentro de un eje RSU.
 
 Planificacion:
-- MatrizOperativa: instrumento anual de una facultad para un periodo.
-- ObjetivoInstitucional: objetivos declarados en la matriz.
+- MatrizOperativa: documento de guia que la Jefatura RSU publica para que los
+  docentes formulen sus proyectos (lineas de investigacion, objetivos
+  regionales, normativa). Antes era un instrumento anual por facultad que se
+  armaba objetivo por objetivo; el cliente lo descarto por engorroso
+  (reunion 2026-09-16) y quedo reducido a nombre, descripcion y archivo.
+- ObjetivoInstitucional: objetivos institucionales que un proyecto puede
+  referenciar.
 - IndicadorInstitucional: como se mide cada objetivo.
 - ActividadSugerida: actividades propuestas como referencia para los
   docentes.
 
 Conecta con:
-- apps/usuarios/models.py: Facultad y Usuario (coordinador de la matriz).
 - apps/proyectos/models.py: ProyectoRSU referencia PeriodoAcademico, EjeRSU,
   EjeRSUSubitem, ODS, LineaEstrategica y ObjetivoInstitucional.
-- apps/planificacion/services.py: exporta la matriz a Excel y PDF.
 """
 from django.db import models
-from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
-from apps.usuarios.models import Facultad
 
 class PeriodoAcademico(models.Model):
     SEMESTRES = [
@@ -169,18 +170,29 @@ class LineaEstrategica(models.Model):
         return self.nombre
 
 
+DOCUMENTO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+DOCUMENTO_MAX_SIZE_MB = 20
+
+
+def validate_documento_size(archivo):
+    if archivo.size > DOCUMENTO_MAX_SIZE_MB * 1024 * 1024:
+        raise ValidationError(
+            f'El archivo no puede superar los {DOCUMENTO_MAX_SIZE_MB}MB.')
+
+
 class MatrizOperativa(models.Model):
-    ESTADOS = [
-        ('borrador', 'Borrador'),
-        ('publicada', 'Publicada'),
-        ('cerrada', 'Cerrada'),
-    ]
-    periodo = models.ForeignKey(PeriodoAcademico, on_delete=models.PROTECT, related_name='matrices')
-    facultad = models.ForeignKey(Facultad, on_delete=models.PROTECT, related_name='matrices')
-    coordinador = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='matrices_coordinadas')
-    presupuesto_global = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    estado = models.CharField(max_length=30, default='borrador', choices=ESTADOS, db_index=True)
-    observaciones = models.TextField(blank=True, null=True)
+    """Documento de guia que la Jefatura RSU publica para los docentes."""
+
+    nombre = models.CharField(max_length=255, help_text='Nombre del documento')
+    descripcion = models.TextField(
+        blank=True, default='', help_text='Breve descripcion de lo que abarca')
+    archivo = models.FileField(
+        upload_to='planificacion/matriz/',
+        validators=[
+            FileExtensionValidator(allowed_extensions=DOCUMENTO_EXTENSIONS),
+            validate_documento_size,
+        ],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -188,13 +200,13 @@ class MatrizOperativa(models.Model):
         db_table = 'matrices_operativas'
         verbose_name = 'Matriz Operativa'
         verbose_name_plural = 'Matrices Operativas'
+        ordering = ['-created_at']
 
     def __str__(self):
-        return f'Matriz {self.facultad.nombre} - {self.periodo.nombre}'
+        return self.nombre
 
 
 class ObjetivoInstitucional(models.Model):
-    matriz = models.ForeignKey(MatrizOperativa, on_delete=models.CASCADE, related_name='objetivos')
     linea_estrategica = models.ForeignKey(LineaEstrategica, on_delete=models.SET_NULL, null=True, blank=True, related_name='objetivos')
     eje_rsu = models.ForeignKey(EjeRSU, on_delete=models.PROTECT, related_name='objetivos')
     nombre = models.CharField(max_length=300)
@@ -238,7 +250,6 @@ class ActividadSugerida(models.Model):
         (4, '4.to año'),
         (5, '5.to año'),
     ]
-    matriz = models.ForeignKey(MatrizOperativa, on_delete=models.CASCADE, related_name='actividades_sugeridas')
     objetivo = models.ForeignKey(ObjetivoInstitucional, on_delete=models.SET_NULL, null=True, blank=True, related_name='actividades_sugeridas')
     eje_rsu = models.ForeignKey(EjeRSU, on_delete=models.PROTECT, related_name='actividades_sugeridas')
     nombre = models.CharField(max_length=300)
@@ -256,72 +267,3 @@ class ActividadSugerida(models.Model):
 
     def __str__(self):
         return f'{self.nombre} ({self.get_anio_academico_display()})'
-
-
-DOCUMENTO_APOYO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
-DOCUMENTO_APOYO_MAX_SIZE_MB = 20
-
-
-def validate_documento_apoyo_size(archivo):
-    if archivo.size > DOCUMENTO_APOYO_MAX_SIZE_MB * 1024 * 1024:
-        raise ValidationError(
-            f'El archivo no puede superar los {DOCUMENTO_APOYO_MAX_SIZE_MB}MB.')
-
-
-class DocumentoApoyo(models.Model):
-    """
-    Repositorio de documentos de apoyo para la formulación de proyectos RSU.
-
-    Publicado por Jefatura RSU (o Administrador) para que los docentes
-    consulten lineamientos al formular su proyecto: líneas de investigación,
-    objetivos regionales, guías de formulación, normativa vigente, etc.
-    Admite archivo local (PDF/Word/Excel/PowerPoint) o enlace externo (Drive,
-    p. ej.), igual que las evidencias de HU-05, para no saturar el servidor.
-    El ocultamiento es lógico (`activo=False`) para conservar el historial.
-    """
-    CATEGORIAS = [
-        ('linea_investigacion', 'Línea de Investigación'),
-        ('objetivo_regional',   'Objetivo Regional'),
-        ('objetivo_nacional',   'Objetivo Nacional'),
-        ('ods',                 'ODS'),
-        ('guia_formulacion',    'Guía de Formulación'),
-        ('normativa',           'Normativa / Directiva'),
-        ('otro',                'Otro'),
-    ]
-
-    titulo = models.CharField(max_length=255, help_text='Nombre del documento')
-    descripcion = models.TextField(blank=True, default='', help_text='Descripción del contenido')
-    categoria = models.CharField(max_length=30, choices=CATEGORIAS, default='otro', db_index=True)
-    archivo = models.FileField(
-        upload_to='planificacion/documentos_apoyo/', null=True, blank=True,
-        validators=[
-            FileExtensionValidator(allowed_extensions=DOCUMENTO_APOYO_EXTENSIONS),
-            validate_documento_apoyo_size,
-        ],
-    )
-    enlace_externo = models.URLField(
-        blank=True, null=True,
-        help_text='Enlace externo (Drive, etc.) cuando no se adjunta archivo')
-    publicado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
-        related_name='documentos_apoyo_publicados')
-    activo = models.BooleanField(
-        default=True, db_index=True,
-        help_text='Los documentos inactivos dejan de listarse para los docentes')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'documentos_apoyo'
-        verbose_name = 'Documento de Apoyo'
-        verbose_name_plural = 'Documentos de Apoyo'
-        ordering = ['-created_at']
-
-    def clean(self):
-        if not self.archivo and not self.enlace_externo:
-            raise ValidationError('Debe adjuntar un archivo o indicar un enlace externo.')
-        if self.archivo and self.enlace_externo:
-            raise ValidationError('Use un archivo o un enlace externo, no ambos.')
-
-    def __str__(self):
-        return self.titulo

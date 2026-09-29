@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ('titulo', models.CharField(help_text='Nombre del documento', max_length=255)),
                 ('descripcion', models.TextField(blank=True, default='', help_text='Descripción del contenido')),
                 ('categoria', models.CharField(choices=[('linea_investigacion', 'Línea de Investigación'), ('objetivo_regional', 'Objetivo Regional'), ('objetivo_nacional', 'Objetivo Nacional'), ('ods', 'ODS'), ('guia_formulacion', 'Guía de Formulación'), ('normativa', 'Normativa / Directiva'), ('otro', 'Otro')], db_index=True, default='otro', max_length=30)),
-                ('archivo', models.FileField(blank=True, null=True, upload_to='planificacion/documentos_apoyo/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']), apps.planificacion.models.validate_documento_apoyo_size])),
+                ('archivo', models.FileField(blank=True, null=True, upload_to='planificacion/documentos_apoyo/', validators=[django.core.validators.FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']), apps.planificacion.models.validate_documento_size])),
                 ('enlace_externo', models.URLField(blank=True, help_text='Enlace externo (Drive, etc.) cuando no se adjunta archivo', null=True)),
                 ('activo', models.BooleanField(db_index=True, default=True, help_text='Los documentos inactivos dejan de listarse para los docentes')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),

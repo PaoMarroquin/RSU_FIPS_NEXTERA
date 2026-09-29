@@ -25,7 +25,6 @@ export default function Login() {
   useEffect(() => {
     const verificarSesion = async () => {
       const refreshToken = tokenStore.getRefreshToken();
-      console.log(refreshToken)
       if (refreshToken) {
         try {
           await authApi.refreshToken(refreshToken);
@@ -34,9 +33,8 @@ export default function Login() {
         } catch (err) {
           tokenStore.clear();
         }
-      } else {
-        setCheckingSession(false);
       }
+      setCheckingSession(false);
     };
 
     verificarSesion();

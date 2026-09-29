@@ -8,11 +8,9 @@ Rutas:
 - /objetivos-nacionales/, /objetivos-nacionales/<id>/
 - /lineas-estrategicas/, /lineas-estrategicas/<id>/
 - /matrices/, /matrices/<id>/
-- /matrices/<id>/export/excel/, /matrices/<id>/export/pdf/
 - /objetivos-institucionales/, /objetivos-institucionales/<id>/
 - /indicadores-institucionales/, /indicadores-institucionales/<id>/
 - /actividades-sugeridas/, /actividades-sugeridas/<id>/
-- /documentos-apoyo/, /documentos-apoyo/<id>/
 
 Conecta con:
 - apps/planificacion/views.py: vistas a las que apunta cada ruta.
@@ -40,9 +38,7 @@ urlpatterns = [
     
     path('matrices/', views.MatrizOperativaListCreateView.as_view(), name='matriz-list'),
     path('matrices/<int:pk>/', views.MatrizOperativaRetrieveUpdateDestroyView.as_view(), name='matriz-detail'),
-    path('matrices/<int:pk>/export/excel/', views.MatrizOperativaExportExcelView.as_view(), name='matriz-export-excel'),
-    path('matrices/<int:pk>/export/pdf/', views.MatrizOperativaExportPDFView.as_view(), name='matriz-export-pdf'),
-    
+
     path('objetivos-institucionales/', views.ObjetivoInstitucionalListCreateView.as_view(), name='objetivo-list'),
     path('objetivos-institucionales/<int:pk>/', views.ObjetivoInstitucionalRetrieveUpdateDestroyView.as_view(), name='objetivo-detail'),
     
@@ -51,7 +47,4 @@ urlpatterns = [
     
     path('actividades-sugeridas/', views.ActividadSugeridaListCreateView.as_view(), name='actividad-sugerida-list'),
     path('actividades-sugeridas/<int:pk>/', views.ActividadSugeridaRetrieveUpdateDestroyView.as_view(), name='actividad-sugerida-detail'),
-
-    path('documentos-apoyo/', views.DocumentoApoyoListCreateView.as_view(), name='documento-apoyo-list'),
-    path('documentos-apoyo/<int:pk>/', views.DocumentoApoyoRetrieveUpdateDestroyView.as_view(), name='documento-apoyo-detail'),
 ]

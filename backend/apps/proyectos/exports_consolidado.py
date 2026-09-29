@@ -15,9 +15,6 @@ Funciones:
 - exportar_consolidado_excel(informe, titulo): libro openpyxl con una hoja
   por bloque, para que el Coordinador RSU pueda seguir analizando los datos.
 
-Sigue el mismo patron que apps/planificacion/services.py, que exporta la
-matriz operativa.
-
 Conecta con:
 - apps/proyectos/services_consolidado.py: origen de los datos.
 - apps/proyectos/views_consolidado.py: vistas que descargan estos archivos.

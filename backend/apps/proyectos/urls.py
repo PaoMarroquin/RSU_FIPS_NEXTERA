@@ -16,11 +16,15 @@ Bloques:
   /informes/consolidado/, /informes/consolidado/proyectos/,
   /informes/consolidado/proyectos/<id>/, /informes/consolidado/filtros/,
   /informes/consolidado/export/pdf/, /informes/consolidado/export/excel/
+- Repositorio historico (HU-07), todas de solo lectura: /repositorio/filtros/,
+  /repositorio/proyectos/, /repositorio/proyectos/<id>/,
+  /repositorio/proyectos/<id>/informe-final/, /repositorio/lecciones-aprendidas/
 
 Conecta con:
 - apps/proyectos/views.py: formulacion, revision y seguimiento.
 - apps/proyectos/views_reportes.py: reportes agregados.
 - apps/proyectos/views_consolidado.py: informes consolidados de HU-06.
+- apps/proyectos/views_repositorio.py: repositorio historico de HU-07.
 - config/urls.py: enrutador raiz que incluye este archivo.
 """
 from django.urls import path
@@ -33,6 +37,13 @@ from .views_consolidado import (
     InformeConsolidadoFiltrosView,
     InformeConsolidadoExportPDFView,
     InformeConsolidadoExportExcelView,
+)
+from .views_repositorio import (
+    RepositorioProyectosView,
+    RepositorioFiltrosView,
+    RepositorioFichaTecnicaView,
+    RepositorioInformeFinalView,
+    RepositorioLeccionesAprendidasView,
 )
 
 urlpatterns = [
@@ -104,4 +115,17 @@ urlpatterns = [
          InformeConsolidadoExportPDFView.as_view(), name='informe-consolidado-export-pdf'),
     path('informes/consolidado/export/excel/',
          InformeConsolidadoExportExcelView.as_view(), name='informe-consolidado-export-excel'),
+
+    # ── Módulo 7: Repositorio Histórico (HU-07) ───────────────────────────────
+    # Solo lectura y solo proyectos en estado finalizado.
+    path('repositorio/filtros/',
+         RepositorioFiltrosView.as_view(), name='repositorio-filtros'),
+    path('repositorio/proyectos/',
+         RepositorioProyectosView.as_view(), name='repositorio-proyectos'),
+    path('repositorio/proyectos/<int:pk>/',
+         RepositorioFichaTecnicaView.as_view(), name='repositorio-ficha-tecnica'),
+    path('repositorio/proyectos/<int:pk>/informe-final/',
+         RepositorioInformeFinalView.as_view(), name='repositorio-informe-final'),
+    path('repositorio/lecciones-aprendidas/',
+         RepositorioLeccionesAprendidasView.as_view(), name='repositorio-lecciones-aprendidas'),
 ]

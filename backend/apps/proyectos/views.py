@@ -67,6 +67,7 @@ from .serializers import (
     NotificacionSerializer,
     AvanceActividadSerializer,
     EvidenciaAvanceSerializer,
+    InformeFinalSerializer,
 )
 from apps.usuarios.models import Rol, Usuario
 
@@ -938,6 +939,11 @@ class ProyectoFinalizarView(APIView):
     para cerrar", pero quien decide que el proyecto realmente cumplio sigue
     siendo Departamento, Jefatura RSU o Administrador, igual que con
     aprobar/observar en revision.
+
+    En el mismo POST se puede registrar el informe final (conclusiones,
+    recomendaciones, lecciones_aprendidas, medio_difusion), que despues
+    consulta el Repositorio Historico de HU-07. Es opcional: sin body el
+    proyecto se finaliza igual y el informe queda con campos pendientes.
     """
     permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador | IsJefaturaRSU]
 
@@ -956,10 +962,16 @@ class ProyectoFinalizarView(APIView):
                 f'El proyecto tiene {proyecto.porcentaje_ejecucion}% de actividades '
                 'completadas. Debe llegar al 100% antes de poder finalizarlo.')
 
+        informe = InformeFinalSerializer(data=request.data, partial=True)
+        informe.is_valid(raise_exception=True)
+        for campo, valor in informe.validated_data.items():
+            setattr(proyecto, campo, valor)
+
         estado_anterior = proyecto.estado
         proyecto.estado = 'finalizado'
         proyecto.fecha_cierre = timezone.now()
-        proyecto.save(update_fields=['estado', 'fecha_cierre'])
+        proyecto.save(update_fields=[
+            'estado', 'fecha_cierre', 'updated_at', *informe.validated_data])
 
         _registrar_historial(
             proyecto=proyecto,
