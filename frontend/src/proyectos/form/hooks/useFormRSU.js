@@ -74,7 +74,6 @@ const VALIDACIONES = {
     facultad: (data) => isIdValid(data.facultad),
     escuela: (data) => isIdValid(data.escuela),
     departamento: (data) => isIdValid(data.departamento),
-    semestre: (data) => isTextValid(data.semestre),
     asignaturas: (data) => isTextValid(data.asignaturas),
     titulo: (data) => isTextValid(data.titulo),
     beneficiarios: (data) => isTextValid(data.beneficiarios),
@@ -110,8 +109,8 @@ const VALIDACIONES = {
   6: {
     actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0 &&
     data.actividades.every(item => 
-        item.nombre?.trim() !== "",
-        item.responsable?.trim() !== "",
+        item.nombre?.trim() !== "" &&
+        item.responsable?.trim() !== ""
       ),
   },
   7: {
@@ -241,7 +240,7 @@ export const useFormRSU = () => {
         facultad: parseInt(formData.facultad, 10),
         escuela: parseInt(formData.escuela, 10),
         departamento: parseInt(formData.departamento, 10),
-        semestre_academico: formData.semestre,
+        semestre_academico: formData.periodo_nombre, // mandar nombre del periodo en lugar de semestre
         titulo: formData.titulo,
         nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1),
         nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0),
