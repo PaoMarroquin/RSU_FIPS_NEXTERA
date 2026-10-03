@@ -182,8 +182,11 @@ export default function DatosGenerales({ data, updateData }) {
             value={data.periodo}
             selectedName={data.periodo_nombre}
             fetchFn={async (page) => {
-              const res = await periodoApi.obtenerPeriodos({ page });
-              return res.results ? res : { results: res, next: null };
+              const resultados = res.results ?? res;
+              return {
+                ...res,
+                results: resultados.filter((periodo) => periodo.activo === true),
+              };
             }}
             placeholder="Seleccione periodo..."
             onChange={(e, nombre) => {
