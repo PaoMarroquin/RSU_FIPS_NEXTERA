@@ -469,34 +469,72 @@ export const useFormRSU = () => {
 
     } catch (error) {
       console.error("Error al guardar el proyecto en el backend:", error);
-      
+
       if (error.response) {
-        console.error("Respuesta detallada del servidor:", JSON.stringify(error.response.data, null, 2));
+        console.error(
+          "Respuesta detallada del servidor:",
+          JSON.stringify(error.response.data, null, 2)
+        );
+
         const backendErrors = error.response.data || {};
-        
+
         if (error.response.status === 403) {
-          showToast('error', "Error 403 (Permiso Denegado): Tu usuario actual no tiene permisos de docente o administrador en el backend.");
-        } else if (backendErrors.non_field_errors) {
-          showToast('error', `Restricción del sistema:\n${backendErrors.non_field_errors.join("\n")}`);
-        } else if (backendErrors.detail) {
-          let errStr = `Detalle del Servidor: ${backendErrors.detail}`;
-          if (backendErrors.errors) {
-            const errList = Object.entries(backendErrors.errors).map(([k, v]) => `- ${k}: ${v}`).join('\n');
-            errStr += `\n${errList}`;
-          }
-          showToast('error', errStr);
-        } else {
-          const fieldErrors = Object.entries(backendErrors)
-            .map(([field, errs]) => `- ${field}: ${Array.isArray(errs) ? errs.join(', ') : JSON.stringify(errs)}`)
-            .join('\n');
-          showToast('error', `Error ${error.response.status}: Error de validación al guardar:\n${fieldErrors}`);
+          showToast(
+            "error",
+            "Error 403 (Permiso Denegado): Tu usuario actual no tiene permisos de docente o administrador en el backend."
+          );
+          return;
         }
+
+        if (backendErrors.errors) {
+          const messages = Object.entries(backendErrors.errors)
+            .flatMap(([field, errors]) =>
+              Array.isArray(errors)
+                ? errors.map((err) => `• ${field}: ${err}`)
+                : [`• ${field}: ${errors}`]
+            )
+            .join("\n");
+
+          showToast("error", messages);
+          return;
+        }
+
+        if (backendErrors.non_field_errors) {
+          showToast(
+            "error",
+            backendErrors.non_field_errors
+              .map((err) => `• ${err}`)
+              .join("\n")
+          );
+          return;
+        }
+
+        if (backendErrors.detail) {
+          showToast("error", backendErrors.detail);
+          return;
+        }
+
+        const messages = Object.entries(backendErrors)
+          .flatMap(([field, errors]) =>
+            Array.isArray(errors)
+              ? errors.map((err) => `• ${field}: ${err}`)
+              : [`• ${field}: ${errors}`]
+          )
+          .join("\n");
+
+        showToast("error", messages);
       } else if (error instanceof Error) {
-        showToast('error', `Error en el formulario: ${error.message}. Por favor, revisa que todos los campos estén completos correctamente.`);
+        showToast(
+          "error",
+          `Error en el formulario: ${error.message}. Por favor, revisa que todos los campos estén completos correctamente.`
+        );
       } else {
-        showToast('error', "Hubo un error al intentar conectarse al servidor.");
+        showToast(
+          "error",
+          "Hubo un error al intentar conectarse al servidor."
+        );
       }
-    } finally {
+    }finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
     }

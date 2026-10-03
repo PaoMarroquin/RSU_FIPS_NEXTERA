@@ -7,24 +7,24 @@ export default function Financiamiento({ data, updateData }) {
     return fuentesGuardadas.length > 0
       ? fuentesGuardadas
       : [
-          {
-            id: null,
-            fuente_financiamiento: "", 
-            monto_financiamiento: "",   
-            descripcion_fuente: "",     
-            partidas: [
-              { 
-                id: null,
-                categoria: "", 
-                tipo_recurso: "material",
-                descripcion: "", 
-                unidad: "Unidad", 
-                cantidad: 1, 
-                costo_unitario: "" 
-              }
-            ]
-          }
-        ];
+        {
+          id: null,
+          fuente_financiamiento: "",
+          monto_financiamiento: "",
+          descripcion_fuente: "",
+          partidas: [
+            {
+              id: null,
+              categoria: "",
+              tipo_recurso: "material",
+              descripcion: "",
+              unidad: "Unidad",
+              cantidad: 1,
+              costo_unitario: ""
+            }
+          ]
+        }
+      ];
   });
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function Financiamiento({ data, updateData }) {
   const eliminarPartida = (fIndex, pIndex) => {
     const nuevasFuentes = [...listaFuentes];
     const partidas = nuevasFuentes[fIndex].partidas;
-    
+
     if (partidas.length === 1) {
       partidas[0] = { id: null, categoria: "", tipo_recurso: "material", descripcion: "", unidad: "Unidad", cantidad: 1, costo_unitario: "" };
     } else {
@@ -150,7 +150,7 @@ export default function Financiamiento({ data, updateData }) {
 
         return (
           <div key={fIndex} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden border-l-4 border-l-[#b1122b]">
-            
+
             {/* PANEL SUPERIOR: CONFIGURACIÓN DE LA FUENTE */}
             <div className="bg-slate-50/70 p-4 border-b border-slate-200 flex flex-col gap-4">
               <div className="flex justify-between items-center">
@@ -224,7 +224,7 @@ export default function Financiamiento({ data, updateData }) {
               <div className="space-y-2">
                 {fuente.partidas.map((partida, pIndex) => (
                   <div key={pIndex} className="bg-white p-3 rounded-md border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                    
+
                     {/* Categoría */}
                     <div className="md:col-span-3">
                       <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Categoría</label>
@@ -283,12 +283,19 @@ export default function Financiamiento({ data, updateData }) {
                     <div className="md:col-span-1">
                       <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Cant.</label>
                       <input
-                        type="number"
-                        min="1"
-                        placeholder="1"
+                        type="number" min="1" step="1" placeholder="21"
+                        onKeyDown={(e) => {
+                          if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                            e.preventDefault();
+                          }
+                        }}
                         className="w-full text-xs rounded border border-slate-300 px-2 py-2 focus:border-[#b1122b] outline-none text-center"
                         value={partida.cantidad}
-                        onChange={(e) => handlePartidaChange(fIndex, pIndex, "cantidad", e.target.value)}
+                        onChange={(e) => {
+                          if (/^\d*$/.test(e.target.value)) {
+                            handlePartidaChange(fIndex, pIndex, "cantidad", e.target.value);
+                          }
+                        }}
                       />
                     </div>
 
@@ -326,10 +333,10 @@ export default function Financiamiento({ data, updateData }) {
                 <span className="text-slate-700 bg-slate-200 px-2 py-1 rounded">
                   Monto Ejecutado en Partidas: <strong className="font-mono text-xs">S/ {totalPartidasFuente.toFixed(2)}</strong>
                 </span>
-                
+
                 {fuente.monto_financiamiento && Number(fuente.monto_financiamiento) !== totalPartidasFuente && (
                   <span className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 font-normal animate-pulse">
-                     Alerta: El total de partidas difiere del monto asignado teórico (S/ {Number(fuente.monto_financiamiento).toFixed(2)})
+                    Alerta: El total de partidas difiere del monto asignado teórico (S/ {Number(fuente.monto_financiamiento).toFixed(2)})
                   </span>
                 )}
               </div>

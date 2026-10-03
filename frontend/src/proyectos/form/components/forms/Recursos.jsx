@@ -56,8 +56,16 @@ export default function Recursos({ data, updateData }) {
       {/* PANEL: RECURSOS HUMANOS */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
         <div className="border-b border-slate-100 pb-2 flex justify-between items-center">
-          <h3 className="text-sm font-bold text-slate-800 m-0">Recursos Humanos (Cantidad de personas)</h3>
-          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full transition-colors ${totalHum > 0 ? "text-emerald-700 bg-emerald-50 border border-emerald-100" : "text-slate-500 bg-slate-100"}`}>
+          <h3 className="text-sm font-bold text-slate-800 m-0">
+            Recursos Humanos (Cantidad de personas)
+          </h3>
+
+          <span
+            className={`text-xs font-bold px-2.5 py-0.5 rounded-full transition-colors ${totalHum > 0
+                ? "text-emerald-700 bg-emerald-50 border border-emerald-100"
+                : "text-slate-500 bg-slate-100"
+              }`}
+          >
             Total Integrantes: {totalHum}
           </span>
         </div>
@@ -66,55 +74,152 @@ export default function Recursos({ data, updateData }) {
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Docentes</label>
             <input
-              type="number" min="0"
-              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${docentes < 0 ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-[#b1122b]'}`}
+              type="number"
+              min="0"
+              step="1"
+              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${docentes < 0
+                  ? "border-red-300 focus:border-red-500"
+                  : "border-slate-300 focus:border-[#b1122b]"
+                }`}
               value={recursos.rec_hum_docentes ?? 0}
-              onChange={(e) => handleNestedChange("rec_hum_docentes", e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  handleNestedChange("rec_hum_docentes", e.target.value);
+                }
+              }}
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Administrativos</label>
+            <label className="text-xs font-semibold text-slate-600">
+              Administrativos
+            </label>
             <input
-              type="number" min="0"
-              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${admin < 0 ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-[#b1122b]'}`}
+              type="number"
+              min="0"
+              step="1"
+              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${admin < 0
+                  ? "border-red-300 focus:border-red-500"
+                  : "border-slate-300 focus:border-[#b1122b]"
+                }`}
               value={recursos.rec_hum_administrativos ?? 0}
-              onChange={(e) => handleNestedChange("rec_hum_administrativos", e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  handleNestedChange("rec_hum_administrativos", e.target.value);
+                }
+              }}
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Estudiantes</label>
+            <label className="text-xs font-semibold text-slate-600">
+              Estudiantes
+            </label>
             <input
-              type="number" min="0"
-              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${alumnos < 0 ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-[#b1122b]'}`}
+              type="number"
+              min="0"
+              step="1"
+              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${alumnos < 0
+                  ? "border-red-300 focus:border-red-500"
+                  : "border-slate-300 focus:border-[#b1122b]"
+                }`}
               value={recursos.rec_hum_estudiantes ?? 0}
-              onChange={(e) => handleNestedChange("rec_hum_estudiantes", e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  handleNestedChange("rec_hum_estudiantes", e.target.value);
+                }
+              }}
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Egresados</label>
+            <label className="text-xs font-semibold text-slate-600">
+              Egresados
+            </label>
             <input
-              type="number" min="0"
-              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${egresados < 0 ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-[#b1122b]'}`}
+              type="number"
+              min="0"
+              step="1"
+              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${egresados < 0
+                  ? "border-red-300 focus:border-red-500"
+                  : "border-slate-300 focus:border-[#b1122b]"
+                }`}
               value={recursos.rec_hum_egresados ?? 0}
-              onChange={(e) => handleNestedChange("rec_hum_egresados", e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  handleNestedChange("rec_hum_egresados", e.target.value);
+                }
+              }}
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Voluntarios</label>
+            <label className="text-xs font-semibold text-slate-600">
+              Voluntarios
+            </label>
             <input
-              type="number" min="0"
-              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${voluntarios < 0 ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-[#b1122b]'}`}
+              type="number"
+              min="0"
+              step="1"
+              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${voluntarios < 0
+                  ? "border-red-300 focus:border-red-500"
+                  : "border-slate-300 focus:border-[#b1122b]"
+                }`}
               value={recursos.rec_hum_voluntarios ?? 0}
-              onChange={(e) => handleNestedChange("rec_hum_voluntarios", e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  handleNestedChange("rec_hum_voluntarios", e.target.value);
+                }
+              }}
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">Otros</label>
             <input
-              type="number" min="0"
-              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${otrosHum < 0 ? 'border-red-300 focus:border-red-500' : 'border-slate-300 focus:border-[#b1122b]'}`}
+              type="number"
+              min="0"
+              step="1"
+              className={`h-10 w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-1 ${otrosHum < 0
+                  ? "border-red-300 focus:border-red-500"
+                  : "border-slate-300 focus:border-[#b1122b]"
+                }`}
               value={recursos.rec_hum_otros ?? 0}
-              onChange={(e) => handleNestedChange("rec_hum_otros", e.target.value)}
+              onKeyDown={(e) => {
+                if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              onChange={(e) => {
+                if (/^\d*$/.test(e.target.value)) {
+                  handleNestedChange("rec_hum_otros", e.target.value);
+                }
+              }}
             />
           </div>
         </div>
