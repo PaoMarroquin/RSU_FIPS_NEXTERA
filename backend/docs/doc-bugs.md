@@ -169,15 +169,92 @@ El comportamiento es idempotente para borradores con el mismo título y facultad
 
 ---
 
+## VF-01 — El rechazo al enviar no explica qué debe corregirse
+
+**Reporte:** Bug_006 — Financiamiento. Al pulsar "Finalizar y Guardar" con
+secciones incompletas, el servidor rechaza el envío pero la pantalla vuelve a
+mostrar el formulario sin ningún mensaje visible que explique qué falta.
+
+**Análisis:** El backend **ya retorna los errores** en la respuesta `400`:
+
+```json
+{
+  "errors": {
+    "periodo": "Este campo es obligatorio.",
+    "cronograma": "Cada actividad debe tener al menos una acción completa.",
+    "docentes_participantes": "Debe indicar 2 nombres de docentes.",
+    "fecha_evaluacion_avance": "Este campo es obligatorio al enviar a revisión."
+  }
+}
+```
+
+El backend no tiene nada que corregir. El fallo es que el **frontend no lee
+ni muestra** el contenido de `response.data.errors` al recibir el `400`.
+
+**Estado: pendiente en frontend.** El frontend debe leer `errors` y mostrar
+cada mensaje junto al campo correspondiente o en un resumen visible.
+
+---
+
+## FI-01 — El cálculo acepta cantidades negativas en partidas
+
+**Reporte:** Bug_006 — Financiamiento. Al ingresar cantidad `-2` y precio
+`S/10`, el sistema muestra `Monto Ejecutado: S/ -20.00` sin rechazarlo.
+
+**Corrección en backend:** `validate_cantidad` en `PartidaPresupuestariaSerializer`
+(ya aplicado en la sesión anterior) rechaza cualquier valor negativo:
+
+```python
+def validate_cantidad(self, value):
+    if value is not None and value < 0:
+        raise serializers.ValidationError('La cantidad no puede ser negativa.')
+    return value
+```
+
+Al intentar guardar con cantidad negativa el backend responde `400`. El valor
+no persiste en la base de datos.
+
+**Pendiente en frontend:** La UI aún muestra el cálculo `S/ -20.00` localmente
+antes de guardar. La corrección de frontend es agregar `min="0"` al input de
+cantidad para bloquear el ingreso de negativos en pantalla.
+
+**Estado backend: Corregido.** Pendiente de mejora visual en frontend.
+
+---
+
+## RC-01 — El total de integrantes no coincide con cantidades decimales
+
+**Reporte:** Bug_006 — Recursos. Al ingresar `1.5` en el campo de estudiantes,
+el total muestra `2` sin avisar que el valor decimal no es válido.
+
+**Análisis:** Los campos `nro_docentes`, `nro_estudiantes` y los seis
+`rec_hum_*` son `PositiveIntegerField` en Django. DRF los valida y responde
+`400 "A valid integer is required."` si llega `1.5`. El backend **ya rechaza
+decimales** en estos campos.
+
+Lo que ocurre es que el navegador (con `<input type="number">`) redondea
+internamente el valor o lo marca como inválido antes de enviarlo, pero el
+frontend muestra el total visual calculado con el decimal (`1 + 1.5 = 2`)
+sin advertirlo.
+
+**Estado backend: Sin cambio necesario** — ya validado por el tipo de campo.
+**Pendiente en frontend:** Agregar `step="1"` al input para forzar enteros y
+corregir el cálculo visual del total.
+
+---
+
 ## Resumen
 
-| Bug | Archivo modificado | Estado |
-|---|---|---|
-| BUG-002 Periodo fechas invertidas | `apps/planificacion/serializers.py` | **Corregido** |
-| BUG-003 presupuesto_global | — | **Cerrado** (campo eliminado previamente) |
-| BUG-004 ActividadSugerida eje vs objetivo | `apps/planificacion/serializers.py` | **Corregido** |
-| BUG-005 Proyecto fechas invertidas | `apps/proyectos/serializers.py` | **Corregido** |
-| BUG-007 Celular formato inválido | `apps/usuarios/serializers.py` | **Corregido** |
-| VF-02 Borradores duplicados | `apps/proyectos/views.py` | **Corregido** |
+| Bug | Reporte | Archivo modificado | Estado |
+|---|---|---|---|
+| BUG-002 Periodo fechas invertidas | PIS BUG-002 | `apps/planificacion/serializers.py` | **Corregido backend** |
+| BUG-003 presupuesto_global | PIS BUG-003 | — | **Cerrado** (campo ya eliminado) |
+| BUG-004 ActividadSugerida eje vs objetivo | PIS BUG-004 | `apps/planificacion/serializers.py` | **Corregido backend** |
+| BUG-005 Proyecto fechas invertidas | PIS BUG-005 | `apps/proyectos/serializers.py` | **Corregido backend** |
+| BUG-007 Celular formato inválido | PIS BUG-007 | `apps/usuarios/serializers.py` | **Corregido backend** |
+| VF-02 Borradores duplicados | Bug_006 Financiamiento | `apps/proyectos/views.py` | **Corregido backend** |
+| VF-01 Rechazo sin explicación | Bug_006 Financiamiento | — | **Pendiente frontend** |
+| FI-01 Cantidad negativa en partidas | Bug_006 Financiamiento | `apps/proyectos/serializers.py` | **Corregido backend** / pendiente UI frontend |
+| RC-01 Decimales en integrantes | Bug_006 Recursos | — | **Ya validado backend** / pendiente UI frontend |
 
-Pruebas: **151 tests pasan** después de aplicar todas las correcciones.
+Pruebas: **151 tests pasan** después de aplicar todas las correcciones de backend.
