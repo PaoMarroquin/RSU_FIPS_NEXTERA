@@ -582,6 +582,35 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         informe = self._informe(obj)
         return bool(informe and informe.constancia_aprobada)
 
+    def _validar_entero_no_negativo(self, campo, value):
+        if isinstance(value, float) and not value.is_integer():
+            raise serializers.ValidationError(f'El campo {campo} debe ser un número entero.')
+        return value
+
+    def validate_nro_docentes(self, value):
+        return self._validar_entero_no_negativo('nro_docentes', value)
+
+    def validate_nro_estudiantes(self, value):
+        return self._validar_entero_no_negativo('nro_estudiantes', value)
+
+    def validate_rec_hum_docentes(self, value):
+        return self._validar_entero_no_negativo('rec_hum_docentes', value)
+
+    def validate_rec_hum_administrativos(self, value):
+        return self._validar_entero_no_negativo('rec_hum_administrativos', value)
+
+    def validate_rec_hum_estudiantes(self, value):
+        return self._validar_entero_no_negativo('rec_hum_estudiantes', value)
+
+    def validate_rec_hum_egresados(self, value):
+        return self._validar_entero_no_negativo('rec_hum_egresados', value)
+
+    def validate_rec_hum_voluntarios(self, value):
+        return self._validar_entero_no_negativo('rec_hum_voluntarios', value)
+
+    def validate_rec_hum_otros(self, value):
+        return self._validar_entero_no_negativo('rec_hum_otros', value)
+
     def validate_docentes_participantes(self, value):
         if not isinstance(value, list):
             raise serializers.ValidationError('Debe ser una lista de nombres.')
