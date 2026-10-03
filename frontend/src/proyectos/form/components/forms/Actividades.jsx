@@ -50,7 +50,7 @@ export default function Actividades({ data, updateData }) {
     updateData('actividades', actividadesReordenadas);
   };
 
-  const tieneCamposVacios = actividades.some(act => !act.nombre?.trim());
+  const tieneCamposVacios = actividades.some(act => !act.nombre?.trim() || !act.responsable?.trim());
 
   return (
     <div className="space-y-6 transition-all duration-300">
@@ -78,7 +78,7 @@ export default function Actividades({ data, updateData }) {
 
       {actividades.length > 0 && tieneCamposVacios && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 animate-in fade-in slide-in-from-top-2">
-          <p> El título o nombre de la actividad es obligatorio para procesar el envío al servidor.</p>
+          <p> El nombre y responsable de la actividad es obligatorio para procesar el envío al servidor.</p>
         </div>
       )}
 
