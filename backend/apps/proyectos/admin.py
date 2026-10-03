@@ -25,7 +25,7 @@ from .models import (
     DocumentoSustentoProyecto, PartidaPresupuestaria, TipoBeneficiario,
     ProyectoEjeSubitem, MetaIndicadorProyecto,
     RevisionProyecto, Notificacion, HistorialEstadoProyecto,
-    FuenteFinanciamiento, AvanceActividad, EvidenciaAvance,
+    FuenteFinanciamiento, AvanceActividad, EvidenciaAvance, InformeFinalizacion,
 )
 
 TIPO_ACTIVIDAD_CHOICES = [
@@ -95,7 +95,7 @@ class EjesSubitemsInline(admin.TabularInline):
 class ActividadProyectoInline(admin.TabularInline):
     model = ActividadProyecto
     extra = 1
-    fields = ('orden', 'nombre', 'descripcion', 'curso_vinculado', 'responsable', 'fecha', 'evidencia_esperada', 'estado')
+    fields = ('orden', 'nombre', 'descripcion', 'curso_vinculado', 'estado')
     ordering = ['orden']
     verbose_name = "Actividad"
     verbose_name_plural = "── VI. Actividades"
@@ -104,7 +104,7 @@ class ActividadProyectoInline(admin.TabularInline):
 class CronogramaAccionInline(admin.TabularInline):
     model = CronogramaAccion
     extra = 1
-    fields = ('orden', 'descripcion', 'fecha_inicio', 'fecha_fin', 'responsable', 'estado_avance')
+    fields = ('orden', 'actividad', 'descripcion', 'fecha_inicio', 'fecha_fin', 'responsable', 'evidencia_esperada', 'estado_avance')
     ordering = ['orden']
     verbose_name = "Acción"
     verbose_name_plural = "── VII. Cronograma de acciones"
@@ -252,7 +252,7 @@ class ProyectoDocenteAdmin(admin.ModelAdmin):
 
 @admin.register(ActividadProyecto)
 class ActividadProyectoAdmin(admin.ModelAdmin):
-    list_display = ('proyecto', 'orden', 'nombre', 'fecha', 'responsable', 'estado')
+    list_display = ('proyecto', 'orden', 'nombre', 'estado')
     list_filter = ('estado',)
     ordering = ['proyecto', 'orden']
 
@@ -339,3 +339,11 @@ class FuenteFinanciamientoAdmin(admin.ModelAdmin):
     search_fields = ('proyecto__titulo',)
 
 
+
+
+@admin.register(InformeFinalizacion)
+class InformeFinalizacionAdmin(admin.ModelAdmin):
+    list_display = ('proyecto', 'estado', 'fecha_envio', 'fecha_aprobacion', 'constancia_aprobada')
+    list_filter = ('estado', 'constancia_aprobada')
+    search_fields = ('proyecto__titulo', 'proyecto__codigo')
+    readonly_fields = ('created_at', 'updated_at')

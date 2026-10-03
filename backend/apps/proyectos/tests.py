@@ -44,6 +44,52 @@ from apps.proyectos.models import (
     HistorialEstadoProyecto,
 )
 
+
+def completar_para_revision(proyecto, ods):
+    """Llena todo lo que exige el envío a revisión (los textos admiten "n/a")."""
+    from apps.proyectos.models import ProyectoAsignatura
+    from apps.planificacion.models import EjeRSU as _Eje
+    for campo in [
+        'lugar_ejecucion', 'fund_por_que_grupo', 'fund_para_que_proyecto',
+        'fund_mecanismo_ensenanza', 'diag_estado_grupo', 'diag_problemas_detectados',
+        'diag_aportes_formacion', 'diag_justificacion_intervencion',
+        'obj_logro_intervencion', 'obj_mejora_curricular',
+        'resultado_en_beneficiarios', 'resultado_en_curriculo',
+        'rec_mat_material_didactico', 'rec_mat_afiches', 'rec_mat_equipos',
+        'rec_mat_utiles', 'rec_mat_otros',
+    ]:
+        setattr(proyecto, campo, 'n/a')
+    for campo in ['fecha_inicio', 'fecha_evaluacion_avance', 'fecha_encuesta_docentes',
+                  'fecha_encuesta_alumnos', 'fecha_encuesta_grupo_destinatario']:
+        setattr(proyecto, campo, '2026-04-01')
+    proyecto.fecha_termino = '2026-12-31'
+    proyecto.tipo_actividad = ['asesoria']
+    proyecto.benef_otro_detalle = 'Comunidad universitaria'
+    proyecto.nro_docentes = 2
+    proyecto.docentes_participantes = ['Ana Pérez', 'Luis Quispe']
+    proyecto.nro_estudiantes = 20
+    proyecto.rec_hum_docentes = 2
+    proyecto.save()
+    if not proyecto.ejes_rsu.exists():
+        proyecto.ejes_rsu.add(_Eje.objects.first())
+    proyecto.ods.add(ods)
+    ProyectoAsignatura.objects.create(proyecto=proyecto, nombre_asignatura='Curso Prueba')
+    MetaIndicadorProyecto.objects.create(
+        proyecto=proyecto, meta_descripcion='Capacitar a 50 beneficiarios',
+        indicador_nombre='Nro de beneficiarios', linea_base=0, valor_meta=50)
+    fuente = FuenteFinanciamiento.objects.create(
+        proyecto=proyecto, fuente='autofinanciado', monto=150)
+    PartidaPresupuestaria.objects.create(
+        proyecto=proyecto, categoria='material_escritorio', cantidad=10,
+        costo_unitario=15, fuente=fuente)
+    actividad = ActividadProyecto.objects.create(
+        proyecto=proyecto, nombre='Taller', descripcion='Taller de capacitación', orden=1)
+    CronogramaAccion.objects.create(
+        proyecto=proyecto, actividad=actividad, descripcion='Preparar materiales',
+        fecha_inicio='2026-04-01', fecha_fin='2026-04-10', responsable='Docente',
+        evidencia_esperada='Fotos', orden=1)
+    return actividad
+
 class ProyectosAPITests(APITestCase):
 
     def setUp(self):
@@ -275,71 +321,60 @@ class ProyectosAPITests(APITestCase):
         # Try sending to review - should fail
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('ods', response.data['errors'])
-        self.assertIn('asignaturas', response.data['errors'])
-        self.assertIn('metas_indicadores', response.data['errors'])
-        self.assertIn('presupuesto', response.data['errors'])
-        self.assertIn('cronograma', response.data['errors'])
+        for campo in ['ods', 'asignaturas', 'metas_indicadores', 'presupuesto',
+                      'actividades', 'docentes_participantes', 'fuentes_financiamiento',
+                      'obj_mejora_curricular', 'fecha_evaluacion_avance']:
+            self.assertIn(campo, response.data['errors'])
 
         # 2. Complete all required fields and relationships
-        proyecto.fund_por_que_grupo = 'Completado'
-        proyecto.fund_para_que_proyecto = 'Completado'
-        proyecto.fund_mecanismo_ensenanza = 'Completado'
-        proyecto.diag_estado_grupo = 'Completado'
-        proyecto.diag_problemas_detectados = 'Completado'
-        proyecto.diag_aportes_formacion = 'Completado'
-        proyecto.obj_logro_intervencion = 'Completado'
-        proyecto.resultado_en_beneficiarios = 'Completado'
-        proyecto.resultado_en_curriculo = 'Completado'
-        proyecto.linea_estrategica = self.linea
-        proyecto.objetivo_institucional = self.objetivo
-        proyecto.anio_carrera = 1
-        proyecto.lugar_ejecucion = 'Arequipa'
-        MetaIndicadorProyecto.objects.create(
-            proyecto=proyecto,
-            meta_descripcion='Capacitar a 50 beneficiarios',
-            indicador_nombre='Nro de beneficiarios',
-            linea_base=10,
-            valor_meta=50,
-        )
-        proyecto.fecha_inicio = '2026-01-01'
-        proyecto.fecha_termino = '2026-12-31'
-        proyecto.tipo_actividad = ['asesoria']
-        proyecto.benef_otro_detalle = 'Comunidad universitaria'
-        proyecto.save()
-
-        proyecto.ods.add(self.ods_1)
-
-        from apps.proyectos.models import ProyectoAsignatura
-        ProyectoAsignatura.objects.create(
-            proyecto=proyecto,
-            nombre_asignatura='Curso Prueba',
-            anio_carrera=1,
-            semestre='I'
-        )
-        MetaIndicadorProyecto.objects.create(
-            proyecto=proyecto,
-            meta_descripcion='Capacitar a 50 docentes en reciclaje',
-            indicador_nombre='Nro de docentes capacitados',
-            valor_meta=50,
-        )
-        PartidaPresupuestaria.objects.create(
-            proyecto=proyecto,
-            categoria='material_escritorio',
-            cantidad=10,
-            costo_unitario=15,
-        )
-        CronogramaAccion.objects.create(
-            proyecto=proyecto,
-            descripcion='Acción 1',
-            orden=1,
-        )
+        completar_para_revision(proyecto, self.ods_1)
 
         # Try sending to review again - should succeed
         response = self.client.post(url, {}, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['estado'], 'en_revision')
         self.assertIsNotNone(response.data['fecha_envio_revision'])
+
+    def test_enviar_exige_acciones_en_cada_actividad(self):
+        proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto cronograma', periodo=self.periodo, facultad=self.facultad,
+            escuela=self.escuela, departamento=self.departamento,
+            docente_responsable=self.docente_user, estado='borrador')
+        completar_para_revision(proyecto, self.ods_1)
+        ActividadProyecto.objects.create(
+            proyecto=proyecto, nombre='Sin acciones', descripcion='Falta su bloque', orden=2)
+        self.client.force_authenticate(user=self.docente_user)
+
+        response = self.client.post(reverse('proyecto-revisar', args=[proyecto.id]), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cronograma', response.data['errors'])
+
+    def test_enviar_rechaza_acciones_sin_actividad(self):
+        proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto acción suelta', periodo=self.periodo, facultad=self.facultad,
+            escuela=self.escuela, departamento=self.departamento,
+            docente_responsable=self.docente_user, estado='borrador')
+        completar_para_revision(proyecto, self.ods_1)
+        CronogramaAccion.objects.create(proyecto=proyecto, descripcion='Suelta', orden=9)
+        self.client.force_authenticate(user=self.docente_user)
+
+        response = self.client.post(reverse('proyecto-revisar', args=[proyecto.id]), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('cronograma', response.data['errors'])
+
+    def test_enviar_exige_un_nombre_por_cada_docente(self):
+        proyecto = ProyectoRSU.objects.create(
+            titulo='Proyecto docentes', periodo=self.periodo, facultad=self.facultad,
+            escuela=self.escuela, departamento=self.departamento,
+            docente_responsable=self.docente_user, estado='borrador')
+        completar_para_revision(proyecto, self.ods_1)
+        proyecto.nro_docentes = 3
+        proyecto.save(update_fields=['nro_docentes'])
+        self.client.force_authenticate(user=self.docente_user)
+
+        response = self.client.post(reverse('proyecto-revisar', args=[proyecto.id]), {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('docentes_participantes', response.data['errors'])
 
     def test_docente_can_delete_draft_project(self):
         """
@@ -1086,282 +1121,486 @@ class AvancesEvidenciasAPITests(APITestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Cierre de proyecto (ProyectoFinalizarView)
+# Revisión de la planificación (HU-06): número de proyecto y observaciones
 # ──────────────────────────────────────────────────────────────────────────────
 
-class ProyectoFinalizarAPITests(APITestCase):
-    """
-    Sin este endpoint, un proyecto con porcentaje_ejecucion=100 se quedaba en
-    'en_ejecucion' para siempre: no habia ningun camino, automatico ni manual,
-    para que llegara a 'finalizado'. Estas pruebas cubren las reglas del
-    cierre: solo institucional, solo con 100% de actividades, solo desde
-    'en_ejecucion', y que deje rastro (historial + notificacion).
-    """
+class _BaseFlujoTestCase(APITestCase):
+    """Usuarios de los cuatro roles sobre un mismo departamento, y uno ajeno."""
 
     def setUp(self):
-        self.rol_docente = Rol.objects.get(nombre='Docente')
-        self.rol_departamento = Rol.objects.get(nombre='Departamento')
-        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
         self.facultad = Facultad.objects.get(codigo='FIPS')
-        self.otra_facultad = Facultad.objects.get(codigo='FCNF')
         self.escuela = EscuelaProfesional.objects.get(codigo='EPIS')
         self.departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
+        self.otro_departamento = DepartamentoAcademico.objects.filter(
+            facultad=self.facultad).exclude(pk=self.departamento.pk).first()
+        self.ods = ODS.objects.get(numero=4)
 
-        self.docente = Usuario.objects.create_user(
-            correo_institucional='docente.cierre@unsa.edu.pe', password=None,
-            nombres='Docente Cierre', rol=self.rol_docente, facultad=self.facultad,
-        )
-        self.depto_user = Usuario.objects.create_user(
-            correo_institucional='depto.cierre@unsa.edu.pe', password=None,
-            nombres='Departamento Cierre', rol=self.rol_departamento,
-            facultad=self.facultad, departamento=self.departamento,
-        )
-        self.jefatura_otra_facultad = Usuario.objects.create_user(
-            correo_institucional='jefatura.otra@unsa.edu.pe', password=None,
-            nombres='Jefatura Otra Facultad', rol=self.rol_jefatura,
-            facultad=self.otra_facultad,
-        )
+        def usuario(correo, nombre_rol, **extra):
+            return Usuario.objects.create_user(
+                correo_institucional=correo, password=None, nombres=correo.split('@')[0],
+                rol=Rol.objects.get(nombre=nombre_rol), facultad=self.facultad, **extra)
 
+        self.docente = usuario('docente.flujo@unsa.edu.pe', 'Docente')
+        self.otro_docente = usuario('otro.flujo@unsa.edu.pe', 'Docente')
+        self.depto = usuario('depto.flujo@unsa.edu.pe', 'Departamento', departamento=self.departamento)
+        self.depto_ajeno = usuario('depto.ajeno@unsa.edu.pe', 'Departamento',
+                                   departamento=self.otro_departamento)
+        self.jefatura = usuario('jefatura.flujo@unsa.edu.pe', 'Jefatura RSU')
         self.periodo = PeriodoAcademico.objects.create(
-            nombre='2026-Cierre', anio=2026, semestre='II',
-            fecha_inicio='2026-09-01', fecha_fin='2027-01-31', activo=True,
-        )
-        self.proyecto = ProyectoRSU.objects.create(
-            titulo='Proyecto listo para cerrar',
-            periodo=self.periodo,
+            nombre='2026-FLUJO', anio=2026, semestre='II',
+            fecha_inicio='2026-09-01', fecha_fin='2027-01-31', activo=True)
+
+    def crear_proyecto(self, estado, **extra):
+        proyecto = ProyectoRSU.objects.create(
+            titulo=extra.pop('titulo', 'Proyecto del flujo'), periodo=self.periodo,
             facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
-            docente_responsable=self.docente, semestre_academico='2026-II',
-            estado='en_ejecucion', porcentaje_ejecucion=Decimal('100.00'),
-        )
+            docente_responsable=self.docente, estado=estado, **extra)
+        proyecto.ejes_rsu.set([EjeRSU.objects.get(nombre='Gestión')])
+        return proyecto
 
-    def _url(self, proyecto=None):
-        return reverse('proyecto-finalizar', kwargs={'pk': (proyecto or self.proyecto).pk})
 
-    def test_docente_no_puede_finalizar_su_propio_proyecto(self):
+class RevisionPlanificacionAPITests(_BaseFlujoTestCase):
+
+    def test_aprobar_exige_numero_de_proyecto(self):
+        proyecto = self.crear_proyecto('en_revision')
+        self.client.force_authenticate(user=self.depto)
+        url = reverse('proyecto-aprobar', args=[proyecto.pk])
+
+        response = self.client.post(url, {}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('codigo', response.data['errors'])
+
+        response = self.client.post(url, {'codigo': 'RSU-FIPS-2026-015'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        proyecto.refresh_from_db()
+        self.assertEqual(proyecto.estado, 'aprobado')
+        self.assertEqual(proyecto.codigo, 'RSU-FIPS-2026-015')
+
+    def test_aprobar_rechaza_numero_repetido(self):
+        self.crear_proyecto('aprobado', titulo='Ya aprobado', codigo='RSU-001')
+        proyecto = self.crear_proyecto('en_revision')
+        self.client.force_authenticate(user=self.depto)
+        response = self.client.post(
+            reverse('proyecto-aprobar', args=[proyecto.pk]), {'codigo': 'RSU-001'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_crear_proyecto_ya_no_genera_codigo_y_deriva_el_semestre(self):
         self.client.force_authenticate(user=self.docente)
-        response = self.client.post(self._url(), {}, format='json')
+        response = self.client.post(reverse('proyecto-list'), {
+            'titulo': 'Sin código todavía', 'facultad': self.facultad.pk,
+            'periodo': self.periodo.pk, 'semestre_academico': 'texto libre ignorado',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(response.data['codigo'])
+        self.assertEqual(response.data['semestre_academico'], self.periodo.nombre)
+
+    def test_observar_exige_15_caracteres_y_guarda_secciones(self):
+        proyecto = self.crear_proyecto('en_revision')
+        self.client.force_authenticate(user=self.depto)
+        url = reverse('proyecto-observar', args=[proyecto.pk])
+
+        response = self.client.post(url, {'comentario_tecnico': 'Corto'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.post(url, {
+            'comentario_tecnico': 'Revisar presupuesto y cronograma.',
+            'observaciones_secciones': {'financiamiento': 'La partida 2 no cuadra.', 'objetivos': ''},
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        revision = proyecto.revisiones.get()
+        self.assertEqual(revision.etapa, 'planificacion')
+        self.assertEqual(revision.observaciones_secciones, {'financiamiento': 'La partida 2 no cuadra.'})
+
+    def test_observar_rechaza_secciones_que_no_existen(self):
+        proyecto = self.crear_proyecto('en_revision')
+        self.client.force_authenticate(user=self.depto)
+        response = self.client.post(reverse('proyecto-observar', args=[proyecto.pk]), {
+            'comentario_tecnico': 'Comentario suficientemente largo.',
+            'observaciones_secciones': {'seccion_inventada': 'x'},
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Formulación: valores no negativos, docentes por nombre, sin edición en ejecución
+# ──────────────────────────────────────────────────────────────────────────────
+
+class FormulacionAjustesAPITests(_BaseFlujoTestCase):
+
+    def test_no_permite_valores_negativos(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(reverse('proyecto-list'), {
+            'titulo': 'Negativos', 'facultad': self.facultad.pk, 'nro_estudiantes': -3,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        proyecto = self.crear_proyecto('borrador')
+        response = self.client.post(reverse('meta-indicador-list', args=[proyecto.pk]), {
+            'meta_descripcion': 'Meta', 'indicador_nombre': 'Ind', 'linea_base': -1, 'valor_meta': 5,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_guarda_docentes_por_nombre_y_observacion_de_estudiantes(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(reverse('proyecto-list'), {
+            'titulo': 'Con docentes', 'facultad': self.facultad.pk, 'nro_docentes': 2,
+            'docentes_participantes': [' Ana Pérez ', 'Luis Quispe'],
+            'observacion_estudiantes': 'Participan estudiantes de 3er año.',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['docentes_participantes'], ['Ana Pérez', 'Luis Quispe'])
+        self.assertEqual(response.data['observacion_estudiantes'], 'Participan estudiantes de 3er año.')
+
+    def test_actividad_con_su_bloque_de_acciones(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(reverse('proyecto-list'), {
+            'titulo': 'Cronograma por actividad', 'facultad': self.facultad.pk,
+            'actividades': [{
+                'nombre': 'Taller', 'descripcion': 'Taller de reciclaje', 'orden': 1,
+                'acciones': [{
+                    'descripcion': 'Convocatoria', 'fecha_inicio': '2026-04-01',
+                    'fecha_fin': '2026-04-05', 'responsable': 'Docente',
+                    'evidencia_esperada': 'Lista de inscritos',
+                }],
+            }],
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        proyecto = ProyectoRSU.objects.get(pk=response.data['id'])
+        self.assertEqual(proyecto.cronograma.get().actividad.nombre, 'Taller')
+        self.assertEqual(response.data['actividades'][0]['acciones'][0]['evidencia_esperada'],
+                         'Lista de inscritos')
+
+    def test_accion_con_fecha_fin_anterior_al_inicio(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(reverse('proyecto-list'), {
+            'titulo': 'Fechas al revés', 'facultad': self.facultad.pk,
+            'actividades': [{'nombre': 'T', 'descripcion': 'd', 'acciones': [{
+                'descripcion': 'A', 'fecha_inicio': '2026-05-10', 'fecha_fin': '2026-05-01'}]}],
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_editar_reemplaza_actividades_y_conserva_acciones_ligadas(self):
+        proyecto = self.crear_proyecto('borrador')
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('proyecto-detail', args=[proyecto.pk])
+        cuerpo = {'actividades': [{'nombre': 'Nueva', 'descripcion': 'd', 'acciones': [
+            {'descripcion': 'Acc 1'}, {'descripcion': 'Acc 2'}]}], 'cronograma': []}
+        response = self.client.patch(url, cuerpo, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(proyecto.cronograma.filter(actividad__nombre='Nueva').count(), 2)
+
+    def test_proyecto_en_ejecucion_no_edita_presupuesto_ni_metas(self):
+        proyecto = self.crear_proyecto('en_ejecucion')
+        partida = PartidaPresupuestaria.objects.create(
+            proyecto=proyecto, categoria='refrigerio', cantidad=1, costo_unitario=10)
+        self.client.force_authenticate(user=self.docente)
+
+        response = self.client.patch(
+            reverse('presupuesto-detail', args=[proyecto.pk, partida.pk]), {'cantidad': 5}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.post(reverse('meta-indicador-list', args=[proyecto.pk]), {
+            'meta_descripcion': 'Meta', 'indicador_nombre': 'Ind', 'valor_meta': 5,
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Mis actividades: evidencia en un solo paso
+# ──────────────────────────────────────────────────────────────────────────────
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class EvidenciaActividadAPITests(_BaseFlujoTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.proyecto = self.crear_proyecto('aprobado')
+        self.act1 = ActividadProyecto.objects.create(proyecto=self.proyecto, nombre='A1', orden=1)
+        self.act2 = ActividadProyecto.objects.create(proyecto=self.proyecto, nombre='A2', orden=2)
+
+    def _url(self, actividad):
+        return reverse('actividad-evidencia', args=[self.proyecto.pk, actividad.pk])
+
+    def test_subir_archivo_completa_la_actividad_y_recalcula(self):
+        self.client.force_authenticate(user=self.docente)
+        archivo = SimpleUploadedFile('foto.jpg', b'\xff\xd8\xff contenido', content_type='image/jpeg')
+        response = self.client.post(self._url(self.act1), {
+            'archivo': archivo, 'observacion': 'Se realizó con 30 asistentes.'}, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.act1.refresh_from_db()
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.act1.estado, 'completada')
+        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
+        self.assertEqual(self.proyecto.porcentaje_ejecucion, Decimal('50.00'))
+        self.assertEqual(EvidenciaAvance.objects.filter(avance__actividad=self.act1).count(), 1)
+
+    def test_enlace_de_drive_tambien_sirve(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(self._url(self.act2), {
+            'enlace_drive': 'https://drive.google.com/file/d/abc/view'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_exige_archivo_o_enlace_pero_no_ambos(self):
+        self.client.force_authenticate(user=self.docente)
+        self.assertEqual(self.client.post(self._url(self.act1), {}, format='json').status_code,
+                         status.HTTP_400_BAD_REQUEST)
+        archivo = SimpleUploadedFile('foto.png', b'png', content_type='image/png')
+        response = self.client.post(self._url(self.act1), {
+            'archivo': archivo, 'enlace_drive': 'https://drive.google.com/x'}, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_rechaza_formato_no_permitido(self):
+        self.client.force_authenticate(user=self.docente)
+        archivo = SimpleUploadedFile('virus.exe', b'MZ', content_type='application/octet-stream')
+        response = self.client.post(self._url(self.act1), {'archivo': archivo}, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.act1.refresh_from_db()
+        self.assertEqual(self.act1.estado, 'pendiente')
+
+    def test_solo_el_docente_responsable(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        response = self.client.post(self._url(self.act1), {
+            'enlace_drive': 'https://drive.google.com/x'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_rechaza_si_no_llega_a_100_por_ciento(self):
-        self.proyecto.porcentaje_ejecucion = Decimal('90.00')
-        self.proyecto.save(update_fields=['porcentaje_ejecucion'])
+    def test_estado_de_actividad_no_se_cambia_a_mano(self):
+        proyecto = self.crear_proyecto('borrador', titulo='Borrador')
+        act = ActividadProyecto.objects.create(proyecto=proyecto, nombre='X', orden=1)
+        self.client.force_authenticate(user=self.docente)
+        self.client.patch(reverse('actividad-detail', args=[proyecto.pk, act.pk]),
+                          {'estado': 'completada'}, format='json')
+        act.refresh_from_db()
+        self.assertEqual(act.estado, 'pendiente')
 
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.post(self._url(), {}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        self.proyecto.refresh_from_db()
-        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
+# ──────────────────────────────────────────────────────────────────────────────
+# Seguimiento en solo lectura (HU-16)
+# ──────────────────────────────────────────────────────────────────────────────
 
-    def test_rechaza_si_el_proyecto_no_esta_en_ejecucion(self):
-        self.proyecto.estado = 'aprobado'
-        self.proyecto.save(update_fields=['estado'])
+class SeguimientoAPITests(_BaseFlujoTestCase):
 
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.post(self._url(), {}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    def test_departamento_jefatura_y_docente_ven_el_avance_por_actividad(self):
+        proyecto = self.crear_proyecto('en_ejecucion', porcentaje_ejecucion=Decimal('50.00'))
+        act = ActividadProyecto.objects.create(proyecto=proyecto, nombre='A1', orden=1, estado='completada')
+        CronogramaAccion.objects.create(proyecto=proyecto, actividad=act, descripcion='Acc', orden=1)
+        avance = AvanceActividad.objects.create(
+            proyecto=proyecto, actividad=act, descripcion='Hecho',
+            estado_actividad='completada', autor=self.docente)
+        EvidenciaAvance.objects.create(avance=avance, tipo='enlace',
+                                       enlace_drive='https://drive.google.com/x')
 
-    def test_jefatura_de_otra_facultad_no_puede_finalizar(self):
-        self.client.force_authenticate(user=self.jefatura_otra_facultad)
-        response = self.client.post(self._url(), {}, format='json')
+        for usuario in (self.depto, self.jefatura, self.docente):
+            self.client.force_authenticate(user=usuario)
+            response = self.client.get(reverse('proyecto-seguimiento', args=[proyecto.pk]))
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['porcentaje_ejecucion'], 50.0)
+            fila = response.data['actividades'][0]
+            self.assertTrue(fila['completada'])
+            self.assertEqual(len(fila['acciones']), 1)
+            self.assertEqual(fila['evidencias'][0]['url'], 'https://drive.google.com/x')
+
+    def test_departamento_ajeno_no_lo_ve(self):
+        proyecto = self.crear_proyecto('en_ejecucion')
+        self.client.force_authenticate(user=self.depto_ajeno)
+        response = self.client.get(reverse('proyecto-seguimiento', args=[proyecto.pk]))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    def test_departamento_finaliza_proyecto_al_100_por_ciento(self):
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.post(self._url(), {}, format='json')
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Informe de Finalización, aprobación de la finalización y constancia
+# (HU-09 y Sprint 8, T-137 a T-141)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class FinalizacionAPITests(_BaseFlujoTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.proyecto = self.crear_proyecto(
+            'en_ejecucion', porcentaje_ejecucion=Decimal('100.00'), codigo='RSU-FIN-01')
+        self.meta = MetaIndicadorProyecto.objects.create(
+            proyecto=self.proyecto, meta_descripcion='Capacitar', indicador_nombre='Personas',
+            linea_base=0, valor_meta=50)
+        self.partida = PartidaPresupuestaria.objects.create(
+            proyecto=self.proyecto, categoria='refrigerio', cantidad=10, costo_unitario=5)
+        ActividadProyecto.objects.create(
+            proyecto=self.proyecto, nombre='A1', orden=1, estado='completada')
+
+    def _informe_completo(self):
+        return {
+            'conclusiones': 'Se cumplió el objetivo.', 'recomendaciones': 'Repetir el taller.',
+            'lecciones_aprendidas': 'Coordinar antes con la comunidad.', 'medio_difusion': 'n/a',
+            'metas': [{'id': self.meta.pk, 'valor_alcanzado': 45}],
+            'partidas': [{'id': self.partida.pk, 'monto_ejecutado': 48.5}],
+        }
+
+    def _enviar(self):
+        self.client.force_authenticate(user=self.docente)
+        self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
+                          self._informe_completo(), format='json')
+        return self.client.post(reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]))
+
+    def test_informe_no_se_habilita_antes_del_100(self):
+        self.proyecto.porcentaje_ejecucion = Decimal('80.00')
+        self.proyecto.save(update_fields=['porcentaje_ejecucion'])
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
+                                     {'conclusiones': 'x'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_trae_los_datos_de_planificacion_y_lo_pendiente(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('informe-finalizacion', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        fin = response.data['finalizacion']
+        self.assertTrue(fin['habilitado'])
+        self.assertTrue(fin['editable'])
+        self.assertIn('conclusiones', fin['campos_pendientes'])
+        self.assertIn('metas_valor_alcanzado', fin['campos_pendientes'])
+        self.assertEqual(response.data['presupuesto_detalle'][0]['id'], self.partida.pk)
+
+    def test_docente_completa_y_envia(self):
+        response = self._enviar()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['finalizacion']['estado'], 'enviado')
+        self.meta.refresh_from_db()
+        self.partida.refresh_from_db()
+        self.assertEqual(self.meta.valor_alcanzado, Decimal('45'))
+        self.assertEqual(self.partida.monto_ejecutado, Decimal('48.50'))
+        self.assertTrue(Notificacion.objects.filter(
+            destinatario=self.depto, tipo='informe_finalizacion_enviado').exists())
+        self.assertFalse(Notificacion.objects.filter(destinatario=self.depto_ajeno).exists())
+
+    def test_no_se_envia_con_campos_pendientes(self):
+        self.client.force_authenticate(user=self.docente)
+        self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
+                          {'conclusiones': 'Solo esto.'}, format='json')
+        response = self.client.post(reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('campos_pendientes', response.data['errors'])
+
+    def test_otro_docente_no_edita_el_informe(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
+                                     {'conclusiones': 'x'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_valores_negativos_en_el_informe(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]), {
+            'metas': [{'id': self.meta.pk, 'valor_alcanzado': -1}]}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_departamento_observa_y_el_docente_corrige(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        url = reverse('informe-finalizacion-observar', args=[self.proyecto.pk])
+        self.assertEqual(self.client.post(url, {'comentario': 'Corto'}, format='json').status_code,
+                         status.HTTP_400_BAD_REQUEST)
+        response = self.client.post(url, {'comentario': 'Faltan las evidencias del taller final.'},
+                                    format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['finalizacion']['estado'], 'observado')
+        self.assertEqual(response.data['observaciones'][0]['decision'], 'observado')
+        self.assertTrue(Notificacion.objects.filter(
+            destinatario=self.docente, tipo='informe_finalizacion_observado').exists())
+
+        self.assertEqual(self._enviar().status_code, status.HTTP_200_OK)
+
+    def test_jefatura_no_finaliza_proyectos(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.post(reverse('proyecto-finalizar', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_no_finaliza_sin_informe_enviado(self):
+        self.client.force_authenticate(user=self.depto)
+        response = self.client.post(reverse('proyecto-finalizar', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_departamento_aprueba_y_el_proyecto_se_finaliza(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        response = self.client.post(reverse('proyecto-finalizar', args=[self.proyecto.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         self.proyecto.refresh_from_db()
         self.assertEqual(self.proyecto.estado, 'finalizado')
         self.assertIsNotNone(self.proyecto.fecha_cierre)
-
+        self.assertEqual(self.proyecto.informe_finalizacion.estado, 'aprobado')
+        self.assertTrue(self.proyecto.revisiones.filter(etapa='finalizacion', decision='aprobado').exists())
         self.assertTrue(HistorialEstadoProyecto.objects.filter(
-            proyecto=self.proyecto, estado_anterior='en_ejecucion',
-            estado_nuevo='finalizado').exists())
-        self.assertTrue(Notificacion.objects.filter(
-            proyecto=self.proyecto, destinatario=self.docente,
-            tipo='finalizacion').exists())
+            proyecto=self.proyecto, estado_nuevo='finalizado').exists())
 
-    def test_finalizar_registra_el_informe_final(self):
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.post(self._url(), {
-            'conclusiones': 'Se cumplieron los objetivos.',
-            'recomendaciones': 'Repetir en otro distrito.',
-            'lecciones_aprendidas': 'Coordinar antes con la comunidad.',
-            'medio_difusion': 'Pagina web de la facultad',
-        }, format='json')
+        response = self.client.get(reverse('repositorio-informe-final', args=[self.proyecto.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['informe_final']['conclusiones'], 'Se cumplió el objetivo.')
 
-        self.proyecto.refresh_from_db()
-        self.assertEqual(self.proyecto.estado, 'finalizado')
-        self.assertEqual(self.proyecto.conclusiones, 'Se cumplieron los objetivos.')
-        self.assertEqual(self.proyecto.lecciones_aprendidas, 'Coordinar antes con la comunidad.')
-        self.assertEqual(self.proyecto.medio_difusion, 'Pagina web de la facultad')
-
-    def test_finalizar_sin_body_no_borra_el_informe_existente(self):
-        self.proyecto.conclusiones = 'Cargadas antes del cierre.'
-        self.proyecto.save(update_fields=['conclusiones'])
-
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.post(self._url(), {}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        self.proyecto.refresh_from_db()
-        self.assertEqual(self.proyecto.conclusiones, 'Cargadas antes del cierre.')
-
-    def test_informe_final_invalido_no_finaliza_el_proyecto(self):
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.post(self._url(), {
-            'lecciones_aprendidas': 'Valida.',
-            'medio_difusion': 'x' * 201,
-        }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('medio_difusion', response.data['errors'])
-
-        self.proyecto.refresh_from_db()
-        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
-        self.assertIsNone(self.proyecto.lecciones_aprendidas)
-
-    def test_informe_registrado_al_cerrar_aparece_en_el_repositorio(self):
-        self.client.force_authenticate(user=self.depto_user)
-        self.client.post(self._url(), {
-            'conclusiones': 'Objetivos cumplidos.',
-            'recomendaciones': 'Ampliar el alcance.',
-            'lecciones_aprendidas': 'Planificar la logistica con tiempo.',
-        }, format='json')
-
-        response = self.client.get(
-            reverse('repositorio-informe-final', args=[self.proyecto.pk]))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.data['informe_final']['completo'])
-        self.assertEqual(response.data['informe_final']['lecciones_aprendidas'],
-                         'Planificar la logistica con tiempo.')
-
-    def test_no_se_puede_finalizar_dos_veces(self):
-        self.client.force_authenticate(user=self.depto_user)
-        self.client.post(self._url(), {}, format='json')
-
-        response = self.client.post(self._url(), {}, format='json')
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    # ── ProyectosParaFinalizarView: bandeja de pendientes ───────────────────
-
-    def test_bandeja_para_finalizar_solo_lista_100_por_ciento_en_ejecucion(self):
-        otro_proyecto = ProyectoRSU.objects.create(
-            titulo='Proyecto a mitad de camino', periodo=self.periodo,
-            facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
-            docente_responsable=self.docente, semestre_academico='2026-II',
-            estado='en_ejecucion', porcentaje_ejecucion=Decimal('60.00'),
-        )
+    def test_bandeja_lista_solo_informes_enviados_del_departamento(self):
         url = reverse('proyecto-para-finalizar')
+        self.client.force_authenticate(user=self.depto)
+        self.assertEqual(self.client.get(url).data['count'], 0)
+        self._enviar()
 
-        self.client.force_authenticate(user=self.depto_user)
-        response = self.client.get(url)
+        self.client.force_authenticate(user=self.depto)
+        ids = [p['id'] for p in self.client.get(url).data['results']]
+        self.assertEqual(ids, [self.proyecto.pk])
+        self.client.force_authenticate(user=self.depto_ajeno)
+        self.assertEqual(self.client.get(url).data['count'], 0)
+        for usuario in (self.docente, self.jefatura):
+            self.client.force_authenticate(user=usuario)
+            self.assertEqual(self.client.get(url).status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_pdf_del_informe(self):
+        self.client.force_authenticate(user=self.depto)
+        response = self.client.get(reverse('informe-finalizacion-pdf', args=[self.proyecto.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
 
-        items = response.data['results'] if isinstance(response.data, dict) else response.data
-        ids = [p['id'] for p in items]
-        self.assertIn(self.proyecto.id, ids)         # 100% -> si aparece
-        self.assertNotIn(otro_proyecto.id, ids)       # 60% -> no aparece
+    def test_constancia_la_aprueba_el_departamento_y_luego_la_descarga_el_docente(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        self.client.post(reverse('proyecto-finalizar', args=[self.proyecto.pk]))
+        pdf_url = reverse('constancia-pdf', args=[self.proyecto.pk])
+        aprobar_url = reverse('constancia-aprobar', args=[self.proyecto.pk])
 
-    def test_bandeja_para_finalizar_respeta_alcance_por_facultad(self):
-        url = reverse('proyecto-para-finalizar')
-        self.client.force_authenticate(user=self.jefatura_otra_facultad)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.get(pdf_url).status_code, status.HTTP_200_OK)
+        listado = self.client.get(reverse('constancia-list')).data
+        self.assertFalse(listado[0]['constancia_aprobada'])
 
-        items = response.data['results'] if isinstance(response.data, dict) else response.data
-        ids = [p['id'] for p in items]
-        self.assertNotIn(self.proyecto.id, ids)
-
-    def test_docente_no_puede_ver_la_bandeja_para_finalizar(self):
-        url = reverse('proyecto-para-finalizar')
         self.client.force_authenticate(user=self.docente)
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(pdf_url).status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(user=self.jefatura)
+        self.assertEqual(self.client.post(aprobar_url).status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(user=self.depto)
+        self.assertEqual(self.client.post(aprobar_url).status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.post(aprobar_url).status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(pdf_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertTrue(Notificacion.objects.filter(
+            destinatario=self.docente, tipo='constancia_disponible').exists())
 
 
-class NotificarListoParaCerrarAPITests(APITestCase):
-    """
-    Cuando un proyecto llega al 100% de actividades completadas, Departamento
-    y Jefatura RSU (con alcance sobre ese proyecto) deben enterarse sin tener
-    que revisar la lista de proyectos a mano.
-    """
+class NotificarListoParaCerrarAPITests(_BaseFlujoTestCase):
+    """Al llegar al 100% se avisa al docente que ya puede completar su informe."""
 
     def setUp(self):
-        self.rol_docente = Rol.objects.get(nombre='Docente')
-        self.rol_departamento = Rol.objects.get(nombre='Departamento')
-        self.rol_jefatura = Rol.objects.get(nombre='Jefatura RSU')
-        self.facultad = Facultad.objects.get(codigo='FIPS')
-        self.escuela = EscuelaProfesional.objects.get(codigo='EPIS')
-        self.departamento = DepartamentoAcademico.objects.get(codigo='DAISI')
+        super().setUp()
+        self.proyecto = self.crear_proyecto('en_ejecucion', porcentaje_ejecucion=Decimal('50.00'))
+        ActividadProyecto.objects.create(proyecto=self.proyecto, nombre='A1', orden=1, estado='completada')
+        self.act2 = ActividadProyecto.objects.create(proyecto=self.proyecto, nombre='A2', orden=2)
 
-        self.docente = Usuario.objects.create_user(
-            correo_institucional='docente.notif100@unsa.edu.pe', password=None,
-            nombres='Docente Notif', rol=self.rol_docente, facultad=self.facultad,
-        )
-        self.depto_user = Usuario.objects.create_user(
-            correo_institucional='depto.notif100@unsa.edu.pe', password=None,
-            nombres='Departamento Notif', rol=self.rol_departamento,
-            facultad=self.facultad, departamento=self.departamento,
-        )
-        self.jefatura_user = Usuario.objects.create_user(
-            correo_institucional='jefatura.notif100@unsa.edu.pe', password=None,
-            nombres='Jefatura Notif', rol=self.rol_jefatura, facultad=self.facultad,
-        )
-
-        self.periodo = PeriodoAcademico.objects.create(
-            nombre='2026-Notif100', anio=2026, semestre='II',
-            fecha_inicio='2026-09-01', fecha_fin='2027-01-31', activo=True,
-        )
-        self.proyecto = ProyectoRSU.objects.create(
-            titulo='Proyecto a punto de completarse', periodo=self.periodo,
-            facultad=self.facultad, escuela=self.escuela, departamento=self.departamento,
-            docente_responsable=self.docente, semestre_academico='2026-II',
-            estado='en_ejecucion', porcentaje_ejecucion=Decimal('50.00'),
-        )
-        self.act1 = ActividadProyecto.objects.create(
-            proyecto=self.proyecto, nombre='Actividad 1', orden=1, estado='completada')
-        self.act2 = ActividadProyecto.objects.create(
-            proyecto=self.proyecto, nombre='Actividad 2', orden=2, estado='pendiente')
-
-    def test_notifica_a_departamento_y_jefatura_al_llegar_a_100(self):
-        url = reverse('avance-list', kwargs={'proyecto_pk': self.proyecto.pk})
+    def test_avisa_al_docente_una_sola_vez(self):
         self.client.force_authenticate(user=self.docente)
-        response = self.client.post(url, {
-            'actividad': self.act2.pk,
-            'descripcion': 'Se completo la ultima actividad.',
-            'estado_actividad': 'completada',
-        }, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        self.proyecto.refresh_from_db()
-        self.assertEqual(self.proyecto.porcentaje_ejecucion, Decimal('100.00'))
-
-        self.assertTrue(Notificacion.objects.filter(
-            proyecto=self.proyecto, destinatario=self.depto_user,
-            tipo='listo_para_cerrar').exists())
-        self.assertTrue(Notificacion.objects.filter(
-            proyecto=self.proyecto, destinatario=self.jefatura_user,
-            tipo='listo_para_cerrar').exists())
-
-    def test_no_notifica_de_nuevo_si_ya_estaba_en_100(self):
-        self.act2.estado = 'completada'
-        self.act2.save(update_fields=['estado'])
-        self.proyecto.porcentaje_ejecucion = Decimal('100.00')
-        self.proyecto.save(update_fields=['porcentaje_ejecucion'])
-
-        # Un avance mas sobre una actividad ya completada no debe re-notificar
-        url = reverse('avance-list', kwargs={'proyecto_pk': self.proyecto.pk})
-        self.client.force_authenticate(user=self.docente)
-        self.client.post(url, {
-            'actividad': self.act1.pk,
-            'descripcion': 'Nota adicional sobre una actividad ya completada.',
-            'estado_actividad': 'completada',
-        }, format='json')
-
-        self.assertFalse(Notificacion.objects.filter(
-            proyecto=self.proyecto, tipo='listo_para_cerrar').exists())
+        url = reverse('actividad-evidencia', args=[self.proyecto.pk, self.act2.pk])
+        for _ in range(2):
+            self.client.post(url, {'enlace_drive': 'https://drive.google.com/x'}, format='json')
+        avisos = Notificacion.objects.filter(proyecto=self.proyecto, tipo='listo_para_cerrar')
+        self.assertEqual(avisos.count(), 1)
+        self.assertEqual(avisos.get().destinatario, self.docente)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -2058,8 +2297,8 @@ class BorradorMinimoAPITests(BaseProyectoTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         errores = response.data['errors']
-        for campo in ('semestre_academico', 'escuela', 'departamento',
-                      'ejes_rsu', 'ods', 'cronograma'):
+        for campo in ('periodo', 'escuela', 'departamento',
+                      'ejes_rsu', 'ods', 'actividades'):
             self.assertIn(campo, errores)
         proyecto.refresh_from_db()
         self.assertEqual(proyecto.estado, 'borrador')

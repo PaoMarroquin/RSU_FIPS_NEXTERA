@@ -30,6 +30,14 @@ class PeriodoAcademicoSerializer(serializers.ModelSerializer):
         model = PeriodoAcademico
         fields = ['id', 'nombre', 'anio', 'semestre', 'fecha_inicio', 'fecha_fin', 'activo', 'created_at']
 
+    def validate(self, attrs):
+        inicio = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
+        fin = attrs.get('fecha_fin', getattr(self.instance, 'fecha_fin', None))
+        if inicio and fin and fin < inicio:
+            raise serializers.ValidationError(
+                {'fecha_fin': 'La fecha de fin no puede ser anterior a la fecha de inicio.'})
+        return attrs
+
 
 class EjeRSUSubitemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -90,6 +98,14 @@ class ActividadSugeridaSerializer(serializers.ModelSerializer):
             'tipo_actividad', 'destinatarios', 'presupuesto_ref', 'created_at'
         ]
 
+    def validate(self, attrs):
+        eje_rsu = attrs.get('eje_rsu', getattr(self.instance, 'eje_rsu', None))
+        objetivo = attrs.get('objetivo', getattr(self.instance, 'objetivo', None))
+        if eje_rsu and objetivo and objetivo.eje_rsu_id != eje_rsu.id:
+            raise serializers.ValidationError(
+                {'objetivo': 'El objetivo seleccionado no pertenece al eje RSU indicado.'})
+        return attrs
+
 
 class ObjetivoInstitucionalSerializer(serializers.ModelSerializer):
     indicadores = IndicadorInstitucionalSerializer(many=True, read_only=True)
@@ -108,10 +124,15 @@ class ObjetivoInstitucionalSerializer(serializers.ModelSerializer):
 
 
 class MatrizOperativaSerializer(serializers.ModelSerializer):
-    """Documento de guia: nombre, descripcion y archivo."""
+    """Documento de apoyo: nombre, descripción y archivo (PDF o Word), los tres obligatorios."""
 
     class Meta:
         model = MatrizOperativa
         fields = ['id', 'nombre', 'descripcion', 'archivo',
                   'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate_descripcion(self, value):
+        if not (value or '').strip():
+            raise serializers.ValidationError('La descripción del documento es obligatoria.')
+        return value.strip()

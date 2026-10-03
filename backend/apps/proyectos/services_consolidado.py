@@ -393,6 +393,7 @@ def consolidar_proyecto(proyecto):
 
     ficha['detalle_presupuesto'] = [
         {
+            'id': p.id,
             'categoria': p.get_categoria_display() if p.categoria else '',
             'tipo_recurso': p.get_tipo_recurso_display() if p.tipo_recurso else '',
             'descripcion': p.descripcion,
@@ -417,6 +418,7 @@ def consolidar_proyecto(proyecto):
 
     ficha['detalle_metas'] = [
         {
+            'id': m.id,
             'meta': m.meta_descripcion,
             'indicador': m.indicador_nombre,
             'unidad_medida': m.unidad_medida,

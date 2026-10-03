@@ -67,20 +67,19 @@ from .serializers import (
     NotificacionSerializer,
     AvanceActividadSerializer,
     EvidenciaAvanceSerializer,
-    InformeFinalSerializer,
 )
-from apps.usuarios.models import Rol, Usuario
+from apps.usuarios.models import Rol
 
 
 def _proyecto_qs_base():
     return ProyectoRSU.objects.select_related(
         'facultad', 'escuela', 'departamento', 'periodo',
         'linea_estrategica', 'objetivo_institucional',
-        'docente_responsable',
+        'docente_responsable', 'informe_finalizacion',
     ).prefetch_related(
         'ejes_rsu', 'ods', 'objetivos_regionales', 'objetivos_nacionales',
         'asignaturas', 'docentes_adicionales',
-        'actividades', 'cronograma',
+        'actividades__acciones', 'cronograma',
         'ejes_subitems__sub_eje',
         'fuentes_financiamiento__partidas',
     )
@@ -96,47 +95,62 @@ def get_proyecto_editable(pk, user):
     return proyecto
 
 
-def get_proyecto_propio(pk, user):
-    """Verifica solo que el usuario sea el dueño del proyecto, sin restricción de estado.
-    Usar para sub-recursos (financiamiento, presupuesto) que deben poder editarse siempre."""
-    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
-    if proyecto.docente_responsable != user:
-        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
-    return proyecto
+TEXTOS_OBLIGATORIOS = [
+    ('titulo', 'El título del proyecto'),
+    ('lugar_ejecucion', 'El lugar de ejecución (1.18)'),
+    ('fund_por_que_grupo', '¿Por qué se eligió el grupo beneficiario?'),
+    ('fund_para_que_proyecto', '¿Para qué servirá el proyecto?'),
+    ('fund_mecanismo_ensenanza', 'El mecanismo de enseñanza-aprendizaje'),
+    ('diag_estado_grupo', 'El estado actual del grupo beneficiario'),
+    ('diag_problemas_detectados', 'Los problemas detectados'),
+    ('diag_aportes_formacion', 'Los aportes desde la formación profesional'),
+    ('diag_justificacion_intervencion', 'La justificación de la intervención'),
+    ('obj_logro_intervencion', 'El objetivo de intervención (IV)'),
+    ('obj_mejora_curricular', 'La mejora curricular esperada (IV)'),
+    ('resultado_en_beneficiarios', 'Los resultados esperados en los beneficiarios'),
+    ('resultado_en_curriculo', 'Los resultados esperados en el proceso curricular'),
+    ('rec_mat_material_didactico', 'El material didáctico (VIII)'),
+    ('rec_mat_afiches', 'Los afiches (VIII)'),
+    ('rec_mat_equipos', 'Los equipos (VIII)'),
+    ('rec_mat_utiles', 'Los útiles (VIII)'),
+    ('rec_mat_otros', 'Otros materiales (VIII)'),
+]
+
+FECHAS_OBLIGATORIAS = [
+    ('fecha_inicio', 'La fecha de inicio (1.14)'),
+    ('fecha_evaluacion_avance', 'La fecha de evaluación de avance (1.15)'),
+    ('fecha_termino', 'La fecha de término (1.16)'),
+    ('fecha_encuesta_docentes', 'La fecha de encuesta a docentes (1.17)'),
+    ('fecha_encuesta_alumnos', 'La fecha de encuesta a estudiantes (1.17)'),
+    ('fecha_encuesta_grupo_destinatario', 'La fecha de encuesta al grupo destinatario (1.17)'),
+]
+
+
+def _vacio(valor):
+    return not valor or not str(valor).strip()
 
 
 def _validar_campos_obligatorios(proyecto):
-    """Retorna un dict con los errores de validación del ANEXO 4, o {} si es válido."""
+    """
+    Errores que impiden enviar a revisión, o {} si el proyecto está completo.
+
+    Al enviar, todos los campos del ANEXO 4 deben estar llenos. En los campos
+    de texto que no le apliquen, el docente puede escribir "n/a", pero no
+    dejarlos vacíos. El borrador, en cambio, se guarda con lo que haya.
+    """
     errores = {}
 
-    def req_text(field, label):
-        val = getattr(proyecto, field, None)
-        if not val or not str(val).strip():
-            errores[field] = f'{label} es obligatorio.'
-
-    req_text('titulo', 'El título del proyecto')
-    req_text('semestre_academico', 'El semestre académico')
-    req_text('lugar_ejecucion', 'El lugar de ejecución (1.18)')
-    req_text('fund_por_que_grupo', '¿Por qué se eligió el grupo beneficiario?')
-    req_text('fund_para_que_proyecto', '¿Para qué servirá el proyecto?')
-    req_text('fund_mecanismo_ensenanza', 'El mecanismo de enseñanza-aprendizaje')
-    req_text('diag_estado_grupo', 'El estado actual del grupo beneficiario')
-    req_text('diag_problemas_detectados', 'Los problemas detectados')
-    req_text('diag_aportes_formacion', 'Los aportes desde la formación profesional')
-    # BUG FIX T-66: campo correcto es obj_logro_intervencion, no objetivo_general
-    req_text('obj_logro_intervencion', 'El objetivo de intervención (IV)')
-    req_text('resultado_en_beneficiarios', 'Los resultados esperados en los beneficiarios')
-    req_text('resultado_en_curriculo', 'Los resultados esperados en el proceso curricular')
-
-    if not proyecto.fecha_inicio:
-        errores['fecha_inicio'] = 'La fecha de inicio es obligatoria (1.14).'
-    if not proyecto.fecha_termino:
-        errores['fecha_termino'] = 'La fecha de término es obligatoria (1.16).'
-    if not (proyecto.tipo_actividad or []):
-        errores['tipo_actividad'] = 'Debe seleccionar al menos un tipo de actividad (1.11).'
+    for campo, label in TEXTOS_OBLIGATORIOS:
+        if _vacio(getattr(proyecto, campo, None)):
+            errores[campo] = f'{label} es obligatorio (escriba "n/a" si no aplica).'
+    for campo, label in FECHAS_OBLIGATORIAS:
+        if not getattr(proyecto, campo):
+            errores[campo] = f'{label} es obligatoria.'
+    if proyecto.fecha_inicio and proyecto.fecha_termino and proyecto.fecha_termino < proyecto.fecha_inicio:
+        errores['fecha_termino'] = 'La fecha de término no puede ser anterior a la de inicio.'
 
     for campo, label in [
-        # ('periodo_id', 'El periodo académico'), #quitar obligacaion de periodo academico
+        ('periodo_id', 'El periodo académico'),
         ('facultad_id', 'La facultad'),
         ('escuela_id', 'La escuela profesional'),
         ('departamento_id', 'El departamento académico'),
@@ -144,23 +158,73 @@ def _validar_campos_obligatorios(proyecto):
         if not getattr(proyecto, campo):
             errores[campo.replace('_id', '')] = f'{label} es obligatorio.'
 
+    tipos = proyecto.tipo_actividad or []
+    if not tipos:
+        errores['tipo_actividad'] = 'Debe seleccionar al menos un tipo de actividad (1.11).'
+    elif 'otro' in tipos and _vacio(proyecto.tipo_actividad_otro):
+        errores['tipo_actividad_otro'] = 'Describa el tipo de actividad "Otro" (1.11).'
+
+    nro_docentes = proyecto.nro_docentes or 0
+    nombres = proyecto.docentes_participantes or []
+    if nro_docentes < 1:
+        errores['nro_docentes'] = 'Debe participar al menos un docente (1.7).'
+    elif len(nombres) != nro_docentes:
+        errores['docentes_participantes'] = (
+            f'Registre el nombre de los {nro_docentes} docentes participantes (1.7).')
+    if proyecto.nro_estudiantes is None:
+        errores['nro_estudiantes'] = 'Indique el número de estudiantes (1.8).'
+
     if not proyecto.ejes_rsu.exists():
         errores['ejes_rsu'] = 'Debe seleccionar al menos un eje RSU (1.10).'
-
-    # BUG FIX T-66: beneficiarios es M2M con TipoBeneficiario, no campos booleanos
-    # También permitimos benef_otro_detalle si no hay beneficiarios relacionados.
-    if not proyecto.beneficiarios.exists() and not getattr(proyecto, 'benef_otro_detalle', None):
+    if not proyecto.beneficiarios.exists() and _vacio(proyecto.benef_otro_detalle):
         errores['beneficiarios'] = 'Debe seleccionar al menos un tipo de beneficiario (1.9).'
-
     if not proyecto.ods.exists():
         errores['ods'] = 'Debe seleccionar al menos un ODS.'
     if not proyecto.asignaturas.exists():
         errores['asignaturas'] = 'Debe registrar al menos una asignatura vinculada (1.5).'
-    if not proyecto.cronograma.exists():
-        errores['cronograma'] = 'Debe registrar al menos una acción de cronograma (VII).'
+
+    errores.update(_validar_actividades_y_cronograma(proyecto))
+
+    total_rrhh = sum(getattr(proyecto, c) or 0 for c in (
+        'rec_hum_docentes', 'rec_hum_administrativos', 'rec_hum_estudiantes',
+        'rec_hum_egresados', 'rec_hum_voluntarios', 'rec_hum_otros'))
+    if total_rrhh < 1:
+        errores['recursos_humanos'] = 'Debe registrar al menos un recurso humano (VIII).'
+    if not proyecto.fuentes_financiamiento.exists():
+        errores['fuentes_financiamiento'] = 'Debe registrar al menos una fuente de financiamiento (IX).'
 
     errores.update(_validar_indicadores_y_presupuesto(proyecto))
 
+    return errores
+
+
+def _validar_actividades_y_cronograma(proyecto):
+    """VI y VII: cada actividad con nombre, descripción y su bloque de acciones completo."""
+    errores = {}
+    actividades = list(proyecto.actividades.prefetch_related('acciones'))
+    if not actividades:
+        return {'actividades': 'Debe registrar al menos una actividad (VI).'}
+
+    for i, act in enumerate(actividades, start=1):
+        if _vacio(act.nombre) or _vacio(act.descripcion):
+            errores['actividades'] = f'La actividad {i} necesita nombre y descripción (VI).'
+            break
+
+    for i, act in enumerate(actividades, start=1):
+        acciones = list(act.acciones.all())
+        if not acciones:
+            errores['cronograma'] = f'La actividad {i} ("{act.nombre}") no tiene acciones en el cronograma (VII).'
+            break
+        incompleta = next((a for a in acciones if _vacio(a.descripcion) or _vacio(a.responsable)
+                           or _vacio(a.evidencia_esperada) or not a.fecha_inicio or not a.fecha_fin), None)
+        if incompleta:
+            errores['cronograma'] = (
+                f'En la actividad {i} hay acciones sin descripción, fechas, responsable '
+                'o evidencia esperada (VII).')
+            break
+
+    if 'cronograma' not in errores and proyecto.cronograma.filter(actividad__isnull=True).exists():
+        errores['cronograma'] = 'Todas las acciones del cronograma deben pertenecer a una actividad (VII).'
     return errores
 
 
@@ -271,6 +335,24 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
             from apps.utils.permissions import IsDocenteOrAdmin
             return [IsAuthenticated(), IsDocenteOrAdmin()]
         return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        docente = self.request.user
+        facultad_id = serializer.validated_data.get('facultad_id') or (
+            serializer.validated_data.get('facultad').id
+            if serializer.validated_data.get('facultad') else None)
+        titulo = (serializer.validated_data.get('titulo') or '').strip()
+        existente = ProyectoRSU.objects.filter(
+            docente_responsable=docente,
+            facultad_id=facultad_id,
+            titulo=titulo,
+            estado='borrador',
+        ).first()
+        if existente:
+            # Evita duplicados en reintentos: retorna el borrador existente
+            serializer.instance = existente
+            return
+        serializer.save(docente_responsable=docente)
 
 
 class ProyectoRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -389,9 +471,7 @@ class ActividadProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return ActividadProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        # PARCHE PARA PERMITIR SUBIDA DE ARCHIVOS DE EVIDENCIAS
-        #get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user) 
-        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -445,7 +525,7 @@ class PartidaPresupuestariaListCreateView(generics.ListCreateAPIView):
         ).order_by('orden')
 
     def perform_create(self, serializer):
-        proyecto = get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -459,11 +539,11 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
         return PartidaPresupuestaria.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -476,7 +556,7 @@ class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def perform_create(self, serializer):
-        proyecto = get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -490,11 +570,11 @@ class FuenteFinanciamientoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return FuenteFinanciamiento.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        get_proyecto_propio(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -596,22 +676,6 @@ class FinanciamientoConfirmarView(APIView):
 
 # ─── Metas e Indicadores ─────────────────────────────────────────────────────
 
-def _get_proyecto_seguimiento(pk, user):
-    """
-    Permite modificar metas/indicadores en estados borrador, observado y en_ejecucion.
-    Esto habilita actualizar valor_alcanzado durante la fase de ejecución.
-    """
-    proyecto = get_object_or_404(ProyectoRSU, pk=pk)
-    if proyecto.docente_responsable != user:
-        raise PermissionDenied('No tienes permisos para modificar este proyecto.')
-    estados_validos = ['borrador', 'observado', 'en_ejecucion']
-    if proyecto.estado not in estados_validos:
-        raise serializers.ValidationError(
-            f"No se pueden modificar metas/indicadores con el proyecto en estado '{proyecto.estado}'."
-        )
-    return proyecto
-
-
 class MetaIndicadorProyectoListCreateView(generics.ListCreateAPIView):
     serializer_class = MetaIndicadorProyectoSerializer
     permission_classes = [IsAuthenticated]
@@ -623,7 +687,7 @@ class MetaIndicadorProyectoListCreateView(generics.ListCreateAPIView):
         ).order_by('orden')
 
     def perform_create(self, serializer):
-        proyecto = _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         serializer.save(proyecto=proyecto)
 
 
@@ -637,11 +701,11 @@ class MetaIndicadorProyectoDetailView(generics.RetrieveUpdateDestroyAPIView):
         return MetaIndicadorProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
 
     def update(self, request, *args, **kwargs):
-        _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        _get_proyecto_seguimiento(self.kwargs['proyecto_pk'], self.request.user)
+        get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
 
 
@@ -732,9 +796,6 @@ class ProyectoContinuarView(APIView):
                 diag_aportes_formacion=original.diag_aportes_formacion,
                 diag_justificacion_intervencion=original.diag_justificacion_intervencion,
             )
-            nuevo.codigo = f'PROY-FIPS-{nuevo.id:04d}'
-            nuevo.save(update_fields=['codigo'])
-
             nuevo.ods.set(original.ods.all())
             nuevo.ejes_rsu.set(original.ejes_rsu.all())
             nuevo.objetivos_regionales.set(original.objetivos_regionales.all())
@@ -791,6 +852,18 @@ class ProyectosParaRevisarView(generics.ListAPIView):
         return qs
 
 
+def _observaciones_secciones(request):
+    """Observaciones por sección del formulario, con las mismas claves que usa el docente."""
+    secciones = request.data.get('observaciones_secciones') or {}
+    if not isinstance(secciones, dict):
+        raise serializers.ValidationError({'observaciones_secciones': 'Debe ser un objeto {sección: texto}.'})
+    invalidas = [k for k in secciones if k not in RevisionProyecto.SECCIONES]
+    if invalidas:
+        raise serializers.ValidationError({'observaciones_secciones': (
+            f'Secciones no válidas: {", ".join(invalidas)}. Use: {", ".join(RevisionProyecto.SECCIONES)}.')})
+    return {k: str(v).strip() for k, v in secciones.items() if str(v or '').strip()}
+
+
 class ProyectoAprobarView(APIView):
     """
     T-68: Aprueba un proyecto en revisión.
@@ -809,16 +882,29 @@ class ProyectoAprobarView(APIView):
         if proyecto.estado != 'en_revision':
             raise serializers.ValidationError('El proyecto no está en revisión.')
 
+        # El Departamento asigna el número del proyecto al aprobarlo.
+        codigo = (request.data.get('codigo') or '').strip()
+        if not codigo:
+            raise serializers.ValidationError(
+                {'codigo': 'Debe asignar el número del proyecto para aprobarlo.'})
+        if len(codigo) > 50:
+            raise serializers.ValidationError({'codigo': 'El número admite hasta 50 caracteres.'})
+        if ProyectoRSU.objects.filter(codigo=codigo).exclude(pk=proyecto.pk).exists():
+            raise serializers.ValidationError({'codigo': f'El número "{codigo}" ya está asignado a otro proyecto.'})
+
         estado_anterior = proyecto.estado
         proyecto.estado = 'aprobado'
+        proyecto.codigo = codigo
         proyecto.fecha_aprobacion = timezone.now()
-        proyecto.save(update_fields=['estado', 'fecha_aprobacion'])
+        proyecto.save(update_fields=['estado', 'codigo', 'fecha_aprobacion'])
 
         # Crear RevisionProyecto (Dictamen)
         RevisionProyecto.objects.create(
             proyecto=proyecto,
             revisor=request.user,
             decision='aprobado',
+            comentario_tecnico=(request.data.get('comentario_tecnico') or '').strip(),
+            observaciones_secciones=_observaciones_secciones(request),
             estado_anterior=estado_anterior,
             estado_nuevo='aprobado',
         )
@@ -862,9 +948,12 @@ class ProyectoObservarView(APIView):
         if proyecto.estado != 'en_revision':
             raise serializers.ValidationError('El proyecto no está en revisión.')
 
-        comentario_tecnico = request.data.get('comentario_tecnico', '').strip()
-        if not comentario_tecnico:
-            raise serializers.ValidationError({'comentario_tecnico': 'Este campo es obligatorio al observar un proyecto.'})
+        # CA-02: comentario técnico general obligatorio de al menos 15 caracteres.
+        comentario_tecnico = (request.data.get('comentario_tecnico') or '').strip()
+        if len(comentario_tecnico) < 15:
+            raise serializers.ValidationError({
+                'comentario_tecnico': 'El comentario técnico es obligatorio y debe tener al menos 15 caracteres.'})
+        secciones = _observaciones_secciones(request)
 
         estado_anterior = proyecto.estado
         proyecto.estado = 'observado'
@@ -875,6 +964,7 @@ class ProyectoObservarView(APIView):
             revisor=request.user,
             decision='observado',
             comentario_tecnico=comentario_tecnico,
+            observaciones_secciones=secciones,
             estado_anterior=estado_anterior,
             estado_nuevo='observado',
         )
@@ -897,101 +987,6 @@ class ProyectoObservarView(APIView):
         )
 
         return Response({'detail': 'Proyecto observado exitosamente.'}, status=status.HTTP_200_OK)
-
-
-class ProyectosParaFinalizarView(generics.ListAPIView):
-    """
-    Bandeja de proyectos en ejecucion que ya llegaron al 100% de actividades
-    completadas y estan esperando que Departamento, Jefatura RSU o
-    Administrador confirmen su cierre (ver ProyectoFinalizarView).
-
-    Mismo rol de "bandeja de pendientes" que ProyectosParaRevisarView cumple
-    para la revision inicial: sin esto, nadie tendria una lista concreta de
-    que proyectos estan listos para finalizar, mas alla de la notificacion
-    puntual que se manda cuando cada proyecto llega al 100%
-    (_notificar_listo_para_cerrar).
-    """
-    serializer_class = ProyectoRSUSerializer
-    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador | IsJefaturaRSU]
-
-    def get_queryset(self):
-        user = self.request.user
-        qs = _filter_proyectos_por_rol(_proyecto_qs_base(), user).filter(
-            estado='en_ejecucion', porcentaje_ejecucion=Decimal('100.00'),
-        ).order_by('fecha_inicio_ejecucion')
-        return qs
-
-
-class ProyectoFinalizarView(APIView):
-    """
-    Cierra un proyecto en ejecucion una vez que completo el 100% de sus
-    actividades.
-
-    Antes de esto no existia ningun camino para que un proyecto llegara a
-    estado 'finalizado': porcentaje_ejecucion podia llegar a 100% (se
-    recalcula solo en cada avance, ver _recalcular_porcentaje_ejecucion) pero
-    el proyecto se quedaba en 'en_ejecucion' para siempre, y por lo tanto
-    nunca aparecia en el informe consolidado de HU-06, que solo cuenta
-    proyectos 'aprobado' o 'finalizado'.
-
-    El cierre requiere confirmacion institucional (no lo dispara el docente
-    ni ocurre solo): asi el 100% de actividades queda como una senal de "listo
-    para cerrar", pero quien decide que el proyecto realmente cumplio sigue
-    siendo Departamento, Jefatura RSU o Administrador, igual que con
-    aprobar/observar en revision.
-
-    En el mismo POST se puede registrar el informe final (conclusiones,
-    recomendaciones, lecciones_aprendidas, medio_difusion), que despues
-    consulta el Repositorio Historico de HU-07. Es opcional: sin body el
-    proyecto se finaliza igual y el informe queda con campos pendientes.
-    """
-    permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador | IsJefaturaRSU]
-
-    @transaction.atomic
-    def post(self, request, pk):
-        proyecto = get_object_or_404(
-            _filter_proyectos_por_rol(ProyectoRSU.objects.all(), request.user), pk=pk)
-
-        if proyecto.estado != 'en_ejecucion':
-            raise serializers.ValidationError(
-                "Solo se pueden finalizar proyectos en ejecucion "
-                f"(estado actual: '{proyecto.estado}').")
-
-        if proyecto.porcentaje_ejecucion != Decimal('100.00'):
-            raise serializers.ValidationError(
-                f'El proyecto tiene {proyecto.porcentaje_ejecucion}% de actividades '
-                'completadas. Debe llegar al 100% antes de poder finalizarlo.')
-
-        informe = InformeFinalSerializer(data=request.data, partial=True)
-        informe.is_valid(raise_exception=True)
-        for campo, valor in informe.validated_data.items():
-            setattr(proyecto, campo, valor)
-
-        estado_anterior = proyecto.estado
-        proyecto.estado = 'finalizado'
-        proyecto.fecha_cierre = timezone.now()
-        proyecto.save(update_fields=[
-            'estado', 'fecha_cierre', 'updated_at', *informe.validated_data])
-
-        _registrar_historial(
-            proyecto=proyecto,
-            usuario=request.user,
-            estado_anterior=estado_anterior,
-            estado_nuevo='finalizado',
-            comentario='Proyecto finalizado tras completar el 100% de sus actividades.',
-            request=request,
-        )
-
-        _crear_notificacion(
-            destinatario=proyecto.docente_responsable,
-            proyecto=proyecto,
-            tipo='finalizacion',
-            titulo=f'Proyecto "{proyecto.titulo[:50]}..." Finalizado',
-            mensaje='Tu proyecto ha sido marcado como finalizado. Ya forma parte '
-                    'del repositorio institucional de proyectos RSU.',
-        )
-
-        return Response({'detail': 'Proyecto finalizado exitosamente.'}, status=status.HTTP_200_OK)
 
 
 class NotificacionListView(generics.ListAPIView):
@@ -1039,25 +1034,15 @@ def _get_proyecto_ejecucion(pk, user):
 
 
 def _notificar_listo_para_cerrar(proyecto):
-    """
-    Avisa a quienes pueden confirmar el cierre (ver ProyectoFinalizarView):
-    Departamento del proyecto y Jefatura RSU de su facultad. Puede haber mas
-    de un usuario con ese rol y ese alcance, asi que se notifica a todos.
-    """
-    destinatarios = list(Usuario.objects.filter(
-        rol__nombre=Rol.DEPARTAMENTO, departamento=proyecto.departamento,
-    )) + list(Usuario.objects.filter(
-        rol__nombre=Rol.JEFATURA, facultad=proyecto.facultad,
-    ))
-    for destinatario in destinatarios:
-        _crear_notificacion(
-            destinatario=destinatario,
-            proyecto=proyecto,
-            tipo='listo_para_cerrar',
-            titulo=f'Proyecto "{proyecto.titulo[:50]}..." listo para finalizar',
-            mensaje='El proyecto completó el 100% de sus actividades. Revísalo '
-                    'y confirma su cierre en la bandeja de proyectos por finalizar.',
-        )
+    """Avisa al docente que ya puede completar su Informe de Finalización."""
+    _crear_notificacion(
+        destinatario=proyecto.docente_responsable,
+        proyecto=proyecto,
+        tipo='listo_para_cerrar',
+        titulo=f'Proyecto "{proyecto.titulo[:50]}..." listo para finalizar',
+        mensaje='Completaste el 100% de las actividades. Ya puedes llenar y enviar '
+                'el Informe de Finalización para que el Departamento lo revise.',
+    )
 
 
 def _recalcular_porcentaje_ejecucion(proyecto):
@@ -1065,10 +1050,9 @@ def _recalcular_porcentaje_ejecucion(proyecto):
     T-89: % de ejecución = actividades completadas / total de actividades * 100.
     Punto único de cálculo: si se decide ponderar 'en_ejecucion', se cambia aquí.
 
-    Cuando el porcentaje cruza a 100% (y no estaba ya en 100%), avisa a
-    Departamento/Jefatura de que el proyecto quedo listo para que confirmen
-    su cierre - ver ProyectoFinalizarView. Sin este aviso, nadie se enteraria
-    de que hay un proyecto esperando en la bandeja de para-finalizar.
+    Cuando el porcentaje cruza a 100% (y no estaba ya en 100%), avisa al
+    docente que ya puede completar su Informe de Finalización
+    (views_finalizacion.py).
     """
     porcentaje_anterior = proyecto.porcentaje_ejecucion
 
@@ -1164,6 +1148,62 @@ class AvanceActividadListCreateView(generics.ListCreateAPIView):
 
         # CA-02 / T-89: recálculo automático del % de ejecución.
         _recalcular_porcentaje_ejecucion(proyecto)
+
+
+class ActividadEvidenciaView(APIView):
+    """
+    POST /proyectos/<proyecto_pk>/actividades/<pk>/evidencia/  (multipart)
+
+    Flujo de "Mis actividades" en un solo paso: el docente sube un archivo
+    (PDF/JPG/JPEG/PNG, máx. 10MB) o pega un enlace de Drive, con una
+    observación opcional. En la misma operación se registra el avance, la
+    actividad queda completada y se recalcula el % de ejecución del proyecto.
+
+    Body: archivo | enlace_drive (uno de los dos), observacion (opcional).
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @transaction.atomic
+    def post(self, request, proyecto_pk, pk):
+        proyecto = _get_proyecto_ejecucion(proyecto_pk, request.user)
+        actividad = get_object_or_404(ActividadProyecto, pk=pk, proyecto=proyecto)
+
+        archivo = request.FILES.get('archivo')
+        enlace = (request.data.get('enlace_drive') or '').strip()
+        if bool(archivo) == bool(enlace):
+            raise serializers.ValidationError(
+                {'detail': 'Adjunte un archivo o pegue un enlace de Drive (solo uno de los dos).'})
+        evidencia = EvidenciaAvanceSerializer(data={
+            'tipo': 'archivo' if archivo else 'enlace',
+            'archivo': archivo,
+            'enlace_drive': enlace or None,
+            'nombre': archivo.name if archivo else (request.data.get('nombre') or enlace)[:255],
+        })
+        evidencia.is_valid(raise_exception=True)
+        _validar_consistencia_metas(proyecto)
+
+        observacion = (request.data.get('observacion') or '').strip()
+        avance = AvanceActividad.objects.create(
+            proyecto=proyecto, actividad=actividad,
+            descripcion=observacion or 'Evidencia registrada.',
+            estado_actividad='completada', observaciones=observacion, autor=request.user)
+        evidencia.save(avance=avance)
+
+        actividad.estado = 'completada'
+        actividad.save(update_fields=['estado'])
+        if proyecto.estado == 'aprobado':
+            proyecto.estado = 'en_ejecucion'
+            proyecto.fecha_inicio_ejecucion = proyecto.fecha_inicio_ejecucion or timezone.now()
+            proyecto.save(update_fields=['estado', 'fecha_inicio_ejecucion'])
+        porcentaje = _recalcular_porcentaje_ejecucion(proyecto)
+
+        return Response({
+            'actividad': ActividadProyectoSerializer(actividad).data,
+            'avance': AvanceActividadSerializer(avance, context={'request': request}).data,
+            'porcentaje_ejecucion': porcentaje,
+            'estado_proyecto': proyecto.estado,
+        }, status=status.HTTP_201_CREATED)
 
 
 class AvanceActividadDetailView(generics.RetrieveAPIView):

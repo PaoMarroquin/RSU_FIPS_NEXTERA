@@ -29,6 +29,7 @@ from datetime import datetime, timezone as dt_timezone
 
 from django.conf import settings
 from django.db import IntegrityError
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import filters, generics, status
 from rest_framework.exceptions import PermissionDenied
@@ -53,6 +54,7 @@ from .models import (
 from .serializers import (
     AsignarRolSerializer,
     AuditoriaUsuarioSerializer,
+    CambiarPasswordSerializer,
     DepartamentoAcademicoSerializer,
     EscuelaProfesionalSerializer,
     FacultadSerializer,
@@ -340,6 +342,43 @@ class MiPerfilView(generics.RetrieveUpdateAPIView):
         if self.request.method in ('PUT', 'PATCH'):
             return MiPerfilUpdateSerializer
         return UsuarioListSerializer
+
+
+class CambiarPasswordView(APIView):
+    """POST /usuarios/me/cambiar-password/ - {"password_actual", "password_nueva"}.
+
+    Cada usuario cambia su propia contraseña desde Configuración; en particular
+    la inicial, que por defecto es su correo institucional.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CambiarPasswordSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data['password_nueva'])
+        request.user.save(update_fields=['password'])
+        return Response({'detail': 'Contraseña actualizada.'}, status=status.HTTP_200_OK)
+
+
+class EstadisticasUsuariosView(APIView):
+    """GET /usuarios/estadisticas/ - resumen para el dashboard del Administrador.
+
+    Cuenta usuarios por rol y por estado, sin datos de proyectos.
+    """
+    permission_classes = [IsAuthenticated, IsAdministrador]
+
+    def get(self, request):
+        usuarios = Usuario.objects.all()
+        por_rol = {nombre: 0 for nombre, _ in Rol.ROLES}
+        for fila in usuarios.values('rol__nombre').annotate(total=Count('id')):
+            clave = fila['rol__nombre'] or 'Sin rol'
+            por_rol[clave] = fila['total']
+        return Response({
+            'total': usuarios.count(),
+            'activos': usuarios.filter(estado='activo').count(),
+            'inactivos': usuarios.filter(estado='inactivo').count(),
+            'por_rol': [{'rol': rol, 'total': total} for rol, total in por_rol.items()],
+        })
 
 
 class AsignarRolView(APIView):

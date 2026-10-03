@@ -69,20 +69,68 @@ class ProyectoDocenteSerializer(serializers.ModelSerializer):
         return None
 
 
-class ActividadProyectoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ActividadProyecto
-        fields = [
-            'id', 'nombre', 'descripcion', 'curso_vinculado',
-            'responsable', 'fecha', 'evidencia_esperada', 'estado', 'orden',
-            'url_evidencia', 'archivo_evidencia',
-        ]
-
-
 class CronogramaAccionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CronogramaAccion
-        fields = ['id', 'descripcion', 'fecha_inicio', 'fecha_fin', 'responsable', 'estado_avance', 'orden']
+        fields = [
+            'id', 'actividad', 'descripcion', 'fecha_inicio', 'fecha_fin',
+            'responsable', 'evidencia_esperada', 'estado_avance', 'orden',
+        ]
+        extra_kwargs = {'actividad': {'required': False}}
+
+    def validate(self, attrs):
+        inicio = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
+        fin = attrs.get('fecha_fin', getattr(self.instance, 'fecha_fin', None))
+        if inicio and fin and fin < inicio:
+            raise serializers.ValidationError(
+                {'fecha_fin': 'La fecha de fin no puede ser anterior a la fecha de inicio.'})
+        return attrs
+
+
+class AccionAnidadaSerializer(CronogramaAccionSerializer):
+    """Acción dentro del bloque de su actividad: la actividad la pone el padre."""
+    class Meta(CronogramaAccionSerializer.Meta):
+        fields = [f for f in CronogramaAccionSerializer.Meta.fields if f != 'actividad']
+        extra_kwargs = {}
+
+
+class ActividadProyectoSerializer(serializers.ModelSerializer):
+    """
+    VI. Actividad: solo nombre y descripción. El responsable, las fechas y la
+    evidencia esperada se registran en las acciones de su bloque del
+    cronograma (`acciones`).
+
+    `estado` es de solo lectura: la actividad se completa al registrar un
+    avance con evidencia, que además recalcula el % de ejecución del proyecto.
+    """
+    acciones = AccionAnidadaSerializer(many=True, required=False)
+
+    class Meta:
+        model = ActividadProyecto
+        fields = ['id', 'nombre', 'descripcion', 'curso_vinculado', 'estado', 'orden', 'acciones']
+        read_only_fields = ['estado']
+
+    def _guardar_acciones(self, actividad, acciones):
+        for i, accion in enumerate(acciones, start=1):
+            accion.setdefault('orden', i)
+            CronogramaAccion.objects.create(
+                proyecto=actividad.proyecto, actividad=actividad, **accion)
+
+    def create(self, validated_data):
+        acciones = validated_data.pop('acciones', [])
+        with transaction.atomic():
+            actividad = ActividadProyecto.objects.create(**validated_data)
+            self._guardar_acciones(actividad, acciones)
+        return actividad
+
+    def update(self, instance, validated_data):
+        acciones = validated_data.pop('acciones', None)
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            if acciones is not None:
+                instance.acciones.all().delete()
+                self._guardar_acciones(instance, acciones)
+        return instance
 
 
 class DocumentoSustentoProyectoSerializer(serializers.ModelSerializer):
@@ -121,6 +169,11 @@ class PartidaPresupuestariaSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'costo_unitario': 'El costo unitario no puede ser negativo.'})
         return value
 
+    def validate_monto_ejecutado(self, value):
+        if value < 0:
+            raise serializers.ValidationError('El monto ejecutado no puede ser negativo.')
+        return value
+
     def validate(self, attrs):
         categoria = attrs.get('categoria', getattr(self.instance, 'categoria', ''))
         descripcion = attrs.get('descripcion', getattr(self.instance, 'descripcion', ''))
@@ -138,6 +191,11 @@ class FuenteFinanciamientoSerializer(serializers.ModelSerializer):
         model = FuenteFinanciamiento
         fields = ['id', 'fuente', 'fuente_display', 'monto', 'descripcion', 'partidas', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+
+    def validate_monto(self, value):
+        if value < 0:
+            raise serializers.ValidationError('El monto no puede ser negativo.')
+        return value
 
 
 class TipoBeneficiarioSerializer(serializers.ModelSerializer):
@@ -171,6 +229,10 @@ class MetaIndicadorProyectoSerializer(serializers.ModelSerializer):
         return round(float(avance), 1)
 
     def validate(self, attrs):
+        for campo in ('linea_base', 'valor_meta', 'valor_alcanzado'):
+            valor = attrs.get(campo)
+            if valor is not None and valor < 0:
+                raise serializers.ValidationError({campo: 'No se permiten valores negativos.'})
         valor_meta = attrs.get('valor_meta', getattr(self.instance, 'valor_meta', None))
         linea_base = attrs.get('linea_base', getattr(self.instance, 'linea_base', None))
         if valor_meta is not None and linea_base is not None and valor_meta <= linea_base:
@@ -264,8 +326,8 @@ class RevisionProyectoSerializer(serializers.ModelSerializer):
     class Meta:
         model = RevisionProyecto
         fields = [
-            'id', 'decision', 'comentario_tecnico', 'revisor_nombre',
-            'estado_anterior', 'estado_nuevo', 'created_at'
+            'id', 'etapa', 'decision', 'comentario_tecnico', 'observaciones_secciones',
+            'revisor_nombre', 'estado_anterior', 'estado_nuevo', 'created_at'
         ]
         
     def get_revisor_nombre(self, obj):
@@ -355,6 +417,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         source='get_fuente_financiamiento_display', read_only=True)
     porcentaje_ejecucion = serializers.DecimalField(
         max_digits=5, decimal_places=2, read_only=True)
+    informe_finalizacion_estado = serializers.SerializerMethodField(read_only=True)
+    constancia_aprobada = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = ProyectoRSU
@@ -369,8 +433,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'departamento', 'departamento_nombre',
             'semestre_academico',
             'titulo',
-            'nro_docentes',
-            'nro_estudiantes',
+            'nro_docentes', 'docentes_participantes',
+            'nro_estudiantes', 'observacion_estudiantes',
             'lugar_ejecucion',
 
             # 1.9 Beneficiarios
@@ -464,14 +528,27 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
             # ── Historial y Revisiones (Módulo 4) ─────────────────────────
             'revisiones', 'historial_estados',
+
+            # ── Finalización (HU-09) ──────────────────────────────────────
+            'informe_finalizacion_estado', 'constancia_aprobada',
         ]
         read_only_fields = [
-            'codigo', 'estado', 'created_at', 'updated_at',
+            'codigo', 'estado', 'created_at', 'updated_at', 'semestre_academico',
             'docente_responsable', 'es_continuacion', 'proyecto_origen',
             'fecha_envio_revision', 'fecha_aprobacion',
             'fecha_inicio_ejecucion', 'fecha_cierre',
             'financiamiento_confirmado', 'financiamiento_fecha_confirmacion',
         ]
+        # Cantidades: no se aceptan negativos (antes llegaban a la base de
+        # datos y la restricción CHECK respondía con error 500).
+        extra_kwargs = {
+            campo: {'min_value': 0}
+            for campo in (
+                'nro_docentes', 'nro_estudiantes',
+                'rec_hum_docentes', 'rec_hum_administrativos', 'rec_hum_estudiantes',
+                'rec_hum_egresados', 'rec_hum_voluntarios', 'rec_hum_otros',
+            )
+        }
 
     def get_beneficiarios_info(self, obj):
         return [{'id': b.id, 'codigo': b.codigo, 'label': b.label} for b in obj.beneficiarios.all()]
@@ -490,6 +567,32 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
     def get_continuaciones_count(self, obj):
         return obj.continuaciones.count()
+
+    def _informe(self, obj):
+        try:
+            return obj.informe_finalizacion
+        except ProyectoRSU.informe_finalizacion.RelatedObjectDoesNotExist:
+            return None
+
+    def get_informe_finalizacion_estado(self, obj):
+        informe = self._informe(obj)
+        return informe.estado if informe else None
+
+    def get_constancia_aprobada(self, obj):
+        informe = self._informe(obj)
+        return bool(informe and informe.constancia_aprobada)
+
+    def validate_docentes_participantes(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Debe ser una lista de nombres.')
+        nombres = []
+        for nombre in value:
+            if not isinstance(nombre, str) or not nombre.strip():
+                raise serializers.ValidationError('Cada docente debe tener un nombre.')
+            if len(nombre.strip()) > 200:
+                raise serializers.ValidationError('Cada nombre admite hasta 200 caracteres.')
+            nombres.append(nombre.strip())
+        return nombres
 
     def get_docente_responsable_detalle(self, obj):
         u = obj.docente_responsable
@@ -575,7 +678,23 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         self._validate_facultad_relations(attrs)
         self._validate_benef_otro(attrs)
         self._validate_eje_rsu(attrs)
+        self._validate_fechas_proyecto(attrs)
         return attrs
+
+    def _validate_fechas_proyecto(self, attrs):
+        inst = self.instance
+        inicio = attrs.get('fecha_inicio', getattr(inst, 'fecha_inicio', None))
+        termino = attrs.get('fecha_termino', getattr(inst, 'fecha_termino', None))
+        if inicio and termino and termino < inicio:
+            raise serializers.ValidationError(
+                {'fecha_termino': 'La fecha de término no puede ser anterior a la fecha de inicio.'})
+        evaluacion = attrs.get('fecha_evaluacion_avance', getattr(inst, 'fecha_evaluacion_avance', None))
+        if inicio and evaluacion and evaluacion < inicio:
+            raise serializers.ValidationError(
+                {'fecha_evaluacion_avance': 'La fecha de evaluación no puede ser anterior a la fecha de inicio.'})
+        if evaluacion and termino and termino < evaluacion:
+            raise serializers.ValidationError(
+                {'fecha_termino': 'La fecha de término no puede ser anterior a la fecha de evaluación de avance.'})
 
     def _save_nested_flat(self, proyecto, data_map, replace=False):
         """Crea o reemplaza objetos relacionados directamente al proyecto."""
@@ -590,11 +709,40 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         for attr, items in data_map.items():
             if items is None:
                 continue
+            if attr == 'actividades':
+                self._save_actividades(proyecto, items, replace)
+                continue
             model = mapping[attr]
             if replace:
-                getattr(proyecto, attr).all().delete()
+                qs = getattr(proyecto, attr).all()
+                # El cronograma plano solo reemplaza acciones sin actividad:
+                # las de cada actividad se guardan con su bloque (`acciones`).
+                if attr == 'cronograma':
+                    qs = qs.filter(actividad__isnull=True)
+                qs.delete()
             for item in items:
+                if attr == 'cronograma':
+                    item.pop('actividad', None)
                 model.objects.create(proyecto=proyecto, **item)
+
+    def _save_actividades(self, proyecto, items, replace):
+        # Borrar la actividad borra en cascada las acciones de su bloque.
+        if replace:
+            proyecto.actividades.all().delete()
+        for item in items:
+            acciones = item.pop('acciones', [])
+            actividad = ActividadProyecto.objects.create(proyecto=proyecto, **item)
+            for i, accion in enumerate(acciones, start=1):
+                accion.setdefault('orden', i)
+                CronogramaAccion.objects.create(proyecto=proyecto, actividad=actividad, **accion)
+
+    @staticmethod
+    def _sincronizar_semestre(validated_data):
+        # El periodo académico es la única fuente del semestre: el texto
+        # semestre_academico se deriva de él para no tener dos datos distintos.
+        if 'periodo' in validated_data:
+            periodo = validated_data['periodo']
+            validated_data['semestre_academico'] = periodo.nombre if periodo else ''
 
     def _save_ejes_subitems(self, proyecto, subitems_data, replace=False):
         if subitems_data is None:
@@ -620,11 +768,12 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
 
         validated_data['docente_responsable'] = self.context['request'].user
         validated_data['estado'] = 'borrador'
+        self._sincronizar_semestre(validated_data)
 
+        # El código (número del proyecto) ya no se genera al crear: lo asigna
+        # el Departamento al aprobar la planificación (ProyectoAprobarView).
         with transaction.atomic():
             proyecto = ProyectoRSU.objects.create(**validated_data)
-            proyecto.codigo = f"PROY-FIPS-{proyecto.id:04d}"
-            proyecto.save(update_fields=['codigo'])
 
             proyecto.ods.set(ods_data)
             proyecto.beneficiarios.set(beneficiarios_data)
@@ -660,6 +809,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         objetivos_regionales_data = validated_data.pop('objetivos_regionales', None)
         objetivos_nacionales_data = validated_data.pop('objetivos_nacionales', None)
         subitems_data      = validated_data.pop('ejes_subitems', None)
+        self._sincronizar_semestre(validated_data)
 
         with transaction.atomic():
             changed_fields = list(validated_data.keys())

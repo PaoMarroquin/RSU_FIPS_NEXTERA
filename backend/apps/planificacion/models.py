@@ -170,7 +170,7 @@ class LineaEstrategica(models.Model):
         return self.nombre
 
 
-DOCUMENTO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+DOCUMENTO_EXTENSIONS = ['pdf', 'doc', 'docx']
 DOCUMENTO_MAX_SIZE_MB = 20
 
 
@@ -181,7 +181,12 @@ def validate_documento_size(archivo):
 
 
 class MatrizOperativa(models.Model):
-    """Documento de guia que la Jefatura RSU publica para los docentes."""
+    """
+    Documento de apoyo (HU-03) que la Jefatura RSU publica para los docentes:
+    líneas de investigación, objetivos regionales, guías, etc. Solo PDF o
+    Word. El modelo y la ruta /matrices/ conservan el nombre histórico de
+    "matriz operativa"; en el sistema se muestra como "Documento de apoyo".
+    """
 
     nombre = models.CharField(max_length=255, help_text='Nombre del documento')
     descripcion = models.TextField(
@@ -198,8 +203,8 @@ class MatrizOperativa(models.Model):
 
     class Meta:
         db_table = 'matrices_operativas'
-        verbose_name = 'Matriz Operativa'
-        verbose_name_plural = 'Matrices Operativas'
+        verbose_name = 'Documento de apoyo'
+        verbose_name_plural = 'Documentos de apoyo'
         ordering = ['-created_at']
 
     def __str__(self):

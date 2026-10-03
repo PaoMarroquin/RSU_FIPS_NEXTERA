@@ -1,216 +1,155 @@
-# Cierre de proyecto (marcar como "Finalizado") - contrato para el frontend
+# Finalización de proyecto - contrato para el frontend
 
-## Por que existe esto
+HU-09 (Revisión y aprobación de Finalización), Sprint 8 (T-137 a T-141:
+Informe de Finalización) y la Constancia de Finalización.
 
-Hasta ahora no habia ningun camino para que un proyecto llegara a estado
-`finalizado`. El `porcentaje_ejecucion` se calcula solo (sube cada vez que
-se completa una actividad), pero nada revisaba ese numero para cambiar el
-estado del proyecto: aunque llegara a 100%, el proyecto se quedaba en
-`en_ejecucion` para siempre. Por eso nunca aparecia como "Finalizado" en el
-informe consolidado de HU-06 (que solo cuenta proyectos `aprobado` o
-`finalizado`).
+> **Cambio respecto a la versión anterior de este documento:** el cierre ya no
+> lo hace Departamento/Jefatura directamente con el informe en el body de
+> `/finalizar/`. Ahora el **docente** completa y envía el Informe de
+> Finalización, y el **Departamento** lo aprueba (marca Finalizado) u observa.
+> **Jefatura RSU ya no finaliza proyectos ni aprueba constancias** (pedido del
+> cliente); solo hace seguimiento en lectura.
 
-Este endpoint es el paso que faltaba, y necesita este mismo sprint (HU-06)
-para que la pantalla de "proyectos aprobados y finalizados" tenga datos
-reales de proyectos finalizados que mostrar.
+Base: `/api/v1/` · Autenticación: `Authorization: Bearer <token>`.
 
-## Quien lo hace
-
-**No lo hace el docente.** El 100% de actividades es solo la senal de "listo
-para cerrar"; quien confirma que el proyecto realmente cumplio es una
-autoridad institucional, igual que ya pasa con Aprobar/Observar:
-
-| Rol | Puede finalizar |
-|---|---|
-| Administrador | Cualquier proyecto |
-| Jefatura RSU | Solo proyectos de su propia facultad |
-| Departamento | Solo proyectos de su propio departamento academico |
-| Docente | No (403) |
-
-## El flujo completo (probado de punta a punta)
+## 1. El flujo completo
 
 ```
-1. Docente completa la ultima actividad pendiente
-   POST /proyectos/<id>/avances/
-   { "actividad": <id>, "descripcion": "...", "estado_actividad": "completada" }
-        │
+Docente sube la última evidencia  ->  porcentaje_ejecucion = 100
+        │  (notificación al docente, tipo "listo_para_cerrar")
         ▼
-2. El backend recalcula el % del proyecto (automatico, sin pedir nada)
-   porcentaje_ejecucion = actividades completadas / total * 100
-        │
-        │  Si el porcentaje ACABA de llegar a 100% (no si ya estaba en 100%)
+Docente abre su Informe de Finalización (GET), completa lo que falta (PATCH)
+y lo envía (POST .../enviar/)
+        │  (notificación al Departamento, tipo "informe_finalizacion_enviado")
         ▼
-3. Se notifica solo, sin que nadie lo pida, a:
-   - el/los usuario(s) con rol Departamento del mismo departamento_id
-   - el/los usuario(s) con rol Jefatura RSU de la misma facultad_id
-   GET /notificaciones/  ->  tipo: "listo_para_cerrar"
+Departamento lo ve en "Proyectos por finalizar" (GET /proyectos/para-finalizar/)
         │
-        ▼
-4. Esa misma persona (o cualquier otra con el mismo alcance) puede
-   consultar la bandeja de pendientes en cualquier momento, no solo por
-   la notificacion:
-   GET /proyectos/para-finalizar/
+        ├── Observa con comentario (POST .../observar/)
+        │       (notificación al docente, "informe_finalizacion_observado")
+        │       → el docente corrige (PATCH) y vuelve a enviar
         │
-        ▼
-5. Confirma el cierre
-   POST /proyectos/<id>/finalizar/
-        │
-        ▼
-6. El proyecto pasa a 'finalizado', y el docente recibe su propia
-   notificacion (tipo "finalizacion") avisandole que ya cerro.
+        └── Aprueba (POST /proyectos/<id>/finalizar/)
+                → proyecto 'finalizado', entra al Repositorio Histórico
+                → se genera la constancia (solo la ve el Departamento)
+                        │
+                        ▼
+                Departamento aprueba la constancia (POST .../constancia/aprobar/)
+                        (notificación al docente, "constancia_disponible")
+                        → el docente la descarga desde Informes
 ```
 
-Los pasos 1, 2 y 6 ya existian antes de esto (avances de HU-05, notificaciones
-de HU-04). Lo nuevo son los pasos 3, 4 y 5.
+Estados del informe (`finalizacion.estado`): `null` (no iniciado) ·
+`borrador` · `enviado` · `observado` · `aprobado`. El estado del proyecto sigue
+siendo `en_ejecucion` hasta que el Departamento aprueba; ahí pasa a
+`finalizado`. En los listados de proyectos vienen dos campos nuevos para pintar
+esto sin pedir el informe: `informe_finalizacion_estado` y `constancia_aprobada`.
 
-## Endpoint para confirmar el cierre
+## 2. Informe de Finalización (docente)
 
+### `GET /proyectos/<id>/informe-finalizacion/`
+
+Lo pueden ver el docente y, en lectura, Departamento, Jefatura y Administrador
+(cada uno en su alcance). Trae los datos de la planificación ya cargados:
+
+```jsonc
+{
+  "id": 7, "codigo": "RSU-FIPS-2026-015", "titulo": "...",   // cabecera
+  "resultados_esperados": {"en_beneficiarios": "...", "en_curriculo": "..."},
+  "resultados_alcanzados": {
+    "avance": {...}, "metas": {...}, "presupuesto": {...},
+    "detalle_metas": [{"id": 3, "meta": "...", "indicador": "...",
+                       "linea_base": 0, "valor_meta": 50, "valor_alcanzado": null, ...}]
+  },
+  "informe_final": {"conclusiones": null, "recomendaciones": null,
+                    "lecciones_aprendidas": null, "medio_difusion": null, ...},
+  "presupuesto_detalle": [{"id": 9, "descripcion": "...", "monto_presupuestado": 50.0,
+                           "monto_ejecutado": 0.0, ...}],
+  "ejecucion": { ... mismo formato que /seguimiento/ ... },
+  "observaciones": [{"decision": "observado", "comentario": "...", "revisor": "...",
+                     "created_at": "..."}],
+  "finalizacion": {
+    "estado": null, "estado_display": null,
+    "habilitado": true,          // en ejecución y al 100%
+    "editable": true,            // habilitado y en null/borrador/observado
+    "campos_pendientes": ["conclusiones", "recomendaciones",
+                          "lecciones_aprendidas", "medio_difusion",
+                          "metas_valor_alcanzado"],
+    "metas_sin_valor_alcanzado": [3],
+    "fecha_envio": null, "fecha_aprobacion": null, "constancia_aprobada": false
+  }
+}
 ```
-POST /api/v1/proyectos/<id>/finalizar/
-```
 
-El body es opcional. Sirve para registrar el **informe final** al cerrar el
-proyecto (HU-07, T-124); es lo que despues muestra el Repositorio Historico
-en `/repositorio/proyectos/<id>/informe-final/` y en
-`/repositorio/lecciones-aprendidas/`.
+Mostrar la sección "Finalización de proyecto" solo cuando
+`finalizacion.habilitado` sea `true`, y los campos editables solo si
+`finalizacion.editable` es `true`.
+
+### `PATCH /proyectos/<id>/informe-finalizacion/`
+
+Solo el docente responsable, con el proyecto en ejecución al 100% y el informe
+en borrador u observado. Todo es opcional; se guarda solo lo que llega.
 
 ```json
 {
-  "conclusiones": "Se cumplieron los objetivos del proyecto.",
+  "conclusiones": "Se cumplieron los objetivos.",
   "recomendaciones": "Replicar en otro distrito.",
-  "lecciones_aprendidas": "Coordinar con la comunidad antes de empezar.",
-  "medio_difusion": "Pagina web de la facultad"
+  "lecciones_aprendidas": "Coordinar antes con la comunidad.",
+  "medio_difusion": "n/a",
+  "metas":    [{"id": 3, "valor_alcanzado": 45}],
+  "partidas": [{"id": 9, "monto_ejecutado": 48.5}]
 }
 ```
 
-- Todos los campos son opcionales y de texto; `medio_difusion` admite hasta
-  200 caracteres.
-- Solo se actualizan los campos que se envian: un POST sin body finaliza el
-  proyecto sin tocar lo que ya hubiera cargado.
-- Si algun campo es invalido, responde `400` con el error en
-  `errors.<campo>` y el proyecto **no** se finaliza.
-- Sugerencia de UI: al pulsar "Marcar como finalizado", abrir un modal con
-  estos cuatro campos antes de confirmar.
+- Los textos admiten "n/a" si no aplican, pero no pueden quedar vacíos al enviar.
+- `medio_difusion` admite hasta 200 caracteres.
+- `metas[].id` y `partidas[].id` salen del GET; deben ser del mismo proyecto.
+- No se aceptan valores negativos (400).
+- Responde el informe completo actualizado (mismo formato del GET).
 
-### Reglas (en este orden)
+### `POST /proyectos/<id>/informe-finalizacion/enviar/`
 
-1. El proyecto debe existir y estar dentro del alcance del usuario (mismo
-   criterio de visibilidad que el resto del sistema) - si no, `404`.
-2. El proyecto debe estar en estado `en_ejecucion` - si no, `400`.
-3. `porcentaje_ejecucion` debe ser exactamente `100.00` - si no, `400` con
-   el porcentaje actual en el mensaje, para que la UI pueda mostrarlo.
+Sin body. Si falta algo responde `400` con
+`errors.campos_pendientes`. Si todo está completo, pasa a `enviado` y avisa al
+Departamento del proyecto.
 
-### Respuesta exitosa - `200 OK`
+### `GET /proyectos/<id>/informe-finalizacion/pdf/`
 
-```json
-{
-  "detail": "Proyecto finalizado exitosamente."
-}
-```
+Descarga el informe en PDF (para la pantalla Informes del docente y para el
+"ojito" del Departamento en Proyectos por finalizar).
 
-Efectos en el backend (automaticos, no hace falta pedir nada mas):
-- `estado` pasa a `finalizado`.
-- `fecha_cierre` se guarda con la fecha/hora actual.
-- Se registra una entrada en el historial de estados del proyecto (mismo
-  bloque `historial_estados` que ya trae el detalle del proyecto).
-- Se crea una notificacion para el docente responsable (tipo
-  `finalizacion`), visible en `GET /notificaciones/`.
+## 3. Revisión del Departamento
 
-### Respuestas de error
+| Endpoint | Quién | Qué hace |
+|---|---|---|
+| `GET /proyectos/para-finalizar/` | Departamento, Admin | Proyectos con informe **enviado** de su departamento (paginado, ficha estándar de proyecto) |
+| `POST /proyectos/<id>/informe-finalizacion/observar/` | Departamento, Admin | Body `{"comentario": "..."}` (mínimo 15 caracteres). Vuelve al docente |
+| `POST /proyectos/<id>/finalizar/` | Departamento, Admin | Aprueba el informe. Body opcional `{"comentario": "..."}`. Proyecto → `finalizado` |
 
-**400 - porcentaje incompleto:**
-```json
-{
-  "error": "Bad Request",
-  "detail": "Errores de validación.",
-  "errors": {
-    "non_field_errors": [
-      "El proyecto tiene 80.00% de actividades completadas. Debe llegar al 100% antes de poder finalizarlo."
-    ]
-  }
-}
-```
+En "Proyectos por finalizar", el "ojito" debe abrir el **Informe de
+Finalización** (GET o PDF de arriba), ya no el informe de planificación.
 
-**400 - estado invalido** (ej. todavia en `aprobado`, o ya `finalizado`):
-```json
-{
-  "error": "Bad Request",
-  "detail": "Errores de validación.",
-  "errors": {
-    "non_field_errors": [
-      "Solo se pueden finalizar proyectos en ejecucion (estado actual: 'aprobado')."
-    ]
-  }
-}
-```
+Jefatura RSU recibe `403` en estos tres endpoints. El menú "Proyectos por
+finalizar" debe quitarse del rol Jefatura RSU en `navConfig.js`.
 
-**403 - rol sin permiso** (ej. Docente):
-```json
-{
-  "error": "Forbidden",
-  "detail": "You do not have permission to perform this action.",
-  "errors": null
-}
-```
+## 4. Constancia de Finalización
 
-**404 - fuera de alcance** (ej. Jefatura de otra facultad, o el proyecto no
-existe):
-```json
-{
-  "error": "Not Found",
-  "detail": "No ProyectoRSU matches the given query.",
-  "errors": null
-}
-```
+| Endpoint | Quién | Qué hace |
+|---|---|---|
+| `GET /constancias/` | Departamento, Admin | Proyectos finalizados de su alcance con `constancia_aprobada` (sección nueva "Constancias") |
+| `GET /proyectos/<id>/constancia/pdf/` | Departamento y Admin siempre; el docente solo cuando está aprobada | Descarga el PDF |
+| `POST /proyectos/<id>/constancia/aprobar/` | Departamento, Admin | Botón "Aprobar constancia". Una sola vez (la segunda da 400) |
 
-## Bandeja de pendientes
+El formato del PDF es **provisional** hasta que el cliente entregue el oficial.
 
-```
-GET /api/v1/proyectos/para-finalizar/
-```
+## 5. Errores
 
-Lista, paginada igual que el resto de listados de proyectos, los proyectos
-`en_ejecucion` con `porcentaje_ejecucion = 100` dentro del alcance del
-usuario (misma logica de facultad/departamento que ya usan `para-revisar` y
-el resto del sistema). Devuelve el mismo objeto de proyecto que ya usan las
-demas pantallas (`ProyectoRSUSerializer`), no hace falta un componente
-nuevo para pintarlo - es la misma ficha que ya conocen, solo que filtrada.
-
-Mismos codigos de acceso que el endpoint de arriba: `403` para Docente,
-lista vacia (no error) si el usuario no tiene proyectos en ese estado dentro
-de su alcance.
-
-## Sugerencia de UI
-
-- Un item en el menu de Departamento/Jefatura tipo "Proyectos por finalizar",
-  alimentado por `GET /proyectos/para-finalizar/` - mismo patron que la
-  bandeja de revision que ya existe.
-- Dentro de la ficha de cada proyecto ahi, un boton "Marcar como finalizado"
-  que llama a `POST /proyectos/<id>/finalizar/`.
-- Las notificaciones tipo `listo_para_cerrar` (ya las trae `GET
-  /notificaciones/`) pueden linkear directo a esa ficha - no dependen de la
-  bandeja, llegan solas apenas el proyecto pasa el 100%.
-
-Si el usuario intenta finalizar con menos de 100%, el backend ya rechaza y
-devuelve el mensaje con el porcentaje actual - basta con mostrar
-`error.response.data.errors.non_field_errors[0]` en un toast, mismo patron
-que ya se usa para los errores de Aprobar/Observar.
+Mismo formato que el resto de la API: `{"error", "detail", "errors"}`.
+`400` reglas de negocio · `403` rol sin permiso · `404` proyecto fuera de alcance.
 
 ## Conecta con
 
-- `backend/apps/proyectos/views.py` - clases `ProyectoFinalizarView`,
-  `ProyectosParaFinalizarView`, y el helper `_notificar_listo_para_cerrar`
-  (colgado de `_recalcular_porcentaje_ejecucion`, que es donde ya se
-  recalculaba el % en cada avance).
-- `backend/apps/proyectos/urls.py` - rutas `proyecto-finalizar` y
-  `proyecto-para-finalizar`.
-- `backend/apps/proyectos/models.py` - tipos de notificacion `finalizacion`
-  y `listo_para_cerrar` en `Notificacion.TIPOS`.
-- `backend/apps/proyectos/tests.py` - clases `ProyectoFinalizarAPITests` (9
-  casos: permisos, porcentaje incompleto, estado invalido, alcance por
-  facultad, exito, doble finalizacion, bandeja) y
-  `NotificarListoParaCerrarAPITests` (2 casos: se notifica al llegar a 100%,
-  no se re-notifica si ya estaba en 100%).
-- HU-06 (`backend/docs/HU-06-contrato-frontend.md`) - una vez que existan
-  proyectos `finalizado` de verdad, el informe consolidado y el repositorio
-  historico van a empezar a mostrar datos ahi.
+- `apps/proyectos/views_finalizacion.py`, `services_finalizacion.py`,
+  `exports_finalizacion.py`.
+- `apps/proyectos/models.py`: `InformeFinalizacion`; los dictámenes quedan en
+  `RevisionProyecto` con `etapa='finalizacion'`.
+- `apps/proyectos/tests.py`: `FinalizacionAPITests`, `NotificarListoParaCerrarAPITests`.

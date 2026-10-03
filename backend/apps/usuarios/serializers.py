@@ -78,7 +78,10 @@ def _validate_escuela_departamento_facultad(attrs):
 
 
 class UsuarioCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    # Opcional: si el Administrador no la indica (alta manual o importación
+    # desde Excel), la contraseña inicial es el correo institucional y cada
+    # usuario la cambia luego desde Configuración.
+    password = serializers.CharField(write_only=True, min_length=8, required=False, allow_blank=True)
 
     class Meta:
         model = Usuario
@@ -92,7 +95,7 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         return _validate_escuela_departamento_facultad(attrs)
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
+        password = validated_data.pop('password', '') or validated_data['correo_institucional']
         usuario = Usuario(**validated_data)
         usuario.set_password(password)
         usuario.save()
@@ -155,6 +158,29 @@ class MiPerfilUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'nombres', 'apellidos', 'celular', 'facultad', 'escuela', 'departamento', 'firma_digital']
+
+    def validate_celular(self, value):
+        if value:
+            digitos = value.strip()
+            if not digitos.isdigit() or len(digitos) != 9:
+                raise serializers.ValidationError(
+                    'El celular debe tener exactamente 9 dígitos numéricos.')
+        return value
+
+
+class CambiarPasswordSerializer(serializers.Serializer):
+    password_actual = serializers.CharField(write_only=True)
+    password_nueva = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_password_actual(self, value):
+        if not self.context['request'].user.check_password(value):
+            raise serializers.ValidationError('La contraseña actual no es correcta.')
+        return value
+
+    def validate_password_nueva(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value, self.context['request'].user)
+        return value
 
 
 class AuditoriaUsuarioSerializer(serializers.ModelSerializer):

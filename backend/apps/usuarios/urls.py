@@ -26,6 +26,8 @@ urlpatterns = [
     path('auth/google/',        views.GoogleAuthView.as_view(),          name='auth-google'),
 
     path('usuarios/me/',                           views.MiPerfilView.as_view(),                  name='usuario-me'),
+    path('usuarios/me/cambiar-password/',          views.CambiarPasswordView.as_view(),           name='usuario-cambiar-password'),
+    path('usuarios/estadisticas/',                 views.EstadisticasUsuariosView.as_view(),      name='usuario-estadisticas'),
     path('usuarios/',                              views.UsuarioListCreateView.as_view(),          name='usuario-list'),
     path('usuarios/<int:pk>/',                     views.UsuarioRetrieveUpdateDestroyView.as_view(), name='usuario-detail'),
     path('usuarios/<int:pk>/asignar-rol/',         views.AsignarRolView.as_view(),                name='usuario-asignar-rol'),

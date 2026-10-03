@@ -2,7 +2,7 @@
 Repositorio Historico de proyectos RSU finalizados (HU-07, T-120 a T-124).
 
 Un proyecto entra al repositorio cuando pasa a estado finalizado (ver
-ProyectoFinalizarView en views.py). A partir de ahi deja de ser un proyecto
+ProyectoFinalizarView en views_finalizacion.py). A partir de ahi deja de ser un proyecto
 "en curso" y se vuelve conocimiento institucional: cualquier usuario del
 sistema puede consultarlo para ver que se hizo, con que resultados y que
 lecciones dejo, y mas adelante usarlo como plantilla (T-126 en adelante).
@@ -16,7 +16,7 @@ Reglas que se aplican aqui:
 
 Filtros (T-120 y T-122):
 - Por semestre, facultad, escuela, departamento, eje RSU y ODS, mas periodo,
-  anio, rango de fecha de cierre y busqueda libre.
+  rango de fecha de cierre y busqueda libre.
 - Cada filtro acepta varios valores, separados por coma o repitiendo el
   parametro (?ods=1,4 o ?ods=1&ods=4). Dentro de un mismo filtro los valores
   se combinan con O; entre filtros distintos, con Y. Asi "ods=4,11&facultad=2"
@@ -49,7 +49,7 @@ from .services_consolidado import consolidar_proyecto
 # Un proyecto solo forma parte del repositorio historico una vez finalizado.
 ESTADO_HISTORICO = 'finalizado'
 
-# T-120: filtros numericos (ids, salvo `anio`), mapeados a su lookup del ORM. Los que cruzan una
+# T-120: filtros por id, mapeados a su lookup del ORM. Los que cruzan una
 # relacion muchos a muchos pueden repetir filas y obligan a usar distinct().
 FILTROS_POR_ID = {
     'facultad': 'facultad_id__in',
@@ -58,7 +58,6 @@ FILTROS_POR_ID = {
     'periodo': 'periodo_id__in',
     'eje_rsu': 'ejes_rsu__id__in',
     'ods': 'ods__id__in',
-    'anio': 'periodo__anio__in',
 }
 FILTROS_MUCHOS_A_MUCHOS = {'eje_rsu', 'ods'}
 
@@ -107,7 +106,7 @@ def queryset_ficha():
             'beneficiarios', 'objetivos_regionales', 'objetivos_nacionales',
             'asignaturas', 'docentes_adicionales__docente',
             'ejes_subitems__sub_eje__eje_rsu',
-            'actividades', 'cronograma', 'metas_indicadores',
+            'actividades__acciones', 'cronograma', 'metas_indicadores',
             'fuentes_financiamiento', 'partidas_presupuesto__fuente',
             'documentos_sustento',
         )
@@ -151,7 +150,6 @@ def aplicar_filtros(qs, params):
 
     Filtros soportados:
     - facultad, escuela, departamento, periodo, eje_rsu, ods: ids.
-    - anio: anio del periodo academico.
     - semestre: texto exacto del semestre academico (campo 1.4, p. ej.
       "2025-A"), sin distinguir mayusculas.
     - fecha_cierre_desde, fecha_cierre_hasta: AAAA-MM-DD, ambos inclusive.
@@ -369,29 +367,35 @@ def ficha_tecnica(proyecto):
 
     ficha['resultados_esperados'] = _resultados_esperados(proyecto)
 
+    def _accion(c):
+        return {
+            'descripcion': c.descripcion,
+            'fecha_inicio': _iso(c.fecha_inicio),
+            'fecha_fin': _iso(c.fecha_fin),
+            'responsable': c.responsable,
+            'evidencia_esperada': c.evidencia_esperada,
+            'estado_avance': c.estado_avance,
+            'estado_avance_display': c.get_estado_avance_display(),
+        }
+
+    # VI y VII: cada actividad trae su bloque de acciones del cronograma.
     ficha['actividades'] = [
         {
             'nombre': a.nombre,
             'descripcion': a.descripcion,
             'curso_vinculado': a.curso_vinculado,
-            'responsable': a.responsable,
-            'fecha': _iso(a.fecha),
-            'evidencia_esperada': a.evidencia_esperada,
             'estado': a.estado,
             'estado_display': a.get_estado_display(),
+            'acciones': [_accion(c) for c in a.acciones.all()],
         }
         for a in proyecto.actividades.all()
     ]
 
+    # Lista completa del cronograma, con el nombre de la actividad de cada
+    # acción (vacío en las acciones cargadas antes de agruparlas por actividad).
+    nombres = {a.id: a.nombre for a in proyecto.actividades.all()}
     ficha['cronograma'] = [
-        {
-            'descripcion': c.descripcion,
-            'fecha_inicio': _iso(c.fecha_inicio),
-            'fecha_fin': _iso(c.fecha_fin),
-            'responsable': c.responsable,
-            'estado_avance': c.estado_avance,
-            'estado_avance_display': c.get_estado_avance_display(),
-        }
+        {**_accion(c), 'actividad': nombres.get(c.actividad_id, '')}
         for c in proyecto.cronograma.all()
     ]
 

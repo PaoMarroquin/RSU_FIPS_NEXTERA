@@ -1,10 +1,10 @@
 """
 Registro de los modelos de planificacion en el panel de administracion.
 
-Permite cargar y corregir catalogos (periodos, ejes RSU, sub-items, ODS,
-lineas estrategicas) y revisar las matrices operativas. La matriz se edita
-con inlines para que objetivos y actividades sugeridas se gestionen desde la
-misma pantalla.
+Solo quedan los catalogos que el cliente gestiona desde aqui: documentos de
+apoyo, ejes RSU con sus sub-items, ODS y periodos academicos. Lineas
+estrategicas, objetivos, indicadores y actividades sugeridas ya no se
+administran: eran parte de la matriz operativa anterior.
 
 Conecta con:
 - apps/planificacion/models.py: modelos que registra.
@@ -16,13 +16,7 @@ from .models import (
     EjeRSU,
     EjeRSUSubitem,
     ODS,
-    ObjetivoRegional,
-    ObjetivoNacional,
-    LineaEstrategica,
     MatrizOperativa,
-    ObjetivoInstitucional,
-    IndicadorInstitucional,
-    ActividadSugerida,
 )
 
 @admin.register(PeriodoAcademico)
@@ -61,46 +55,7 @@ class ODSAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
 
 
-@admin.register(ObjetivoRegional)
-class ObjetivoRegionalAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre')
-    search_fields = ('codigo', 'nombre')
-
-
-@admin.register(ObjetivoNacional)
-class ObjetivoNacionalAdmin(admin.ModelAdmin):
-    list_display = ('codigo', 'nombre')
-    search_fields = ('codigo', 'nombre')
-
-
-@admin.register(LineaEstrategica)
-class LineaEstrategicaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'eje_rsu')
-    list_filter = ('eje_rsu',)
-    search_fields = ('nombre',)
-
-
 @admin.register(MatrizOperativa)
 class MatrizOperativaAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'created_at')
     search_fields = ('nombre', 'descripcion')
-
-
-@admin.register(ObjetivoInstitucional)
-class ObjetivoInstitucionalAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'eje_rsu', 'linea_estrategica', 'meta_cuantitativa')
-    list_filter = ('eje_rsu',)
-    search_fields = ('nombre', 'descripcion')
-
-
-@admin.register(IndicadorInstitucional)
-class IndicadorInstitucionalAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'objetivo', 'unidad_medida', 'valor_meta', 'valor_alcanzado')
-    search_fields = ('nombre',)
-
-
-@admin.register(ActividadSugerida)
-class ActividadSugeridaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'eje_rsu', 'anio_academico', 'tipo_actividad', 'presupuesto_ref')
-    list_filter = ('anio_academico', 'eje_rsu')
-    search_fields = ('nombre', 'tipo_actividad')

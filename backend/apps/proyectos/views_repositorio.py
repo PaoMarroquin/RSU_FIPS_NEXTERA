@@ -75,7 +75,7 @@ class RepositorioProyectosView(_BaseRepositorioView):
     """GET /repositorio/proyectos/  (T-121, T-122)
 
     Listado paginado de proyectos finalizados. Filtros combinables: facultad,
-    escuela, departamento, periodo, anio, eje_rsu, ods, semestre,
+    escuela, departamento, periodo, eje_rsu, ods, semestre,
     fecha_cierre_desde, fecha_cierre_hasta y q. Cada uno admite varios
     valores (?ods=1,4). Orden con ?ordering=, por defecto -fecha_cierre.
     """
@@ -144,7 +144,6 @@ class RepositorioFiltrosView(_BaseRepositorioView):
         return Response({
             'solo_lectura': True,
             'semestres': semestres,
-            'anios': sorted({p['anio'] for p in periodos}, reverse=True),
             'periodos': periodos,
             'facultades': catalogo(Facultad, 'facultad_id'),
             'escuelas': escuelas,

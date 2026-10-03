@@ -1,32 +1,26 @@
-// ==========================================================================
-// SISTEMA WEB DE GESTION RSU - NexTera
-// Universidad Nacional de San Agustin de Arequipa (UNSA)
-// Esquema DBML generado por introspeccion de los modelos Django
-// Rama backend-rsu - hasta Sprint 6 (HU-06)
-//
-// Los nombres de tabla y de columna son los FISICOS de PostgreSQL,
-// tal como los declara el codigo (Meta.db_table y el nombre de columna).
-//
-// Sprint 6 (HU-06) no agrega ni modifica ninguna tabla: los informes
-// consolidados se resuelven por consulta sobre este mismo esquema.
-// ==========================================================================
+// SISTEMA WEB DE GESTION RSU - NexTera (UNSA)
+// Esquema DBML generado por introspeccion de los modelos Django.
+// Nombres de tabla y columna fisicos de PostgreSQL.
 
 // ==========================================================================
-// SPRINT 1-2: USUARIOS, ROLES Y ESTRUCTURA ACADEMICA  (apps/usuarios)
+// USUARIOS, ROLES Y ESTRUCTURA ACADEMICA  (apps/usuarios)
 // ==========================================================================
 
-Table roles {
+Table auditoria_usuarios {
   id bigint [pk, increment]
-  nombre varchar(50) [not null, unique, note: 'Administrador | Docente | Departamento | Jefatura RSU']
-  descripcion varchar(255) [not null]
-  activo boolean [not null, default: true]
+  ejecutado_por_id bigint
+  usuario_afectado_id bigint
+  accion varchar(50) [not null, note: 'CREAR | EDITAR | ACTIVAR | DESACTIVAR | CAMBIAR_ROL']
+  detalle text [not null]
+  ip_address varchar(39)
   created_at timestamp [not null, default: `now()`]
 }
 
-Table facultades {
+Table departamentos_academicos {
   id bigint [pk, increment]
   nombre varchar(200) [not null]
   codigo varchar(20) [unique]
+  facultad_id bigint [not null]
   created_at timestamp [not null, default: `now()`]
 }
 
@@ -38,11 +32,37 @@ Table escuelas_profesionales {
   created_at timestamp [not null, default: `now()`]
 }
 
-Table departamentos_academicos {
+Table facultades {
   id bigint [pk, increment]
   nombre varchar(200) [not null]
   codigo varchar(20) [unique]
-  facultad_id bigint [not null]
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table historial_roles_usuario {
+  id bigint [pk, increment]
+  usuario_id bigint [not null]
+  cambiado_por_id bigint
+  rol_anterior_id bigint
+  rol_nuevo_id bigint [not null]
+  motivo varchar(500) [not null]
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table roles {
+  id bigint [pk, increment]
+  nombre varchar(50) [not null, unique, note: 'Administrador | Docente | Departamento | Jefatura RSU']
+  descripcion varchar(255) [not null]
+  activo boolean [not null, default: true]
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table sesiones {
+  id bigint [pk, increment]
+  usuario_id bigint [not null]
+  token varchar(500) [not null, unique]
+  expira_en timestamp [not null]
+  ip_address varchar(39)
   created_at timestamp [not null, default: `now()`]
 }
 
@@ -61,87 +81,40 @@ Table usuarios {
   departamento_id bigint
   estado varchar(20) [not null, default: 'activo', note: 'activo | inactivo']
   is_active boolean [not null, default: true, note: 'Indica si el usuario puede hacer login']
-  firma_digital varchar(100) [note: 'Firma digital del usuario (JPG/PNG). archivo en media/firmas/']
+  firma_digital varchar(100) [note: 'Firma digital del usuario (JPG/PNG)']
   is_staff boolean [not null, default: false]
   ultimo_acceso timestamp
   created_at timestamp [not null, default: `now()`]
   updated_at timestamp [not null, default: `now()`]
-
-  note: 'AUTH_USER_MODEL. El login es por correo institucional. password, last_login e is_superuser los aporta AbstractBaseUser/PermissionsMixin.'
-}
-
-Table sesiones {
-  id bigint [pk, increment]
-  usuario_id bigint [not null]
-  token varchar(500) [not null, unique]
-  expira_en timestamp [not null]
-  ip_address varchar(39)
-  created_at timestamp [not null, default: `now()`]
-}
-
-Table historial_roles_usuario {
-  id bigint [pk, increment]
-  usuario_id bigint [not null]
-  cambiado_por_id bigint
-  rol_anterior_id bigint
-  rol_nuevo_id bigint [not null]
-  motivo varchar(500) [not null]
-  created_at timestamp [not null, default: `now()`]
-}
-
-Table auditoria_usuarios {
-  id bigint [pk, increment]
-  ejecutado_por_id bigint
-  usuario_afectado_id bigint
-  accion varchar(50) [not null, note: 'CREAR | EDITAR | ACTIVAR | DESACTIVAR | CAMBIAR_ROL']
-  detalle text [not null]
-  ip_address varchar(39)
-  created_at timestamp [not null, default: `now()`]
 }
 
 Table usuarios_groups {
   id bigint [pk, increment]
   usuario_id bigint [not null]
   group_id bigint [not null]
-
-  indexes {
-    (usuario_id, group_id) [unique]
-  }
-
-  note: 'Tabla intermedia generada por Django (PermissionsMixin). No se administra desde la aplicacion RSU.'
 }
 
 Table usuarios_user_permissions {
   id bigint [pk, increment]
   usuario_id bigint [not null]
   permission_id bigint [not null]
-
-  indexes {
-    (usuario_id, permission_id) [unique]
-  }
-
-  note: 'Tabla intermedia generada por Django (PermissionsMixin). No se administra desde la aplicacion RSU.'
 }
 
 // ==========================================================================
-// SPRINT 2: PLANIFICACION - MATRIZ OPERATIVA  (apps/planificacion)
+// PLANIFICACION: CATALOGOS Y DOCUMENTOS DE APOYO  (apps/planificacion)
 // ==========================================================================
 
-Table periodos_academicos {
+Table actividades_sugeridas {
   id bigint [pk, increment]
-  nombre varchar(100) [not null]
-  anio int [not null]
-  semestre varchar(10) [not null, note: 'I | II | Anual']
-  fecha_inicio date [not null]
-  fecha_fin date [not null]
-  activo boolean [not null, default: false]
+  objetivo_id bigint
+  eje_rsu_id bigint [not null]
+  nombre varchar(300) [not null]
+  descripcion text
+  anio_academico int [note: '1 | 2 | 3 | 4 | 5']
+  tipo_actividad varchar(150)
+  destinatarios varchar(300)
+  presupuesto_ref decimal(10,2)
   created_at timestamp [not null, default: `now()`]
-
-  indexes {
-    (anio, semestre) [unique, name: "unique_periodo_anio_semestre"]
-  }
-
-  note: 'Restriccion de unicidad por (anio, semestre).'
 }
 
 Table ejes_rsu {
@@ -159,53 +132,6 @@ Table ejes_rsu_subitems {
   requiere_detalle boolean [not null, default: false]
   label_detalle varchar(200) [not null]
   orden int [not null, default: 0]
-
-  indexes {
-    (eje_rsu_id, clave) [unique]
-  }
-
-  note: 'Clave unica compuesta (eje_rsu_id, clave).'
-}
-
-Table ods {
-  id bigint [pk, increment]
-  numero int [not null, unique]
-  nombre varchar(200) [not null]
-  descripcion text
-  icono_url varchar(500)
-  created_at timestamp [not null, default: `now()`]
-}
-
-Table lineas_estrategicas {
-  id bigint [pk, increment]
-  nombre varchar(200) [not null]
-  descripcion text
-  eje_rsu_id bigint [not null]
-  created_at timestamp [not null, default: `now()`]
-}
-
-Table matrices_operativas {
-  id bigint [pk, increment]
-  periodo_id bigint [not null]
-  facultad_id bigint [not null]
-  coordinador_id bigint [not null]
-  presupuesto_global decimal(12,2)
-  estado varchar(30) [not null, default: 'borrador', note: 'borrador | publicada | cerrada']
-  observaciones text
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp [not null, default: `now()`]
-}
-
-Table objetivos_institucionales {
-  id bigint [pk, increment]
-  matriz_id bigint [not null]
-  linea_estrategica_id bigint
-  eje_rsu_id bigint [not null]
-  nombre varchar(300) [not null]
-  descripcion text
-  resultado_esperado text
-  meta_cuantitativa varchar(300)
-  created_at timestamp [not null, default: `now()`]
 }
 
 Table indicadores_institucionales {
@@ -219,29 +145,271 @@ Table indicadores_institucionales {
   created_at timestamp [not null, default: `now()`]
 }
 
-Table actividades_sugeridas {
+Table lineas_estrategicas {
   id bigint [pk, increment]
-  matriz_id bigint [not null]
-  objetivo_id bigint
+  nombre varchar(200) [not null]
+  descripcion text
+  eje_rsu_id bigint [not null]
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table matrices_operativas {
+  id bigint [pk, increment]
+  nombre varchar(255) [not null, note: 'Nombre del documento']
+  descripcion text [not null, note: 'Breve descripcion de lo que abarca']
+  archivo varchar(100) [not null]
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  note: 'Documento de apoyo (HU-03): solo PDF o Word.'
+}
+
+Table objetivos_institucionales {
+  id bigint [pk, increment]
+  linea_estrategica_id bigint
   eje_rsu_id bigint [not null]
   nombre varchar(300) [not null]
   descripcion text
-  anio_academico int [note: '1 | 2 | 3 | 4 | 5']
-  tipo_actividad varchar(150)
-  destinatarios varchar(300)
-  presupuesto_ref decimal(10,2)
+  resultado_esperado text
+  meta_cuantitativa varchar(300)
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table objetivos_nacionales {
+  id bigint [pk, increment]
+  codigo varchar(20) [unique]
+  nombre varchar(300) [not null]
+  descripcion text
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table objetivos_regionales {
+  id bigint [pk, increment]
+  codigo varchar(20) [unique]
+  nombre varchar(300) [not null]
+  descripcion text
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table ods {
+  id bigint [pk, increment]
+  numero int [not null, unique]
+  nombre varchar(200) [not null]
+  descripcion text
+  icono_url varchar(500)
+  created_at timestamp [not null, default: `now()`]
+}
+
+Table periodos_academicos {
+  id bigint [pk, increment]
+  nombre varchar(100) [not null]
+  anio int [not null]
+  semestre varchar(10) [not null, note: 'I | II | Anual']
+  fecha_inicio date [not null]
+  fecha_fin date [not null]
+  activo boolean [not null, default: false]
   created_at timestamp [not null, default: `now()`]
 }
 
 // ==========================================================================
-// SPRINT 3: PROYECTOS RSU - FORMULACION (ANEXO 4 / FORMATO OURS)  (apps/proyectos)
+// PROYECTOS RSU: FORMULACION, REVISION, SEGUIMIENTO Y FINALIZACION  (apps/proyectos)
 // ==========================================================================
 
-Table tipo_beneficiario {
+Table fuente_financiamiento_proyecto {
   id bigint [pk, increment]
-  codigo varchar(50) [not null, unique]
-  label varchar(200) [not null]
-  orden smallint [not null, default: 0]
+  proyecto_id bigint [not null]
+  fuente varchar(50) [not null, note: 'recursos_propios_unsa | cooperacion_externa | aporte_facultad | autofinanciado. Fuente de financiamiento']
+  monto decimal(12,2) [not null, default: 0, note: 'Monto aportado por esta fuente (S/)']
+  descripcion varchar(500) [not null, note: 'Detalle adicional sobre esta fuente']
+  created_at timestamp [not null]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table historial_estado_proyecto {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null, note: 'Proyecto cuyo estado cambió']
+  usuario_id bigint [not null, note: 'Usuario que realizó el cambio de estado']
+  estado_anterior varchar(30) [not null, note: 'Estado previo del proyecto']
+  estado_nuevo varchar(30) [not null, note: 'Nuevo estado asignado']
+  comentario text [not null, note: 'Motivo del cambio, observación técnica, etc.']
+  ip_address varchar(39) [note: 'IP del cliente que realizó la acción']
+  created_at timestamp [not null, note: 'Timestamp inmutable del cambio de estado']
+}
+
+Table informe_finalizacion {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null, unique]
+  estado varchar(20) [not null, default: 'borrador', note: 'borrador | enviado | observado | aprobado']
+  fecha_envio timestamp
+  fecha_aprobacion timestamp
+  constancia_aprobada boolean [not null, default: false]
+  constancia_aprobada_en timestamp
+  constancia_aprobada_por_id bigint
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+
+  note: 'HU-09 / Sprint 8. Estado del Informe de Finalizacion y de la constancia. Los textos del informe viven en proyectos_rsu.'
+}
+
+Table notificaciones {
+  id bigint [pk, increment]
+  destinatario_id bigint [not null, note: 'Usuario que recibe la notificación (docente responsable)']
+  proyecto_id bigint [note: 'Proyecto al que hace referencia la notificación']
+  tipo varchar(50) [not null, note: 'aprobacion | observacion | envio_revision | correccion | avance_observado | avance_corregido | finalizacion | listo_para_cerrar | informe_finalizacion_enviado | informe_finalizacion_observado | constancia_disponible. Tip']
+  titulo varchar(300) [not null, note: 'Título breve de la notificación']
+  mensaje text [not null, note: 'Detalle completo: resultado, evaluador, fecha, comentario técnico si aplica']
+  leida boolean [not null, default: false, note: 'Si el destinatario ya leyó la notificación']
+  leida_en timestamp [note: 'Timestamp cuando fue marcada como leída']
+  created_at timestamp [not null]
+}
+
+Table presupuesto_proyecto {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  categoria varchar(150) [not null, note: 'material_escritorio | refrigerio | transporte | otros. Categoría del gasto']
+  tipo_recurso varchar(50) [not null, note: 'humano | material | financiero. Tipo de recurso']
+  descripcion varchar(500) [not null, note: 'Descripción del rubro o concepto de gasto']
+  unidad varchar(50) [not null, note: 'Unidad de medida (ej: unidad, hora, taller, kit)']
+  cantidad int [not null, default: 1, note: 'Número de unidades']
+  costo_unitario decimal(10,2) [not null, note: 'Costo por unidad en Soles (S/)']
+  monto_ejecutado decimal(10,2) [not null, default: 0, note: 'Monto efectivamente gastado al cierre']
+  fuente_id bigint [note: 'Fuente de financiamiento de este rubro']
+  orden int [not null, default: 0]
+  created_at timestamp [not null]
+  updated_at timestamp [not null, default: `now()`]
+}
+
+Table proyecto_actividades {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  nombre varchar(300) [not null, note: 'Nombre de la actividad']
+  descripcion text [note: 'Descripción breve']
+  curso_vinculado varchar(300) [note: 'Asignatura vinculada']
+  estado varchar(20) [not null, default: 'pendiente', note: 'pendiente | en_ejecucion | completada']
+  orden int [not null, default: 0]
+
+  note: 'VI. Solo nombre y descripcion; estado lo cambia el registro de avances.'
+}
+
+Table proyecto_asignaturas {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  nombre_asignatura varchar(500) [not null]
+  codigo_asignatura varchar(50)
+  anio_carrera int
+  semestre varchar(10)
+}
+
+Table proyecto_avances {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  actividad_id bigint [not null]
+  descripcion text [not null, note: 'Descripción del avance realizado.']
+  estado_actividad varchar(20) [not null, note: 'pendiente | en_ejecucion | completada. Estado que se fija a la actividad con este avance.']
+  observaciones text [note: 'Observaciones del docente (opcional).']
+  estado_revision varchar(20) [not null, default: 'registrado', note: 'registrado | observado | corregido']
+  comentario_revision text [note: 'Comentario del revisor al observar el avance.']
+  autor_id bigint [not null, note: 'Docente responsable que registró el avance.']
+  revisor_id bigint [note: 'Usuario que observó el avance (Jefatura RSU/Departamento/Admin).']
+  created_at timestamp [not null, default: `now()`]
+  revisado_en timestamp
+
+  note: 'HU-05. Historial de solo insercion.'
+}
+
+Table proyecto_beneficiarios {
+  id bigint [pk, increment]
+  proyectorsu_id bigint [not null]
+  tipobeneficiario_id bigint [not null]
+}
+
+Table proyecto_cronograma {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  actividad_id bigint [note: 'Actividad (sección VI) a la que pertenece la acción']
+  descripcion varchar(400) [not null, note: 'Descripción de la acción']
+  fecha_inicio date
+  fecha_fin date
+  responsable varchar(200)
+  evidencia_esperada varchar(400) [not null, note: 'Evidencia esperada de la acción (ej: fotos, listas, informes)']
+  estado_avance varchar(30) [not null, default: 'no_iniciado', note: 'no_iniciado | pendiente | en_proceso | finalizado']
+  orden int [not null, default: 0]
+
+  note: 'VII. Acciones de cada actividad (bloque por actividad). actividad_id nulo solo en acciones antiguas.'
+}
+
+Table proyecto_docentes {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  docente_id bigint [not null]
+  rol_en_proyecto varchar(100) [not null, note: 'Colaborador | Asesor']
+}
+
+Table proyecto_documentos_sustento {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  archivo varchar(100) [not null]
+  nombre varchar(255)
+  uploaded_at timestamp [not null, default: `now()`]
+}
+
+Table proyecto_ejes_rsu {
+  id bigint [pk, increment]
+  proyectorsu_id bigint [not null]
+  ejersu_id bigint [not null]
+}
+
+Table proyecto_ejes_subitems {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  sub_eje_id bigint [not null]
+  detalle text [not null, note: 'Texto adicional requerido cuando sub_eje.requiere_detalle es True']
+}
+
+Table proyecto_evidencias {
+  id bigint [pk, increment]
+  avance_id bigint [not null]
+  tipo varchar(10) [not null, note: 'archivo | enlace']
+  archivo varchar(100)
+  enlace_drive varchar(500)
+  nombre varchar(255)
+  eliminada boolean [not null, default: false]
+  eliminada_en timestamp
+  uploaded_at timestamp [not null, default: `now()`]
+
+  note: 'Archivo (PDF/JPG/JPEG/PNG, max 10 MB) o enlace de Drive. Borrado logico.'
+}
+
+Table proyecto_metas_indicadores {
+  id bigint [pk, increment]
+  proyecto_id bigint [not null]
+  meta_descripcion varchar(400) [not null, note: 'Descripción de la meta (ej: Capacitar a 50 docentes en reciclaje)']
+  indicador_nombre varchar(300) [not null, note: 'Nombre del indicador de medición (ej: Nro. de docentes capacitados)']
+  unidad_medida varchar(100) [not null, note: 'Unidad de medida del indicador (ej: personas, %, talleres)']
+  linea_base decimal(10,2) [note: 'Valor inicial antes de la intervención (situación de partida)']
+  valor_meta decimal(10,2) [note: 'Valor objetivo a alcanzar al finalizar el proyecto']
+  valor_alcanzado decimal(10,2) [note: 'Valor efectivamente alcanzado — se registra durante/al cierre del proyecto']
+  metodo_verificacion text [not null, note: 'Cómo se verifica el cumplimiento (ej: Lista de asistencia, Encuesta)']
+  fuente_verificacion varchar(300) [not null, note: 'Documento o fuente del dato de verificación']
+  orden int [not null, default: 0]
+}
+
+Table proyecto_objetivos_nacionales {
+  id bigint [pk, increment]
+  proyectorsu_id bigint [not null]
+  objetivonacional_id bigint [not null]
+}
+
+Table proyecto_objetivos_regionales {
+  id bigint [pk, increment]
+  proyectorsu_id bigint [not null]
+  objetivoregional_id bigint [not null]
+}
+
+Table proyecto_ods {
+  id bigint [pk, increment]
+  proyectorsu_id bigint [not null]
+  ods_id bigint [not null]
 }
 
 Table proyectos_rsu {
@@ -253,14 +421,15 @@ Table proyectos_rsu {
   es_continuacion boolean [not null, default: false]
   proyecto_origen_id bigint
   facultad_id bigint [not null, note: '1.1 Facultad']
-  escuela_id bigint [not null, note: '1.2 Escuela Profesional']
-  departamento_id bigint [not null, note: '1.3 Departamento Académico']
+  escuela_id bigint [note: '1.2 Escuela Profesional']
+  departamento_id bigint [note: '1.3 Departamento Académico']
   semestre_academico varchar(20) [not null, note: '1.4 Semestre académico (ej: 2023-A)']
   titulo varchar(400) [not null, note: '1.6 Título del proyecto']
   nro_docentes int [default: 1, note: '1.7 Nro. de docentes que participaron']
   nro_estudiantes int [default: 0, note: '1.8 Nro. de estudiantes universitarios que participaron']
+  docentes_participantes json [not null, note: '1.7 Nombres de los docentes que participan (uno por elemento)']
+  observacion_estudiantes text [not null, note: '1.8 Observación sobre los estudiantes participantes']
   benef_otro_detalle varchar(500) [not null, note: '1.9j Detalle cuando se selecciona Otro']
-  eje_rsu_id bigint [not null, note: '1.10 Eje RSU principal del proyecto (selección excluyente)']
   eje_detalle text [note: '1.10 Descripción obligatoria cuando el eje RSU seleccionado es Otros']
   linea_estrategica_id bigint
   objetivo_institucional_id bigint
@@ -317,226 +486,34 @@ Table proyectos_rsu {
   fecha_inicio_ejecucion timestamp
   fecha_cierre timestamp
 
-  note: 'Entidad principal. Implementa el ANEXO 4 (Formato OURS), secciones I a IX. porcentaje_ejecucion es autocalculado: actividades completadas / total x 100.'
+  note: 'Entidad principal (ANEXO 4). codigo lo asigna el Departamento al aprobar. semestre_academico se deriva de periodo. porcentaje_ejecucion = actividades completadas / total x 100.'
 }
-
-Table proyecto_beneficiarios {
-  id bigint [pk, increment]
-  proyectorsu_id bigint [not null]
-  tipobeneficiario_id bigint [not null]
-
-  indexes {
-    (proyectorsu_id, tipobeneficiario_id) [unique]
-  }
-
-  note: 'Tabla intermedia generada por Django para el M2M ProyectoRSU.beneficiarios. Par (proyectorsu_id, tipobeneficiario_id) unico.'
-}
-
-Table proyecto_ods {
-  id bigint [pk, increment]
-  proyectorsu_id bigint [not null]
-  ods_id bigint [not null]
-
-  indexes {
-    (proyectorsu_id, ods_id) [unique]
-  }
-
-  note: 'Tabla intermedia generada por Django para el M2M ProyectoRSU.ods. Par (proyectorsu_id, ods_id) unico.'
-}
-
-Table proyecto_ejes_subitems {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  sub_eje_id bigint [not null]
-  detalle text [not null, note: 'Texto adicional requerido cuando sub_eje.requiere_detalle es True']
-
-  indexes {
-    (proyecto_id, sub_eje_id) [unique]
-  }
-
-  note: 'Par (proyecto_id, sub_eje_id) unico.'
-}
-
-Table proyecto_asignaturas {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  nombre_asignatura varchar(200) [not null]
-  codigo_asignatura varchar(50)
-  anio_carrera int
-  semestre varchar(10)
-}
-
-Table proyecto_docentes {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  docente_id bigint [not null]
-  rol_en_proyecto varchar(100) [not null, note: 'Colaborador | Asesor']
-}
-
-Table proyecto_actividades {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  nombre varchar(300) [not null, note: 'Nombre de la actividad']
-  descripcion text [note: 'Descripción breve']
-  curso_vinculado varchar(300) [note: 'Asignatura vinculada']
-  responsable varchar(200) [note: 'Responsable de la actividad']
-  fecha date
-  evidencia_esperada varchar(400) [note: 'Evidencia esperada (ej: Fotos, listas, informes)']
-  estado varchar(20) [not null, default: 'pendiente', note: 'pendiente | en_ejecucion | completada']
-  url_evidencia varchar(500) [note: 'URL de evidencia (Drive, etc.)']
-  archivo_evidencia varchar(100) [note: 'Archivo de evidencia. archivo en media/evidencias_actividades/']
-  orden int [not null, default: 0]
-
-  note: 'Seccion VI del ANEXO 4. El campo estado lo actualiza el registro de avances (HU-05, CA-01) y alimenta proyectos_rsu.porcentaje_ejecucion.'
-}
-
-Table proyecto_cronograma {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  descripcion varchar(400) [not null, note: 'Descripción de la acción']
-  fecha_inicio date
-  fecha_fin date
-  responsable varchar(200)
-  estado_avance varchar(30) [not null, default: 'no_iniciado', note: 'no_iniciado | pendiente | en_proceso | finalizado']
-  orden int [not null, default: 0]
-}
-
-Table proyecto_documentos_sustento {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  archivo varchar(100) [not null, note: 'archivo en media/proyectos/sustento/']
-  nombre varchar(255)
-  uploaded_at timestamp [not null, default: `now()`]
-}
-
-Table fuente_financiamiento_proyecto {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  fuente varchar(50) [not null, note: 'recursos_propios_unsa | cooperacion_externa | aporte_facultad | autofinanciado. Fuente de financiamiento']
-  monto decimal(12,2) [not null, default: 0, note: 'Monto aportado por esta fuente (S/)']
-  descripcion varchar(500) [not null, note: 'Detalle adicional sobre esta fuente']
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp [not null, default: `now()`]
-}
-
-Table presupuesto_proyecto {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  categoria varchar(150) [not null, note: 'material_escritorio | refrigerio | transporte | otros. Categoría del gasto']
-  tipo_recurso varchar(50) [not null, note: 'humano | material | financiero. Tipo de recurso']
-  descripcion varchar(500) [not null, note: 'Descripción del rubro o concepto de gasto']
-  unidad varchar(50) [not null, note: 'Unidad de medida (ej: unidad, hora, taller, kit)']
-  cantidad int [not null, default: 1, note: 'Número de unidades']
-  costo_unitario decimal(10,2) [not null, note: 'Costo por unidad en Soles (S/)']
-  monto_ejecutado decimal(10,2) [not null, default: 0, note: 'Monto efectivamente gastado al cierre']
-  fuente_id bigint [note: 'Fuente de financiamiento de este rubro']
-  orden int [not null, default: 0]
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp [not null, default: `now()`]
-
-  note: 'El monto presupuestado se calcula como cantidad x costo_unitario; no se almacena.'
-}
-
-Table proyecto_metas_indicadores {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  meta_descripcion varchar(400) [not null, note: 'Descripción de la meta (ej: Capacitar a 50 docentes en reciclaje)']
-  indicador_nombre varchar(300) [not null, note: 'Nombre del indicador de medición (ej: Nro. de docentes capacitados)']
-  unidad_medida varchar(100) [not null, note: 'Unidad de medida del indicador (ej: personas, %, talleres)']
-  linea_base decimal(10,2) [note: 'Valor inicial antes de la intervención (situación de partida)']
-  valor_meta decimal(10,2) [note: 'Valor objetivo a alcanzar al finalizar el proyecto']
-  valor_alcanzado decimal(10,2) [note: 'Valor efectivamente alcanzado — se registra durante/al cierre del proyecto']
-  metodo_verificacion text [not null, note: 'Cómo se verifica el cumplimiento (ej: Lista de asistencia, Encuesta)']
-  fuente_verificacion varchar(300) [not null, note: 'Documento o fuente del dato de verificación']
-  orden int [not null, default: 0]
-}
-
-// ==========================================================================
-// SPRINT 4: REVISION Y APROBACION (HU-04)  (apps/proyectos)
-// ==========================================================================
 
 Table revision_proyecto {
   id bigint [pk, increment]
   proyecto_id bigint [not null, note: 'Proyecto evaluado']
+  etapa varchar(20) [not null, default: 'planificacion', note: 'planificacion | finalizacion. Qué se evaluó: la planificación o el informe de finalización']
+  observaciones_secciones json [not null, note: 'Observaciones por sección del formulario {clave_seccion: texto}']
   revisor_id bigint [not null, note: 'Usuario con rol Departamento que emite el dictamen']
   decision varchar(20) [not null, note: 'aprobado | observado. Resultado del dictamen: aprobado | observado']
   comentario_tecnico text [not null, note: 'Obligatorio cuando la decisión es observado. Describe las correcciones requeridas.']
   estado_anterior varchar(30) [not null, note: 'Snapshot del estado del proyecto antes del dictamen']
   estado_nuevo varchar(30) [not null, note: 'Estado asignado al proyecto por este dictamen']
-  created_at timestamp [not null, default: `now()`, note: 'Fecha y hora exacta del dictamen — inmutable']
+  created_at timestamp [not null, note: 'Fecha y hora exacta del dictamen — inmutable']
 
-  note: 'Un proyecto puede tener varias revisiones por los ciclos observado - corregido - revisado. comentario_tecnico es obligatorio si decision = observado.'
+  note: 'Dictamen del Departamento. etapa: planificacion | finalizacion. observaciones_secciones usa las 9 secciones del formulario.'
 }
 
-Table historial_estado_proyecto {
+Table tipo_beneficiario {
   id bigint [pk, increment]
-  proyecto_id bigint [not null, note: 'Proyecto cuyo estado cambió']
-  usuario_id bigint [not null, note: 'Usuario que realizó el cambio de estado']
-  estado_anterior varchar(30) [not null, note: 'Estado previo del proyecto']
-  estado_nuevo varchar(30) [not null, note: 'Nuevo estado asignado']
-  comentario text [not null, note: 'Motivo del cambio, observación técnica, etc.']
-  ip_address varchar(39) [note: 'IP del cliente que realizó la acción']
-  created_at timestamp [not null, default: `now()`, note: 'Timestamp inmutable del cambio de estado']
-
-  note: 'Bitacora de solo insercion de todos los cambios de estado.'
+  codigo varchar(50) [not null, unique]
+  label varchar(200) [not null]
+  orden smallint [not null, default: 0]
 }
-
-Table notificaciones {
-  id bigint [pk, increment]
-  destinatario_id bigint [not null, note: 'Usuario que recibe la notificación (docente responsable)']
-  proyecto_id bigint [note: 'Proyecto al que hace referencia la notificación']
-  tipo varchar(50) [not null, note: 'aprobacion | observacion | envio_revision | correccion | avance_observado | avance_corregido. Tipo de evento que originó la notificación']
-  titulo varchar(300) [not null, note: 'Título breve de la notificación']
-  mensaje text [not null, note: 'Detalle completo: resultado, evaluador, fecha, comentario técnico si aplica']
-  leida boolean [not null, default: false, note: 'Si el destinatario ya leyó la notificación']
-  leida_en timestamp [note: 'Timestamp cuando fue marcada como leída']
-  created_at timestamp [not null, default: `now()`]
-}
-
-// ==========================================================================
-// SPRINT 5: SEGUIMIENTO Y EJECUCION (HU-05)  (apps/proyectos)
-// ==========================================================================
-
-Table proyecto_avances {
-  id bigint [pk, increment]
-  proyecto_id bigint [not null]
-  actividad_id bigint [not null]
-  descripcion text [not null, note: 'Descripción del avance realizado.']
-  estado_actividad varchar(20) [not null, note: 'pendiente | en_ejecucion | completada. Estado que se fija a la actividad con este avance.']
-  observaciones text [note: 'Observaciones del docente (opcional).']
-  estado_revision varchar(20) [not null, default: 'registrado', note: 'registrado | observado | corregido']
-  comentario_revision text [note: 'Comentario del revisor al observar el avance.']
-  autor_id bigint [not null, note: 'Docente responsable que registró el avance.']
-  revisor_id bigint [note: 'Usuario que observó el avance (Jefatura RSU/Departamento/Admin).']
-  created_at timestamp [not null, default: `now()`]
-  revisado_en timestamp
-
-  note: 'HU-05 (T-86/T-90). Historial de solo insercion: no se edita ni se elimina (CA-06).'
-}
-
-Table proyecto_evidencias {
-  id bigint [pk, increment]
-  avance_id bigint [not null]
-  tipo varchar(10) [not null, note: 'archivo | enlace']
-  archivo varchar(100) [note: 'archivo en media/proyectos/evidencias/']
-  enlace_drive varchar(200)
-  nombre varchar(255)
-  eliminada boolean [not null, default: false]
-  eliminada_en timestamp
-  uploaded_at timestamp [not null, default: `now()`]
-
-  note: 'HU-05 (T-87). Archivo (PDF/JPG/JPEG/PNG, max 10 MB) o enlace de Google Drive. Borrado logico mediante eliminada / eliminada_en.'
-}
-
-// ==========================================================================
-// TABLAS PROPIAS DE DJANGO REFERENCIADAS POR EL ESQUEMA
-// ==========================================================================
 
 Table auth_group {
   id int [pk, increment]
   name varchar(150) [not null, unique]
-
-  note: 'Grupos de permisos de django.contrib.auth. No se administra desde la aplicacion RSU.'
 }
 
 Table auth_permission {
@@ -544,16 +521,11 @@ Table auth_permission {
   name varchar(255) [not null]
   content_type_id int [not null]
   codename varchar(100) [not null]
-
-  note: 'Permisos de django.contrib.auth. No se administra desde la aplicacion RSU.'
 }
 
-// ==========================================================================
 // RELACIONES
-// ==========================================================================
 
 Ref: actividades_sugeridas.eje_rsu_id > ejes_rsu.id
-Ref: actividades_sugeridas.matriz_id > matrices_operativas.id
 Ref: actividades_sugeridas.objetivo_id > objetivos_institucionales.id
 Ref: auditoria_usuarios.ejecutado_por_id > usuarios.id
 Ref: auditoria_usuarios.usuario_afectado_id > usuarios.id
@@ -568,15 +540,13 @@ Ref: historial_roles_usuario.rol_anterior_id > roles.id
 Ref: historial_roles_usuario.rol_nuevo_id > roles.id
 Ref: historial_roles_usuario.usuario_id > usuarios.id
 Ref: indicadores_institucionales.objetivo_id > objetivos_institucionales.id
+Ref: informe_finalizacion.constancia_aprobada_por_id > usuarios.id
+Ref: informe_finalizacion.proyecto_id > proyectos_rsu.id
 Ref: lineas_estrategicas.eje_rsu_id > ejes_rsu.id
-Ref: matrices_operativas.coordinador_id > usuarios.id
-Ref: matrices_operativas.facultad_id > facultades.id
-Ref: matrices_operativas.periodo_id > periodos_academicos.id
 Ref: notificaciones.destinatario_id > usuarios.id
 Ref: notificaciones.proyecto_id > proyectos_rsu.id
 Ref: objetivos_institucionales.eje_rsu_id > ejes_rsu.id
 Ref: objetivos_institucionales.linea_estrategica_id > lineas_estrategicas.id
-Ref: objetivos_institucionales.matriz_id > matrices_operativas.id
 Ref: presupuesto_proyecto.fuente_id > fuente_financiamiento_proyecto.id
 Ref: presupuesto_proyecto.proyecto_id > proyectos_rsu.id
 Ref: proyecto_actividades.proyecto_id > proyectos_rsu.id
@@ -587,19 +557,25 @@ Ref: proyecto_avances.proyecto_id > proyectos_rsu.id
 Ref: proyecto_avances.revisor_id > usuarios.id
 Ref: proyecto_beneficiarios.proyectorsu_id > proyectos_rsu.id
 Ref: proyecto_beneficiarios.tipobeneficiario_id > tipo_beneficiario.id
+Ref: proyecto_cronograma.actividad_id > proyecto_actividades.id
 Ref: proyecto_cronograma.proyecto_id > proyectos_rsu.id
 Ref: proyecto_docentes.docente_id > usuarios.id
 Ref: proyecto_docentes.proyecto_id > proyectos_rsu.id
 Ref: proyecto_documentos_sustento.proyecto_id > proyectos_rsu.id
+Ref: proyecto_ejes_rsu.ejersu_id > ejes_rsu.id
+Ref: proyecto_ejes_rsu.proyectorsu_id > proyectos_rsu.id
 Ref: proyecto_ejes_subitems.proyecto_id > proyectos_rsu.id
 Ref: proyecto_ejes_subitems.sub_eje_id > ejes_rsu_subitems.id
 Ref: proyecto_evidencias.avance_id > proyecto_avances.id
 Ref: proyecto_metas_indicadores.proyecto_id > proyectos_rsu.id
+Ref: proyecto_objetivos_nacionales.objetivonacional_id > objetivos_nacionales.id
+Ref: proyecto_objetivos_nacionales.proyectorsu_id > proyectos_rsu.id
+Ref: proyecto_objetivos_regionales.objetivoregional_id > objetivos_regionales.id
+Ref: proyecto_objetivos_regionales.proyectorsu_id > proyectos_rsu.id
 Ref: proyecto_ods.ods_id > ods.id
 Ref: proyecto_ods.proyectorsu_id > proyectos_rsu.id
 Ref: proyectos_rsu.departamento_id > departamentos_academicos.id
 Ref: proyectos_rsu.docente_responsable_id > usuarios.id
-Ref: proyectos_rsu.eje_rsu_id > ejes_rsu.id
 Ref: proyectos_rsu.escuela_id > escuelas_profesionales.id
 Ref: proyectos_rsu.facultad_id > facultades.id
 Ref: proyectos_rsu.linea_estrategica_id > lineas_estrategicas.id

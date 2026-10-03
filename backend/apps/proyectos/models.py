@@ -191,6 +191,15 @@ class ProyectoRSU(models.Model):
     nro_estudiantes = models.PositiveIntegerField(
         null=True, blank=True, default=0,
         help_text="1.8 Nro. de estudiantes universitarios que participaron")
+    # Los docentes participantes se registran solo por nombre (uno por linea),
+    # sin rol ni cuenta en el sistema; al enviar a revision debe haber tantos
+    # nombres como indica nro_docentes.
+    docentes_participantes = models.JSONField(
+        default=list, blank=True,
+        help_text="1.7 Nombres de los docentes que participan (uno por elemento)")
+    observacion_estudiantes = models.TextField(
+        blank=True, default='',
+        help_text="1.8 Observación sobre los estudiantes participantes")
 
     # 1.9 Beneficiarios / Destinatarios
     beneficiarios = models.ManyToManyField(
@@ -475,6 +484,9 @@ class ProyectoDocente(models.Model):
 class ActividadProyecto(models.Model):
     """
     VI. Desarrollo de Actividades - cada actividad conducente al logro de objetivos.
+
+    Solo nombre y descripción: el responsable, las fechas y la evidencia
+    esperada se planifican en las acciones de su bloque del cronograma.
     """
     ESTADOS_ACTIVIDAD = [
         ('pendiente',    'Pendiente'),
@@ -487,24 +499,17 @@ class ActividadProyecto(models.Model):
     descripcion = models.TextField(blank=True, null=True, help_text="Descripción breve")
     curso_vinculado = models.CharField(
         max_length=300, blank=True, null=True, help_text="Asignatura vinculada")
-    responsable = models.CharField(
-        max_length=200, blank=True, null=True, help_text="Responsable de la actividad")
-    fecha = models.DateField(null=True, blank=True)
-    evidencia_esperada = models.CharField(
-        max_length=400, blank=True, null=True,
-        help_text="Evidencia esperada (ej: Fotos, listas, informes)")
-    # HU-05 (T-89): base del cálculo del % de ejecución del proyecto.
+    # HU-05 (T-89): base del cálculo del % de ejecución del proyecto. Solo lo
+    # cambia el registro de avances; las evidencias viven en EvidenciaAvance.
     estado = models.CharField(
         max_length=20, choices=ESTADOS_ACTIVIDAD, default='pendiente', db_index=True)
-    url_evidencia = models.URLField(max_length=500, blank=True, null=True, help_text="URL de evidencia (Drive, etc.)")
-    archivo_evidencia = models.FileField(upload_to='evidencias_actividades/', blank=True, null=True, help_text="Archivo de evidencia")
     orden = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = 'proyecto_actividades'
         verbose_name = 'Actividad de Proyecto'
         verbose_name_plural = 'Actividades de Proyecto'
-        ordering = ['orden', 'fecha']
+        ordering = ['orden', 'id']
 
     def __str__(self):
         return f'{self.proyecto.codigo} - {self.nombre}'
@@ -512,7 +517,12 @@ class ActividadProyecto(models.Model):
 
 class CronogramaAccion(models.Model):
     """
-    VII. Cronograma - distribución de acciones a lo largo del periodo de ejecución.
+    VII. Cronograma - acciones planificadas de cada actividad de la sección VI.
+
+    Cada acción pertenece a una actividad: el cronograma se arma como un bloque
+    por actividad, con sus acciones, fechas planificadas, responsable y
+    evidencia esperada. `actividad` admite nulo solo por las acciones cargadas
+    antes de este cambio; al enviar a revisión todas deben tener actividad.
     """
     ESTADOS_AVANCE = [
         ('no_iniciado', 'No Iniciado'),
@@ -522,12 +532,19 @@ class CronogramaAccion(models.Model):
     ]
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='cronograma')
+    actividad = models.ForeignKey(
+        ActividadProyecto, on_delete=models.CASCADE,
+        null=True, blank=True, related_name='acciones',
+        help_text="Actividad (sección VI) a la que pertenece la acción")
     descripcion = models.CharField(
         max_length=400, help_text="Descripción de la acción")
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
     responsable = models.CharField(
         max_length=200, blank=True, null=True)
+    evidencia_esperada = models.CharField(
+        max_length=400, blank=True, default='',
+        help_text="Evidencia esperada de la acción (ej: fotos, listas, informes)")
     estado_avance = models.CharField(
         max_length=30, choices=ESTADOS_AVANCE, default='no_iniciado')
     orden = models.PositiveIntegerField(default=0)
@@ -734,15 +751,34 @@ class RevisionProyecto(models.Model):
     T-65/T-66/T-68/T-69: Registra cada dictamen emitido por el
     Administrativo de Departamento (rol Departamento) sobre un proyecto.
     Un proyecto puede tener múltiples Res (una por ciclo).
+
+    `etapa` distingue el dictamen sobre la planificación (HU-06, al inicio)
+    del dictamen sobre el Informe de Finalización (HU-09, al cierre).
     """
     DECISIONES = [
         ('aprobado',  'Aprobado'),
         ('observado', 'Observado'),
     ]
+    ETAPAS = [
+        ('planificacion', 'Planificación'),
+        ('finalizacion',  'Finalización'),
+    ]
+    # Claves de las secciones del formulario de planificación del docente
+    # (ANEXO 4), para que las observaciones por sección coincidan con él.
+    SECCIONES = [
+        'datos_generales', 'fundamentacion', 'diagnostico', 'objetivos',
+        'resultados', 'actividades', 'cronograma', 'recursos', 'financiamiento',
+    ]
 
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='revisiones',
         help_text='Proyecto evaluado')
+    etapa = models.CharField(
+        max_length=20, choices=ETAPAS, default='planificacion', db_index=True,
+        help_text='Qué se evaluó: la planificación o el informe de finalización')
+    observaciones_secciones = models.JSONField(
+        default=dict, blank=True,
+        help_text='Observaciones por sección del formulario {clave_seccion: texto}')
     revisor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
         related_name='revisiones_emitidas',
@@ -829,9 +865,13 @@ class Notificacion(models.Model):
         # HU-05 (T-90): seguimiento de avances
         ('avance_observado', 'Avance Observado'),
         ('avance_corregido', 'Avance Corregido'),
-        # Cierre de proyecto: ver ProyectoFinalizarView en views.py
+        # Cierre de proyecto: ver views_finalizacion.py
         ('finalizacion', 'Proyecto Finalizado'),
         ('listo_para_cerrar', 'Listo para Cerrar'),
+        # HU-09: revisión del Informe de Finalización y constancia
+        ('informe_finalizacion_enviado', 'Informe de Finalización Enviado'),
+        ('informe_finalizacion_observado', 'Informe de Finalización Observado'),
+        ('constancia_disponible', 'Constancia de Finalización Disponible'),
     ]
 
     destinatario = models.ForeignKey(
@@ -944,7 +984,7 @@ class EvidenciaAvance(models.Model):
             validate_evidencia_size,
         ],
     )
-    enlace_drive = models.URLField(blank=True, null=True)
+    enlace_drive = models.URLField(max_length=500, blank=True, null=True)
     nombre = models.CharField(max_length=255, blank=True, null=True)
     # Soft-delete: se conserva el registro histórico (regla de trazabilidad).
     eliminada = models.BooleanField(default=False, db_index=True)
@@ -971,3 +1011,53 @@ class EvidenciaAvance(models.Model):
 
     def __str__(self):
         return self.nombre or f'Evidencia {self.id} - avance#{self.avance_id}'
+
+
+class InformeFinalizacion(models.Model):
+    """
+    HU-09 / Sprint 8 (T-137 a T-141): Informe de Finalización del proyecto.
+
+    Se habilita cuando el proyecto en ejecución llega al 100% de actividades
+    completadas. El docente completa lo que falta (conclusiones,
+    recomendaciones, lecciones aprendidas, medio de difusión, valores
+    alcanzados de las metas y montos ejecutados) y lo envía; el Departamento
+    lo aprueba -con lo que el proyecto pasa a 'finalizado'- o lo observa con
+    comentario obligatorio para que el docente lo corrija.
+
+    Los textos del informe viven en ProyectoRSU (conclusiones, etc.) porque
+    el Repositorio Histórico (HU-07) ya los lee de ahí; este modelo guarda el
+    estado del flujo de revisión y de la constancia. Cada dictamen queda en
+    RevisionProyecto con etapa='finalizacion'.
+    """
+    ESTADOS = [
+        ('borrador',  'Borrador'),
+        ('enviado',   'Enviado a revisión'),
+        ('observado', 'Observado'),
+        ('aprobado',  'Aprobado'),
+    ]
+    proyecto = models.OneToOneField(
+        ProyectoRSU, on_delete=models.CASCADE, related_name='informe_finalizacion')
+    estado = models.CharField(
+        max_length=20, choices=ESTADOS, default='borrador', db_index=True)
+    fecha_envio = models.DateTimeField(null=True, blank=True)
+    fecha_aprobacion = models.DateTimeField(null=True, blank=True)
+
+    # Constancia de finalización: la genera el sistema al aprobar el informe;
+    # la ve solo el Departamento hasta que la aprueba, y desde ahí el docente
+    # puede descargarla.
+    constancia_aprobada = models.BooleanField(default=False)
+    constancia_aprobada_en = models.DateTimeField(null=True, blank=True)
+    constancia_aprobada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='constancias_aprobadas')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'informe_finalizacion'
+        verbose_name = 'Informe de Finalización'
+        verbose_name_plural = 'Informes de Finalización'
+
+    def __str__(self):
+        return f'Informe de finalización - proyecto#{self.proyecto_id} [{self.estado}]'

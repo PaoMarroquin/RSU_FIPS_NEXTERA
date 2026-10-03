@@ -94,6 +94,29 @@ class PlanificacionAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('archivo', response.data['errors'])
 
+    def test_documento_de_apoyo_solo_pdf_o_word(self):
+        self.client.force_authenticate(user=self.coord_user)
+        excel = SimpleUploadedFile('datos.xlsx', b'x', content_type='application/vnd.ms-excel')
+        response = self.client.post(reverse('matriz-list'), {
+            'nombre': 'Hoja de cálculo', 'descripcion': 'No permitido', 'archivo': excel,
+        }, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        word = SimpleUploadedFile('guia.docx', b'x', content_type='application/msword')
+        response = self.client.post(reverse('matriz-list'), {
+            'nombre': 'Guía', 'descripcion': 'Guía de formulación', 'archivo': word,
+        }, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_documento_de_apoyo_exige_descripcion(self):
+        self.client.force_authenticate(user=self.coord_user)
+        archivo = SimpleUploadedFile('guia.pdf', b'x', content_type='application/pdf')
+        response = self.client.post(reverse('matriz-list'), {
+            'nombre': 'Sin descripción', 'descripcion': '  ', 'archivo': archivo,
+        }, format='multipart')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('descripcion', response.data['errors'])
+
     def test_docente_cannot_create_matriz(self):
         """
         Verify that a standard teacher cannot create a matrix.

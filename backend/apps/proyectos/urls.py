@@ -7,7 +7,13 @@ Bloques:
 - Detalle del ANEXO 4, todas bajo /proyectos/<id>/: actividades,
   cronograma, financiamiento, presupuesto y metas-indicadores.
 - Seguimiento (HU-05): /proyectos/<id>/avances/ y sus evidencias, con las
-  acciones observar y corregir.
+  acciones observar y corregir, y /proyectos/<id>/actividades/<id>/evidencia/
+  para subir la evidencia de una actividad en un solo paso.
+- Seguimiento en solo lectura (HU-16): /proyectos/<id>/seguimiento/
+- Finalización (HU-09, Sprint 8): /proyectos/<id>/informe-finalizacion/ (GET,
+  PATCH), .../enviar/, .../observar/, .../pdf/, /proyectos/para-finalizar/,
+  /proyectos/<id>/finalizar/, /constancias/, /proyectos/<id>/constancia/pdf/,
+  /proyectos/<id>/constancia/aprobar/
 - Revision (HU-04): /proyectos/para-revisar/, /proyectos/<id>/aprobar/,
   /proyectos/<id>/observar/
 - Notificaciones: /notificaciones/, /notificaciones/<id>/leer/
@@ -25,6 +31,7 @@ Conecta con:
 - apps/proyectos/views_reportes.py: reportes agregados.
 - apps/proyectos/views_consolidado.py: informes consolidados de HU-06.
 - apps/proyectos/views_repositorio.py: repositorio historico de HU-07.
+- apps/proyectos/views_finalizacion.py: seguimiento, finalizacion y constancia.
 - config/urls.py: enrutador raiz que incluye este archivo.
 """
 from django.urls import path
@@ -38,6 +45,7 @@ from .views_consolidado import (
     InformeConsolidadoExportPDFView,
     InformeConsolidadoExportExcelView,
 )
+from . import views_finalizacion as fin
 from .views_repositorio import (
     RepositorioProyectosView,
     RepositorioFiltrosView,
@@ -56,6 +64,7 @@ urlpatterns = [
     # ── VI. Actividades ───────────────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/actividades/', views.ActividadProyectoListCreateView.as_view(), name='actividad-list'),
     path('proyectos/<int:proyecto_pk>/actividades/<int:pk>/', views.ActividadProyectoDetailView.as_view(), name='actividad-detail'),
+    path('proyectos/<int:proyecto_pk>/actividades/<int:pk>/evidencia/', views.ActividadEvidenciaView.as_view(), name='actividad-evidencia'),
 
     # ── VII. Cronograma ───────────────────────────────────────────────────────
     path('proyectos/<int:proyecto_pk>/cronograma/', views.CronogramaAccionListCreateView.as_view(), name='cronograma-list'),
@@ -83,9 +92,19 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/', views.EvidenciaAvanceListCreateView.as_view(), name='evidencia-list'),
     path('proyectos/<int:proyecto_pk>/avances/<int:avance_pk>/evidencias/<int:pk>/', views.EvidenciaAvanceDetailView.as_view(), name='evidencia-detail'),
 
-    # Cierre de proyecto: solo si esta en_ejecucion con 100% de actividades
-    path('proyectos/para-finalizar/', views.ProyectosParaFinalizarView.as_view(), name='proyecto-para-finalizar'),
-    path('proyectos/<int:pk>/finalizar/', views.ProyectoFinalizarView.as_view(), name='proyecto-finalizar'),
+    # ── HU-16: seguimiento en solo lectura ────────────────────────────────────
+    path('proyectos/<int:pk>/seguimiento/', fin.ProyectoSeguimientoView.as_view(), name='proyecto-seguimiento'),
+
+    # ── HU-09 / Sprint 8: Informe de Finalización y constancia ────────────────
+    path('proyectos/<int:pk>/informe-finalizacion/', fin.InformeFinalizacionView.as_view(), name='informe-finalizacion'),
+    path('proyectos/<int:pk>/informe-finalizacion/enviar/', fin.InformeFinalizacionEnviarView.as_view(), name='informe-finalizacion-enviar'),
+    path('proyectos/<int:pk>/informe-finalizacion/observar/', fin.InformeFinalizacionObservarView.as_view(), name='informe-finalizacion-observar'),
+    path('proyectos/<int:pk>/informe-finalizacion/pdf/', fin.InformeFinalizacionPDFView.as_view(), name='informe-finalizacion-pdf'),
+    path('proyectos/para-finalizar/', fin.ProyectosParaFinalizarView.as_view(), name='proyecto-para-finalizar'),
+    path('proyectos/<int:pk>/finalizar/', fin.ProyectoFinalizarView.as_view(), name='proyecto-finalizar'),
+    path('constancias/', fin.ConstanciasListView.as_view(), name='constancia-list'),
+    path('proyectos/<int:pk>/constancia/pdf/', fin.ConstanciaPDFView.as_view(), name='constancia-pdf'),
+    path('proyectos/<int:pk>/constancia/aprobar/', fin.ConstanciaAprobarView.as_view(), name='constancia-aprobar'),
 
     # ── Reportes ──────────────────────────────────────────────────────────────
     path('reportes/general/', ReporteGeneralView.as_view(), name='reporte-general'),
