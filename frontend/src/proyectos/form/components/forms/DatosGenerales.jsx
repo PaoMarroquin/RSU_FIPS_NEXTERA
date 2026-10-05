@@ -182,6 +182,7 @@ export default function DatosGenerales({ data, updateData }) {
             value={data.periodo}
             selectedName={data.periodo_nombre}
             fetchFn={async (page) => {
+              const res = await periodoApi.obtenerPeriodos();
               const resultados = res.results ?? res;
               return {
                 ...res,

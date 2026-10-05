@@ -153,7 +153,6 @@ export const useFormRSU = () => {
   const [formData, setFormData] = useState(() => {
     try {
       const draft = localStorage.getItem('rsu_draft');
-      console.log(draft)
       if (draft) {
         const parsedDraft = JSON.parse(draft);
         if (parsedDraft.tipoActividad !== undefined && parsedDraft.tiposActividad === undefined) {
@@ -169,7 +168,6 @@ export const useFormRSU = () => {
           parsedDraft.tipoActividadOtro = codigoBackend ? '' : (viejo && viejo !== '__OTROS__' ? viejo : '');
           delete parsedDraft.tipoActividad;
         }
-        console.log(parsedDraft)
         return { ...mockInitialData, ...parsedDraft };
       }
     } catch (error) {
@@ -333,11 +331,11 @@ export const useFormRSU = () => {
         rec_hum_egresados: parseInt(formData.recursos?.rec_hum_egresados, 10) || 0,
         rec_hum_voluntarios: parseInt(formData.recursos?.rec_hum_voluntarios, 10) || 0,
         rec_hum_otros: parseInt(formData.recursos?.rec_hum_otros, 10) || 0,
-        rec_mat_material_didactico: formData.recursos?.rec_mat_material_didactico || "",
-        rec_mat_afiches: formData.recursos?.rec_mat_afiches || "",
-        rec_mat_equipos: formData.recursos?.rec_mat_equipos || "",
-        rec_mat_utiles: formData.recursos?.rec_mat_utiles || "",
-        rec_mat_otros: formData.recursos?.rec_mat_otros || "",
+        rec_mat_material_didactico: formData.recursos?.rec_mat_material_didactico || "n/a",
+        rec_mat_afiches: formData.recursos?.rec_mat_afiches || "n/a",
+        rec_mat_equipos: formData.recursos?.rec_mat_equipos || "n/a",
+        rec_mat_utiles: formData.recursos?.rec_mat_utiles || "n/a",
+        rec_mat_otros: formData.recursos?.rec_mat_otros || "n/a",
 
         periodo: parseInt(formData.periodo, 10),
         anio_carrera: formData.anio_carrera ? parseInt(formData.anio_carrera, 10) : null,
