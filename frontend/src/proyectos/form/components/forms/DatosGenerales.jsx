@@ -240,7 +240,7 @@ export default function DatosGenerales({ data, updateData }) {
             <input
               type="number"
               min="0"
-              onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+              onKeyDown={(e) => ["-", ".","+", "e", "E"].includes(e.key) && e.preventDefault()}
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
               name="numDocentes"
               value={data.numDocentes === null ? '' : data.numDocentes}
@@ -255,7 +255,7 @@ export default function DatosGenerales({ data, updateData }) {
             <input
               type="number"
               min="0"
-              onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+              onKeyDown={(e) => ["-", ".","+", "e", "E"].includes(e.key) && e.preventDefault()}
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
               name="numEstudiantes"
               value={data.numEstudiantes === null ? '' : data.numEstudiantes}
@@ -479,7 +479,9 @@ export default function DatosGenerales({ data, updateData }) {
                     </label>
                     <input
                       type="number"
+                      min="0"
                       placeholder="100"
+                      onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
                       value={meta.valor_meta}
                       onChange={(e) =>
                         handleMetaChange(index, "valor_meta", e.target.value)

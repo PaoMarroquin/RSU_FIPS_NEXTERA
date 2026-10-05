@@ -110,7 +110,7 @@ const VALIDACIONES = {
     actividades: (data) => Array.isArray(data.actividades) && data.actividades.length > 0 &&
     data.actividades.every(item => 
         item.nombre?.trim() !== "" &&
-        item.responsable?.trim() !== ""
+        item.descripcion?.trim() !== ""
       ),
   },
   7: {

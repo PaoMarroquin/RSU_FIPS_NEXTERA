@@ -9,7 +9,7 @@ export default function Actividades({ data, updateData }) {
         {
           nombre: '',
           descripcion: '',
-          responsable: '',
+          responsable: '', // eliminar segun back
           fecha: '', // Se mantiene en el estado para no romper el payload del backend
           evidencia_esperada: '', // Se mantiene en el estado
           orden: 1
@@ -50,7 +50,7 @@ export default function Actividades({ data, updateData }) {
     updateData('actividades', actividadesReordenadas);
   };
 
-  const tieneCamposVacios = actividades.some(act => !act.nombre?.trim() || !act.responsable?.trim());
+  const tieneCamposVacios = actividades.some(act => !act.nombre?.trim() || !act.descripcion?.trim());
 
   return (
     <div className="space-y-6 transition-all duration-300">
@@ -78,7 +78,7 @@ export default function Actividades({ data, updateData }) {
 
       {actividades.length > 0 && tieneCamposVacios && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 animate-in fade-in slide-in-from-top-2">
-          <p> El nombre y responsable de la actividad es obligatorio para procesar el envío al servidor.</p>
+          <p> El nombre y descripcion de la actividad es obligatorio para procesar el envío al servidor.</p>
         </div>
       )}
 
@@ -88,9 +88,8 @@ export default function Actividades({ data, updateData }) {
           <thead>
             <tr className="text-left text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-200 uppercase tracking-wider">
               <th className="p-3 w-1/12 text-center">N°</th>
-              <th className="p-3 w-4/12">Nombre*</th>
-              <th className="p-3 w-4/12">Descripción</th>
-              <th className="p-3 w-2/12">Responsable*</th>
+              <th className="p-3 w-5/12">Nombre*</th>
+              <th className="p-3 w-5/12">Descripción</th>
               <th className="p-3 w-1/12 text-center"></th>
             </tr>
           </thead>
@@ -120,15 +119,6 @@ export default function Actividades({ data, updateData }) {
                       placeholder="Breve descripción..."
                       value={item.descripcion || ""}
                       onChange={(e) => handleChangeActividades(index, 'descripcion', e.target.value)}
-                    />
-                  </td>
-                  <td className="p-2">
-                    <input
-                      type="text"
-                      className="w-full border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-[#b1122b]"
-                      placeholder="Docente / Coordinador"
-                      value={item.responsable || ""}
-                      onChange={(e) => handleChangeActividades(index, 'responsable', e.target.value)}
                     />
                   </td>
                   <td className="p-2 text-center">
