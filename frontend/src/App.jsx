@@ -10,8 +10,9 @@ import NuevoProyecto from "./proyectos/form/NuevoProyecto";
 import EditarProyecto from './proyectos/form/EditarProyecto';
 import Actividades from "./proyectos/actividades/Actividades";
 import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
-import Informes from "./proyectos/informes/Informes";
+import InformesEjecucion from "./proyectos/informes/Informes";
 import InformeConsolidado from "./proyectos/informes/components/InformeConsolidado";
+import InformeFinalizacion from "./proyectos/informes/components/InformeFinalizacion";
 import Repositorio from "./proyectos/repositorio/Repositorio";
 import Notificaciones from './proyectos/notificaciones/Notificaciones';
 import Configuracion from "./usuario/configuracion/MiPerfil";
@@ -35,7 +36,9 @@ function App() {
             <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
             <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
             <Route path="/actividades" element={<Actividades />} />
-            <Route path="/informes" element={<Informes />} />
+            <Route path="/informes" element={<InformesEjecucion />} />
+            <Route path="/informesFinalizacion" element={<InformeFinalizacion />} />
+
           </Route>
 
           {/* Exclusivas Departamento */}

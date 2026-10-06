@@ -4,7 +4,8 @@ export const NAV_BY_ROLE = {
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos", icon: FiFolder, label: "Mis Proyectos" },
     { to: "/actividades", icon: FiCalendar, label: "Mis Actividades" },
-    { to: "/informes", icon: FiCalendar, label: "Informe" },
+    { to: "/informes", icon: FiCalendar, label: "Informe Ejecución" },
+    { to: "/informesFinalizacion", icon: FiCalendar, label: "Informe Finalizacion" },
     { to: "/notificaciones", icon: FiBell, label: "Notificaciones" },
   ],
   departamento: [
