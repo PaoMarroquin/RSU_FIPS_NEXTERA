@@ -44,6 +44,7 @@ function App() {
           {/* Exclusivas Departamento */}
           <Route element={<ProtectedRoute allowedRoles={["departamento"]} />}>
             <Route path="/evaluacion" element={<RevisionProyectos />} />
+            <Route path="/FinalizarProyectos" element={<FinalizarProyectos />}/>
           </Route>
 
           {/* Exclusivas Jefatura RSU */}
@@ -66,18 +67,9 @@ function App() {
           </Route>
 
           <Route
-            element={ <ProtectedRoute allowedRoles={["departamento","autoridad","jefatura rsu","administrador",]}/>}>
-              <Route path="/informes-consolidado" element={<InformeConsolidado />}  />
+            element={<ProtectedRoute allowedRoles={["departamento", "autoridad", "jefatura rsu", "administrador",]} />}>
+            <Route path="/informes-consolidado" element={<InformeConsolidado />} />
           </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={["departamento","jefatura rsu","administrador",]}/>
-  }
->
-  <Route
-    path="/FinalizarProyectos"
-    element={<FinalizarProyectos />}
-  />
-</Route>
 
           {/* General Autenticado */}
           <Route element={<ProtectedRoute />}>
