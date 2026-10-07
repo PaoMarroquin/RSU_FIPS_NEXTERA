@@ -10,7 +10,7 @@ const mockInitialData = {
   periodo: null, periodo_nombre: '',
   anio_carrera: null, es_tesis_quinto_anio: false,
   facultad_nombre: '', escuela_nombre: '', departamento_nombre: '', //Solo para ver
-  asignaturas: '', titulo: '', numDocentes: null, numEstudiantes: null, lugar: '',
+  asignaturas: '', titulo: '', numDocentes: null, docentesParticipantes: [], numEstudiantes: null, lugar: '',
   beneficiarios: '', 
   eje_rsu: [], ejes_subitems: [], eje_detalle: "",
   tiposActividad: [],
@@ -241,6 +241,7 @@ export const useFormRSU = () => {
         semestre_academico: formData.periodo_nombre, // mandar nombre del periodo en lugar de semestre
         titulo: formData.titulo,
         nro_docentes: Math.max(1, parseInt(formData.numDocentes, 10) || 1),
+        docentes_participantes: formData.docentesParticipantes || [],
         nro_estudiantes: Math.max(0, parseInt(formData.numEstudiantes, 10) || 0),
         lugar_ejecucion: formData.lugar || "",
         beneficiarios: [], 
