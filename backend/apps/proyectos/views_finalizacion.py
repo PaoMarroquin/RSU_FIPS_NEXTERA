@@ -82,6 +82,51 @@ class ProyectoSeguimientoView(APIView):
 
 # ─── Sprint 8: Informe de Finalización ───────────────────────────────────────
 
+def _actualizar_valores(relacion, items, campo, clave):
+    if items is None:
+        return
+    if not isinstance(items, list):
+        raise serializers.ValidationError({clave: 'Debe ser una lista.'})
+    objetos = {o.id: o for o in relacion.all()}
+    for item in items:
+        obj = objetos.get(item.get('id') if isinstance(item, dict) else None)
+        if obj is None:
+            raise serializers.ValidationError({clave: 'Uno de los elementos no pertenece al proyecto.'})
+        valor = serializers.DecimalField(max_digits=12, decimal_places=2).to_internal_value(
+            item.get(campo))
+        if valor < 0:
+            raise serializers.ValidationError({clave: 'No se permiten valores negativos.'})
+        setattr(obj, campo, valor)
+        obj.save(update_fields=[campo])
+
+
+def guardar_informe(proyecto, usuario, data):
+    """Guarda textos, metas y partidas del informe. Debe correr dentro de una transacción."""
+    if proyecto.docente_responsable != usuario:
+        raise PermissionDenied('Solo el docente responsable completa el Informe de Finalización.')
+    if proyecto.estado != 'en_ejecucion' or proyecto.porcentaje_ejecucion < 100:
+        raise serializers.ValidationError(
+            'El Informe de Finalización se habilita cuando el proyecto en ejecución '
+            f'completa el 100% de sus actividades (estado actual: "{proyecto.estado}", '
+            f'avance: {proyecto.porcentaje_ejecucion}%).')
+
+    informe, _ = InformeFinalizacion.objects.get_or_create(proyecto=proyecto)
+    if informe.estado not in ('borrador', 'observado'):
+        raise serializers.ValidationError(
+            f'El informe está "{informe.get_estado_display()}" y no se puede modificar.')
+
+    textos = InformeFinalSerializer(data=data, partial=True)
+    textos.is_valid(raise_exception=True)
+    for campo, valor in textos.validated_data.items():
+        setattr(proyecto, campo, valor)
+    if textos.validated_data:
+        proyecto.save(update_fields=[*textos.validated_data, 'updated_at'])
+
+    _actualizar_valores(proyecto.metas_indicadores, data.get('metas'), 'valor_alcanzado', 'metas')
+    _actualizar_valores(proyecto.partidas_presupuesto, data.get('partidas'), 'monto_ejecutado', 'partidas')
+    return informe
+
+
 class InformeFinalizacionView(APIView):
     """
     GET   /proyectos/<pk>/informe-finalizacion/ - informe con datos cargados.
@@ -101,51 +146,16 @@ class InformeFinalizacionView(APIView):
     @transaction.atomic
     def patch(self, request, pk):
         proyecto = get_object_or_404(ProyectoRSU, pk=pk)
-        if proyecto.docente_responsable != request.user:
-            raise PermissionDenied('Solo el docente responsable completa el Informe de Finalización.')
-        if proyecto.estado != 'en_ejecucion' or proyecto.porcentaje_ejecucion < 100:
-            raise serializers.ValidationError(
-                'El Informe de Finalización se habilita cuando el proyecto en ejecución '
-                'completa el 100% de sus actividades.')
-
-        informe, _ = InformeFinalizacion.objects.get_or_create(proyecto=proyecto)
-        if informe.estado not in ('borrador', 'observado'):
-            raise serializers.ValidationError(
-                f'El informe está "{informe.get_estado_display()}" y no se puede modificar.')
-
-        textos = InformeFinalSerializer(data=request.data, partial=True)
-        textos.is_valid(raise_exception=True)
-        for campo, valor in textos.validated_data.items():
-            setattr(proyecto, campo, valor)
-        proyecto.save(update_fields=[*textos.validated_data, 'updated_at'])
-
-        self._actualizar_valores(proyecto.metas_indicadores, request.data.get('metas'),
-                                 'valor_alcanzado', 'metas')
-        self._actualizar_valores(proyecto.partidas_presupuesto, request.data.get('partidas'),
-                                 'monto_ejecutado', 'partidas')
+        guardar_informe(proyecto, request.user, request.data)
         return Response(informe_finalizacion(proyecto, request))
 
-    @staticmethod
-    def _actualizar_valores(relacion, items, campo, clave):
-        if items is None:
-            return
-        if not isinstance(items, list):
-            raise serializers.ValidationError({clave: 'Debe ser una lista.'})
-        objetos = {o.id: o for o in relacion.all()}
-        for item in items:
-            obj = objetos.get(item.get('id') if isinstance(item, dict) else None)
-            if obj is None:
-                raise serializers.ValidationError({clave: 'Uno de los elementos no pertenece al proyecto.'})
-            valor = serializers.DecimalField(max_digits=12, decimal_places=2).to_internal_value(
-                item.get(campo))
-            if valor < 0:
-                raise serializers.ValidationError({clave: 'No se permiten valores negativos.'})
-            setattr(obj, campo, valor)
-            obj.save(update_fields=[campo])
-
-
 class InformeFinalizacionEnviarView(APIView):
-    """POST /proyectos/<pk>/informe-finalizacion/enviar/ - el docente lo envía."""
+    """POST /proyectos/<pk>/informe-finalizacion/enviar/ - el docente lo envía.
+
+    El body es opcional y admite lo mismo que el PATCH (textos, metas, partidas):
+    si viene, se guarda y se envía en una sola transacción, así un error no
+    deja el informe a medias.
+    """
     permission_classes = [IsAuthenticated]
 
     @transaction.atomic
@@ -153,6 +163,8 @@ class InformeFinalizacionEnviarView(APIView):
         proyecto = get_object_or_404(ProyectoRSU, pk=pk)
         if proyecto.docente_responsable != request.user:
             raise PermissionDenied('Solo el docente responsable envía el Informe de Finalización.')
+        if request.data:
+            guardar_informe(proyecto, request.user, request.data)
         informe = obtener_informe(proyecto)
         if informe is None or informe.estado not in ('borrador', 'observado'):
             raise serializers.ValidationError(

@@ -38,6 +38,7 @@ from rest_framework.test import APITestCase
 from apps.usuarios.models import Usuario, Rol, Facultad, EscuelaProfesional, DepartamentoAcademico
 from apps.planificacion.models import PeriodoAcademico, EjeRSU, ODS, LineaEstrategica, ObjetivoInstitucional
 from apps.proyectos.models import (
+    InformeFinalizacion,
     ProyectoRSU, ActividadProyecto, CronogramaAccion,
     PartidaPresupuestaria, MetaIndicadorProyecto, DocumentoSustentoProyecto,
     AvanceActividad, EvidenciaAvance, Notificacion, FuenteFinanciamiento,
@@ -1477,6 +1478,28 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         response = self.client.post(reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]))
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('campos_pendientes', response.data['errors'])
+
+    def test_enviar_guarda_y_envia_en_un_solo_paso(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.post(
+            reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]),
+            self._informe_completo(), format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['finalizacion']['estado'], 'enviado')
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.conclusiones, 'Se cumplió el objetivo.')
+
+    def test_enviar_en_un_paso_no_deja_nada_si_hay_error(self):
+        self.client.force_authenticate(user=self.docente)
+        datos = self._informe_completo()
+        datos['partidas'] = [{'id': self.partida.pk, 'monto_ejecutado': -5}]
+        response = self.client.post(
+            reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]), datos, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.proyecto.refresh_from_db()
+        self.assertFalse(self.proyecto.conclusiones)
+        self.assertFalse(InformeFinalizacion.objects.filter(
+            proyecto=self.proyecto, estado='enviado').exists())
 
     def test_otro_docente_no_edita_el_informe(self):
         self.client.force_authenticate(user=self.otro_docente)
