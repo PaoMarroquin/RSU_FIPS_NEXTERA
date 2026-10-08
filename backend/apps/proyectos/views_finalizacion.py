@@ -40,7 +40,8 @@ from .services_finalizacion import (
     campos_pendientes, informe_finalizacion, obtener_informe, seguimiento_proyecto,
 )
 from .views import (
-    _crear_notificacion, _filter_proyectos_por_rol, _proyecto_qs_base, _registrar_historial,
+    _crear_notificacion, _filter_proyectos_por_rol, _proyecto_qs_base, _recalcular_porcentaje_ejecucion,
+    _registrar_historial,
 )
 
 MIN_COMENTARIO = 15
@@ -100,10 +101,26 @@ def _actualizar_valores(relacion, items, campo, clave):
         obj.save(update_fields=[campo])
 
 
+def sincronizar_ejecucion(proyecto):
+    """Alinea estado y % guardados con las actividades reales.
+
+    Las actividades son la fuente de verdad: si ya hay alguna completada, el
+    proyecto aprobado está en ejecución (igual que al registrar evidencia) y el
+    porcentaje se recalcula, por si quedó desactualizado.
+    """
+    if proyecto.estado == 'aprobado' and proyecto.actividades.filter(estado='completada').exists():
+        proyecto.estado = 'en_ejecucion'
+        proyecto.fecha_inicio_ejecucion = proyecto.fecha_inicio_ejecucion or timezone.now()
+        proyecto.save(update_fields=['estado', 'fecha_inicio_ejecucion', 'updated_at'])
+    if proyecto.estado == 'en_ejecucion':
+        _recalcular_porcentaje_ejecucion(proyecto)
+
+
 def guardar_informe(proyecto, usuario, data):
     """Guarda textos, metas y partidas del informe. Debe correr dentro de una transacción."""
     if proyecto.docente_responsable != usuario:
         raise PermissionDenied('Solo el docente responsable completa el Informe de Finalización.')
+    sincronizar_ejecucion(proyecto)
     if proyecto.estado != 'en_ejecucion' or proyecto.porcentaje_ejecucion < 100:
         raise serializers.ValidationError(
             'El Informe de Finalización se habilita cuando el proyecto en ejecución '

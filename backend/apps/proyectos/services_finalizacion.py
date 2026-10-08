@@ -135,7 +135,9 @@ def informe_finalizacion(proyecto, request=None):
     datos = informe_final(proyecto)
     pendientes, metas_sin_valor = campos_pendientes(proyecto)
     estado = informe.estado if informe else None
-    habilitado = proyecto.estado == 'en_ejecucion' and proyecto.porcentaje_ejecucion >= 100
+    actividades = proyecto.actividades.all()
+    todas_completadas = bool(actividades) and not actividades.exclude(estado='completada').exists()
+    habilitado = proyecto.estado in ('aprobado', 'en_ejecucion') and todas_completadas
 
     datos['finalizacion'] = {
         'estado': estado,

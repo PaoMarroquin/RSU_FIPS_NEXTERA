@@ -1441,8 +1441,8 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         return self.client.post(reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]))
 
     def test_informe_no_se_habilita_antes_del_100(self):
-        self.proyecto.porcentaje_ejecucion = Decimal('80.00')
-        self.proyecto.save(update_fields=['porcentaje_ejecucion'])
+        ActividadProyecto.objects.create(
+            proyecto=self.proyecto, nombre='A2', orden=2, estado='pendiente')
         self.client.force_authenticate(user=self.docente)
         response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
                                      {'conclusiones': 'x'}, format='json')
@@ -1500,6 +1500,19 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         self.assertFalse(self.proyecto.conclusiones)
         self.assertFalse(InformeFinalizacion.objects.filter(
             proyecto=self.proyecto, estado='enviado').exists())
+
+    def test_informe_se_habilita_aunque_el_avance_guardado_este_desactualizado(self):
+        self.proyecto.estado = 'aprobado'
+        self.proyecto.porcentaje_ejecucion = Decimal('0.00')
+        self.proyecto.save(update_fields=['estado', 'porcentaje_ejecucion'])
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('informe-finalizacion', args=[self.proyecto.pk])
+        self.assertTrue(self.client.get(url).data['finalizacion']['habilitado'])
+        response = self.client.patch(url, {'conclusiones': 'ok'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.estado, 'en_ejecucion')
+        self.assertEqual(self.proyecto.porcentaje_ejecucion, Decimal('100.00'))
 
     def test_otro_docente_no_edita_el_informe(self):
         self.client.force_authenticate(user=self.otro_docente)
