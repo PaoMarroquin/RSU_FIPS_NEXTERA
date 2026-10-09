@@ -1301,6 +1301,15 @@ class FormulacionAjustesAPITests(_BaseFlujoTestCase):
         self.assertFalse(proyecto.cronograma.filter(actividad__isnull=True).exists())
         self.assertEqual(proyecto.cronograma.count(), 1)
 
+    def test_editar_sin_acciones_anidadas_conserva_las_sueltas(self):
+        proyecto = self.crear_proyecto('borrador')
+        CronogramaAccion.objects.create(proyecto=proyecto, actividad=None, descripcion='Vieja', orden=1)
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('proyecto-detail', args=[proyecto.pk]), {
+            'actividades': [{'nombre': 'Nueva', 'descripcion': 'd', 'acciones': []}]}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(proyecto.cronograma.filter(actividad__isnull=True).exists())
+
     def test_proyecto_en_ejecucion_no_edita_presupuesto_ni_metas(self):
         proyecto = self.crear_proyecto('en_ejecucion')
         partida = PartidaPresupuestaria.objects.create(

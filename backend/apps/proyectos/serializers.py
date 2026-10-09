@@ -758,9 +758,11 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         # Borrar la actividad borra en cascada las acciones de su bloque.
         if replace:
             proyecto.actividades.all().delete()
-            # Las acciones viven dentro de su actividad: las que quedaron sin
-            # actividad (datos anteriores a este formato) ya no tienen dueño.
-            proyecto.cronograma.filter(actividad__isnull=True).delete()
+            # Si el cliente manda las acciones dentro de cada actividad, esas son
+            # las vigentes y las sueltas (formato anterior) ya no tienen dueño.
+            # Sin acciones anidadas no se toca nada, para no perder datos.
+            if any(item.get('acciones') for item in items):
+                proyecto.cronograma.filter(actividad__isnull=True).delete()
         for item in items:
             acciones = item.pop('acciones', [])
             actividad = ActividadProyecto.objects.create(proyecto=proyecto, **item)
