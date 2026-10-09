@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 
-export function useProyectosListado() {
+// Agregamos customFilters = {} por defecto para NO romper otros componentes
+export function useProyectosListado(customFilters = {}) {
   const [projectsDb, setProjectsDb] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -17,10 +18,21 @@ export function useProyectosListado() {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  // Convertimos a string para usarlo en el array de dependencias sin causar re-renders infinitos
+  const filtersKey = JSON.stringify(customFilters);
+
   const fetchProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await proyectoApi.obtenerProyectos({ page, search: debouncedSearch });
+      const filters = JSON.parse(filtersKey);
+      
+      // Enviamos la página, la búsqueda y esparcimos los filtros dinámicos (ej. estado: "finalizado")
+      const data = await proyectoApi.obtenerProyectos({ 
+        page, 
+        search: debouncedSearch,
+        ...filters 
+      });
+      
       setProjectsDb(data.results);
       setTotalPages(Math.ceil(data.count / 10));
     } catch (error) {
@@ -29,7 +41,7 @@ export function useProyectosListado() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch]);
+  }, [page, debouncedSearch, filtersKey]);
 
   useEffect(() => {
     fetchProjects();

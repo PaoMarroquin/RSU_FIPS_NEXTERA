@@ -6,7 +6,7 @@ export default function Sidebar() {
   const userRole = (localStorage.getItem("user_role") || "").toLowerCase();
 
   const getLinkClass = (path) => {
-    const isActive = pathname.startsWith(path);
+    const isActive = pathname === path || pathname.startsWith(`${path}/`);
     return `flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
       isActive ? "bg-pink-50 text-[#7B1E3A]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
     }`;

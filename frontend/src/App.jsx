@@ -10,8 +10,9 @@ import NuevoProyecto from "./proyectos/form/NuevoProyecto";
 import EditarProyecto from './proyectos/form/EditarProyecto';
 import Actividades from "./proyectos/actividades/Actividades";
 import RevisionProyectos from "./proyectos/revision/RevisionProyectos";
-import Informes from "./proyectos/informes/Informes";
+import InformesEjecucion from "./proyectos/informes/Informes";
 import InformeConsolidado from "./proyectos/informes/components/InformeConsolidado";
+import InformeFinalizacion from "./proyectos/informes/components/InformeFinalizacion";
 import Repositorio from "./proyectos/repositorio/Repositorio";
 import Notificaciones from './proyectos/notificaciones/Notificaciones';
 import Configuracion from "./usuario/configuracion/MiPerfil";
@@ -35,12 +36,15 @@ function App() {
             <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
             <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
             <Route path="/actividades" element={<Actividades />} />
-            <Route path="/informes" element={<Informes />} />
+            <Route path="/informes" element={<InformesEjecucion />} />
+            <Route path="/informesFinalizacion" element={<InformeFinalizacion />} />
+
           </Route>
 
           {/* Exclusivas Departamento */}
           <Route element={<ProtectedRoute allowedRoles={["departamento"]} />}>
             <Route path="/evaluacion" element={<RevisionProyectos />} />
+            <Route path="/FinalizarProyectos" element={<FinalizarProyectos />}/>
           </Route>
 
           {/* Exclusivas Jefatura RSU */}
@@ -63,18 +67,9 @@ function App() {
           </Route>
 
           <Route
-            element={ <ProtectedRoute allowedRoles={["departamento","autoridad","jefatura rsu","administrador",]}/>}>
-              <Route path="/informes-consolidado" element={<InformeConsolidado />}  />
+            element={<ProtectedRoute allowedRoles={["departamento", "autoridad", "jefatura rsu", "administrador",]} />}>
+            <Route path="/informes-consolidado" element={<InformeConsolidado />} />
           </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={["departamento","jefatura rsu","administrador",]}/>
-  }
->
-  <Route
-    path="/FinalizarProyectos"
-    element={<FinalizarProyectos />}
-  />
-</Route>
 
           {/* General Autenticado */}
           <Route element={<ProtectedRoute />}>

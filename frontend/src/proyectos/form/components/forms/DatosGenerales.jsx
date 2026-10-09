@@ -100,6 +100,43 @@ export default function DatosGenerales({ data, updateData }) {
     setListaMetas(nuevas);
   };
 
+  // funciones para agregar docentes
+  const [modalDocentes, setModalDocentes] = useState(false);
+  const [listaDocentes, setListaDocentes] = useState([]);
+  const abrirModalDocentes = () => {
+    const cantidad = Math.max(0, parseInt(data.numDocentes, 10) || 0);
+    const docentes = Array.isArray(data.docentesParticipantes)
+      ? [...data.docentesParticipantes]
+      : [];
+
+    while (docentes.length < cantidad) {
+      docentes.push('');
+    }
+
+    setListaDocentes(docentes.slice(0, cantidad));
+    setModalDocentes(true);
+  };
+
+  const cambiarDocente = (index, valor) => {
+    setListaDocentes(prev => {
+      const nuevos = [...prev];
+      nuevos[index] = valor;
+      return nuevos;
+    });
+  };
+
+  const guardarDocentes = () => {
+    const docentes = listaDocentes.map(nombre => nombre.trim());
+
+    if (docentes.some(nombre => !nombre)) {
+      alert('Debe registrar el nombre de todos los docentes participantes.');
+      return;
+    }
+
+    updateData('docentesParticipantes', docentes);
+    setModalDocentes(false);
+  };
+
   return (
     <div className="space-y-6 transition-all duration-300">
       {/* CABECERA */}
@@ -182,6 +219,7 @@ export default function DatosGenerales({ data, updateData }) {
             value={data.periodo}
             selectedName={data.periodo_nombre}
             fetchFn={async (page) => {
+              const res = await periodoApi.obtenerPeriodos();
               const resultados = res.results ?? res;
               return {
                 ...res,
@@ -237,15 +275,34 @@ export default function DatosGenerales({ data, updateData }) {
             <label className="text-xs font-semibold text-slate-600">
               N° Docentes Participantes <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              min="0"
-              onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
-              name="numDocentes"
-              value={data.numDocentes === null ? '' : data.numDocentes}
-              onChange={handleChange}
-            />
+
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                onKeyDown={(e) => ["-", ".", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+                name="numDocentes"
+                value={data.numDocentes === null ? '' : data.numDocentes}
+                onChange={handleChange}
+              />
+
+              <button
+                type="button"
+                onClick={abrirModalDocentes}
+                disabled={!data.numDocentes || data.numDocentes < 1}
+                className="h-10 shrink-0 rounded-md border border-[#b1122b] px-3 text-xs font-semibold text-[#b1122b] transition-all hover:bg-[#b1122b] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <FiPlus className="inline mr-1" />
+                Docentes
+              </button>
+            </div>
+
+            {data.docentesParticipantes?.length > 0 && (
+              <span className="text-[11px] text-slate-400">
+                {data.docentesParticipantes.length} docente(s) registrado(s)
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -255,7 +312,7 @@ export default function DatosGenerales({ data, updateData }) {
             <input
               type="number"
               min="0"
-              onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+              onKeyDown={(e) => ["-", ".", "+", "e", "E"].includes(e.key) && e.preventDefault()}
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
               name="numEstudiantes"
               value={data.numEstudiantes === null ? '' : data.numEstudiantes}
@@ -479,7 +536,9 @@ export default function DatosGenerales({ data, updateData }) {
                     </label>
                     <input
                       type="number"
+                      min="0"
                       placeholder="100"
+                      onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
                       value={meta.valor_meta}
                       onChange={(e) =>
                         handleMetaChange(index, "valor_meta", e.target.value)
@@ -665,6 +724,77 @@ export default function DatosGenerales({ data, updateData }) {
           </div>
         </div>
       </div>
+      {modalDocentes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-700">
+                  Docentes participantes
+                </h2>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Registre los {data.numDocentes || 0} docentes participantes.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalDocentes(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto px-5 py-4">
+              {listaDocentes.map((nombre, index) => (
+                <div key={index} className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-slate-600">
+                    Docente {index + 1}
+                  </label>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={nombre}
+                      onChange={(e) => cambiarDocente(index, e.target.value)}
+                      placeholder="Nombres y apellidos"
+                      className="h-10 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all focus:border-[#b1122b] focus:ring-2 focus:ring-[#b1122b]/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => cambiarDocente(index, '')}
+                      className="h-10 w-10 shrink-0 rounded-md border border-slate-300 text-slate-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-500"
+                      title="Quitar docente"
+                    >
+                      <FiTrash2 className="mx-auto text-sm" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setModalDocentes(false)}
+                className="h-9 rounded-md border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={guardarDocentes}
+                className="h-9 rounded-md bg-[#b1122b] px-4 text-xs font-semibold text-white transition-all hover:bg-[#941023]"
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
