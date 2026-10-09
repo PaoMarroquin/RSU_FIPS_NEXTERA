@@ -1600,6 +1600,15 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         self.assertEqual(self.proyecto.estado, 'en_ejecucion')
         self.assertEqual(self.proyecto.porcentaje_ejecucion, Decimal('100.00'))
 
+    def test_informe_de_proyecto_finalizado_no_se_modifica(self):
+        self.proyecto.estado = 'finalizado'
+        self.proyecto.save(update_fields=['estado'])
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
+                                     {'conclusiones': 'x'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('ya está finalizado', str(response.data))
+
     def test_otro_docente_no_edita_el_informe(self):
         self.client.force_authenticate(user=self.otro_docente)
         response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
