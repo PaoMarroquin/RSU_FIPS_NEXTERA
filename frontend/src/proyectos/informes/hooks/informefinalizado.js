@@ -1,185 +1,67 @@
-import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 
-// =====================================================
-// INFORME DE FINALIZACIÓN
-// SPRINT 8
-// =====================================================
+import api from "../../../shared/api/axiosConfig";
 
-export const obtenerInformeFinalizacion = async (
-  proyectoId
-) => {
-  return await proyectoApi.obtenerInformeFinalizacion(
-    proyectoId
-  );
-};
+export const finalizacionApi = {
+  // Obtener informe de finalización con datos del proyecto
+  obtenerInforme: async (id) => {
+    const response = await api.get(
+      `/api/v1/proyectos/${id}/informe-finalizacion/`
+    );
+    return response.data;
+  },
 
-export const guardarInformeFinalizacion = async (
-  proyectoId,
-  datos
-) => {
-  return await proyectoApi.guardarInformeFinalizacion(
-    proyectoId,
-    datos
-  );
-};
+  // Guardar los datos completados por el docente
+  actualizarInforme: async (id, datos) => {
+    const response = await api.patch(
+      `/api/v1/proyectos/${id}/informe-finalizacion/`,
+      datos
+    );
+    return response.data;
+  },
 
-export const enviarInformeFinalizacion = async (
-  proyectoId
-) => {
-  return await proyectoApi.enviarInformeFinalizacion(
-    proyectoId
-  );
-};
+  // Finalizar proyecto y generar constancia pendiente de aprobación
+  finalizarProyecto: async (id) => {
+    const response = await api.post(
+      `/api/v1/proyectos/${id}/finalizar/`
+    );
+    return response.data;
+  },
 
-// =====================================================
-// PROYECTOS POR FINALIZAR
-// DEPARTAMENTO
-//
-// Solo deben aparecer proyectos cuyo
-// InformeFinalizacion.estado = "enviado"
-// =====================================================
+  // Aprobar constancia para habilitarla al docente
+  aprobarConstancia: async (id) => {
+    const response = await api.post(
+      `/api/v1/proyectos/${id}/constancia/aprobar/`
+    );
+    return response.data;
+  },
 
-export const obtenerProyectosParaFinalizar = async (
-  params = {}
-) => {
-  return await proyectoApi.obtenerProyectosParaFinalizar(
-    params
-  );
-};
+  // Descargar PDF de la constancia
+  obtenerConstanciaPdf: async (id) => {
+    const response = await api.get(
+      `/api/v1/proyectos/${id}/constancia/pdf/`,
+      { responseType: "blob" }
+    );
+    return response.data;
+  },
 
-// =====================================================
-// OBSERVAR INFORME DE FINALIZACIÓN
-// DEPARTAMENTO
-//
-// El backend valida que el comentario tenga
-// mínimo 15 caracteres.
-// =====================================================
+  // Descargar PDF del informe de finalización
+  obtenerInformePdf: async (id) => {
+    const response = await api.get(
+      `/api/v1/proyectos/${id}/informe-finalizacion/pdf/`,
+      { responseType: "blob" }
+    );
+    return response.data;
+  },
 
-export const observarInformeFinalizacion = async (
-  proyectoId,
-  comentario
-) => {
-  return await proyectoApi.observarInformeFinalizacion(
-    proyectoId,
-    comentario
-  );
-};
-
-// =====================================================
-// FINALIZAR PROYECTO
-// DEPARTAMENTO
-//
-// El Departamento puede aprobar el informe
-// y cambiar el proyecto a "finalizado".
-// Jefatura RSU NO utiliza esta función.
-// =====================================================
-
-export const finalizarProyecto = async (
-  proyectoId,
-  comentario = ""
-) => {
-  return await proyectoApi.finalizarProyecto(
-    proyectoId,
-    comentario
-  );
-};
-
-// =====================================================
-// PDF DEL INFORME DE FINALIZACIÓN
-// =====================================================
-
-export const descargarInformeFinalizacion = async (
-  proyectoId
-) => {
-  return await proyectoApi.descargarInformeFinalizacionPDF(
-    proyectoId
-  );
-};
-
-// Alias para mantener compatibilidad con componentes
-// que utilicen explícitamente el nombre PDF.
-
-export const descargarInformeFinalizacionPDF = async (
-  proyectoId
-) => {
-  return await proyectoApi.descargarInformeFinalizacionPDF(
-    proyectoId
-  );
-};
-
-// =====================================================
-// SEGUIMIENTO DEL PROYECTO
-// HU-16 / SPRINT 8
-//
-// Obtiene:
-// - actividades
-// - acciones
-// - avances
-// - evidencias
-// - porcentaje de ejecución
-// =====================================================
-
-export const obtenerSeguimientoProyecto = async (
-  proyectoId
-) => {
-  return await proyectoApi.obtenerSeguimientoProyecto(
-    proyectoId
-  );
-};
-
-// =====================================================
-// EVIDENCIA DE ACTIVIDAD
-// SPRINT 8
-//
-// datosEvidencia puede contener:
-// - archivo
-// - enlace_drive
-// - observacion
-//
-// El backend procesa la evidencia y recalcula
-// el avance de la actividad/proyecto.
-// =====================================================
-
-export const registrarEvidenciaActividad = async (
-  proyectoId,
-  actividadId,
-  datosEvidencia
-) => {
-  return await proyectoApi.registrarEvidenciaActividad(
-    proyectoId,
-    actividadId,
-    datosEvidencia
-  );
-};
-
-// =====================================================
-// CONSTANCIAS
-// HU-10 / SPRINT 8
-// =====================================================
-
-// Obtener listado de constancias
-
-export const obtenerConstancias = async () => {
-  return await proyectoApi.obtenerConstancias();
-};
-
-// Descargar constancia PDF
-
-export const descargarConstancia = async (
-  proyectoId
-) => {
-  return await proyectoApi.descargarConstancia(
-    proyectoId
-  );
-};
-
-// Aprobar constancia
-// Departamento
-
-export const aprobarConstancia = async (
-  proyectoId
-) => {
-  return await proyectoApi.aprobarConstancia(
-    proyectoId
-  );
+  // Crear continuación del proyecto en otro periodo
+  continuarProyecto: async (id, datos) => {
+    const response = await api.post(
+      `/api/v1/proyectos/${id}/continuar/`,
+      {
+        periodo: datos.periodo,
+        docentes_adicionales: datos.docentes_adicionales ?? [],
+      }
+    );
+    return response.data;
+  },
 };
