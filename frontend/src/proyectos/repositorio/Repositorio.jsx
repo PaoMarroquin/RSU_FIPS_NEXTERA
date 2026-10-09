@@ -1111,7 +1111,7 @@ const Repositorio = () => {
                       </span>
 
                       <span className="text-xs font-bold text-slate-700">
-                        {proyectoSeleccionado.lugar_ejecucion ||
+                        {proyectoSeleccionado.datos_generales.lugar_ejecucion ||
                           'N/A'}
                       </span>
                     </div>
@@ -1127,9 +1127,7 @@ const Repositorio = () => {
 
                       <span className="text-xs font-bold text-slate-700">
                         S/.{' '}
-                        {proyectoSeleccionado.financiamiento
-                          ?.monto_total ||
-                          '0.00'}
+                        {proyectoSeleccionado.financiamiento.monto_total || '0.00'}
                       </span>
                     </div>
                   </div>
@@ -1171,13 +1169,13 @@ const Repositorio = () => {
 
                       <p>
                         <b>Docentes:</b>{' '}
-                        {proyectoSeleccionado.nro_docentes ||
+                        {proyectoSeleccionado.datos_generales.nro_docentes ||
                           0}
                       </p>
 
                       <p>
                         <b>Estudiantes:</b>{' '}
-                        {proyectoSeleccionado.nro_estudiantes ||
+                        {proyectoSeleccionado.datos_generales.nro_estudiantes ||
                           0}
                       </p>
 
