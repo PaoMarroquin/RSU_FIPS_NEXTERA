@@ -655,6 +655,26 @@ class CronogramaAPITests(BaseProyectoTestCase):
             url, {'descripcion': 'X', 'actividad': ajena.pk, 'orden': 1}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_migracion_borra_acciones_sueltas_solo_en_proyectos_editables(self):
+        import importlib
+        from django.apps import apps
+        migracion = importlib.import_module(
+            'apps.proyectos.migrations.0035_borrar_acciones_sin_actividad')
+        suelta_borrador = CronogramaAccion.objects.create(
+            proyecto=self.proyecto_borrador, actividad=None, descripcion='Suelta', orden=1)
+        suelta_revision = CronogramaAccion.objects.create(
+            proyecto=self.proyecto_en_revision, actividad=None, descripcion='Suelta', orden=1)
+        actividad = ActividadProyecto.objects.create(
+            proyecto=self.proyecto_borrador, nombre='A', descripcion='d', orden=1)
+        ligada = CronogramaAccion.objects.create(
+            proyecto=self.proyecto_borrador, actividad=actividad, descripcion='Ligada', orden=2)
+
+        migracion.borrar_acciones_sin_actividad(apps, None)
+
+        self.assertFalse(CronogramaAccion.objects.filter(pk=suelta_borrador.pk).exists())
+        self.assertTrue(CronogramaAccion.objects.filter(pk=suelta_revision.pk).exists())
+        self.assertTrue(CronogramaAccion.objects.filter(pk=ligada.pk).exists())
+
     def test_proyecto_ignora_cronograma_plano_en_el_payload(self):
         proyecto = self.proyecto_borrador
         self.client.force_authenticate(user=self.docente)
