@@ -1357,6 +1357,25 @@ class FormulacionAjustesAPITests(_BaseFlujoTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(proyecto.cronograma.filter(actividad__isnull=True).exists())
 
+    def test_guardar_no_borra_en_silencio_el_cronograma_existente(self):
+        proyecto = self.crear_proyecto('borrador')
+        actividad = ActividadProyecto.objects.create(
+            proyecto=proyecto, nombre='A', descripcion='d', orden=1)
+        CronogramaAccion.objects.create(
+            proyecto=proyecto, actividad=actividad, descripcion='Acc', orden=1)
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('proyecto-detail', args=[proyecto.pk])
+        vacio = {'actividades': [{'nombre': 'A', 'descripcion': 'd', 'acciones': []}]}
+
+        response = self.client.patch(url, vacio, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(proyecto.cronograma.count(), 1)
+
+        response = self.client.patch(
+            url, {**vacio, 'confirmar_vaciar_cronograma': True}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(proyecto.cronograma.count(), 0)
+
     def test_proyecto_en_ejecucion_no_edita_presupuesto_ni_metas(self):
         proyecto = self.crear_proyecto('en_ejecucion')
         partida = PartidaPresupuestaria.objects.create(

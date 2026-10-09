@@ -750,6 +750,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     def _save_actividades(self, proyecto, items, replace):
         # Borrar la actividad borra en cascada las acciones de su bloque.
         if replace:
+            self._evitar_cronograma_vacio(proyecto, items)
             proyecto.actividades.all().delete()
             # Si el cliente manda las acciones dentro de cada actividad, esas son
             # las vigentes y las sueltas (formato anterior) ya no tienen dueño.
@@ -762,6 +763,25 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             for i, accion in enumerate(acciones, start=1):
                 accion.setdefault('orden', i)
                 CronogramaAccion.objects.create(proyecto=proyecto, actividad=actividad, **accion)
+
+    def _evitar_cronograma_vacio(self, proyecto, items):
+        """Un guardado no debe borrar en silencio todas las acciones ya registradas.
+
+        Reemplazar las actividades borra sus acciones; si el cliente manda las
+        actividades sin ninguna acción cuando el proyecto ya las tenía, casi
+        seguro perdió la relación al cargar el formulario. Se pide confirmarlo.
+        """
+        if not items or any(item.get('acciones') for item in items):
+            return
+        if not proyecto.cronograma.filter(actividad__isnull=False).exists():
+            return
+        datos = getattr(self, 'initial_data', None) or {}
+        if datos.get('confirmar_vaciar_cronograma') is True:
+            return
+        raise serializers.ValidationError(
+            'El guardado dejaría el cronograma sin acciones, y el proyecto ya tiene acciones '
+            'registradas. Envíe las acciones dentro de cada actividad, o confirme que desea '
+            'vaciarlo con "confirmar_vaciar_cronograma": true.')
 
     @staticmethod
     def _sincronizar_semestre(validated_data):
