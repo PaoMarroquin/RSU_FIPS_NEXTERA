@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo } from "react";
 
 const obtenerIdActividad = (actividad, index) =>
@@ -14,6 +15,12 @@ const crearAccionVacia = (orden = 1, actividadId = "") => ({
   orden,
 });
 
+const formatearFecha = (fecha) => {
+  if (!fecha) return "";
+  const [anio, mes, dia] = String(fecha).split("-");
+  return anio && mes && dia ? `${dia}/${mes}/${anio}` : fecha;
+};
+
 export default function Cronograma({ data, updateData }) {
   const cronogramas = Array.isArray(data.cronogramas)
     ? data.cronogramas
@@ -28,47 +35,38 @@ export default function Cronograma({ data, updateData }) {
       actividades
         .map((actividad, index) => ({
           actividad,
-          index,
           id: obtenerIdActividad(actividad, index),
         }))
         .filter(({ actividad }) => actividad.nombre?.trim()),
     [actividades]
   );
 
-  // Si se agregan actividades, no se pierde la asociación por índice.
   useEffect(() => {
-    if (cronogramas.length > 0) return;
+    if (cronogramas.length > 0 || actividadesValidas.length === 0) return;
 
-    const primeraActividad = actividadesValidas[0]?.id ?? "";
-
-    updateData("cronogramas", [
-      crearAccionVacia(1, primeraActividad),
-    ]);
-
-    // Solo inicializar cuando el usuario entra con el cronograma vacío.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    updateData(
+      "cronogramas",
+      actividadesValidas.map(({ id }, index) =>
+        crearAccionVacia(index + 1, id)
+      )
+    );
+  }, [cronogramas.length, actividadesValidas, updateData]);
 
   const handleChangeCronograma = (index, field, value) => {
-    const nuevoCronograma = cronogramas.map((item, idx) =>
-      idx === index
-        ? {
-            ...item,
-            [field]: value,
-            orden: idx + 1,
-          }
-        : item
+    updateData(
+      "cronogramas",
+      cronogramas.map((item, idx) =>
+        idx === index
+          ? { ...item, [field]: value, orden: idx + 1 }
+          : item
+      )
     );
-
-    updateData("cronogramas", nuevoCronograma);
   };
 
-  const addAccion = () => {
-    const primeraActividad = actividadesValidas[0]?.id ?? "";
-
+  const addAccion = (actividadId) => {
     updateData("cronogramas", [
       ...cronogramas,
-      crearAccionVacia(cronogramas.length + 1, primeraActividad),
+      crearAccionVacia(cronogramas.length + 1, actividadId),
     ]);
   };
 
@@ -83,309 +81,333 @@ export default function Cronograma({ data, updateData }) {
     updateData("cronogramas", nuevoCronograma);
   };
 
-  const obtenerErrorFila = (item) => {
-    const actividadExiste = actividadesValidas.some(
-      ({ id }) => id === String(item.actividad_id ?? "")
-    );
-
-    if (!actividadExiste) {
-      return "Selecciona una actividad válida para esta acción.";
+  const obtenerErroresFila = (item) => {
+    if (!item || typeof item !== "object") {
+      return ["La acción no contiene datos válidos."];
     }
+
+    const errores = [];
 
     if (!item.descripcion?.trim()) {
-      return "La descripción de la acción es obligatoria.";
+      errores.push("Falta completar la descripción de la acción.");
     }
 
-    if (!item.fecha_inicio || !item.fecha_fin) {
-      return "Completa las fechas de inicio y fin.";
+    if (!item.fecha_inicio) {
+      errores.push("Falta seleccionar la fecha de inicio.");
+    } else {
+      if (data.fechaInicio && item.fecha_inicio < data.fechaInicio) {
+        errores.push(
+          `La fecha de inicio (${formatearFecha(item.fecha_inicio)}) es anterior al inicio del proyecto (${formatearFecha(data.fechaInicio)}).`
+        );
+      }
+
+      if (data.fechaTermino && item.fecha_inicio > data.fechaTermino) {
+        errores.push(
+          `La fecha de inicio (${formatearFecha(item.fecha_inicio)}) supera el término del proyecto (${formatearFecha(data.fechaTermino)}).`
+        );
+      }
     }
 
-    if (item.fecha_fin < item.fecha_inicio) {
-      return "La fecha de fin no puede ser anterior a la fecha de inicio.";
-    }
+    if (!item.fecha_fin) {
+      errores.push("Falta seleccionar la fecha de fin.");
+    } else {
+      if (item.fecha_inicio && item.fecha_fin < item.fecha_inicio) {
+        errores.push(
+          `La fecha de fin (${formatearFecha(item.fecha_fin)}) es anterior a la fecha de inicio (${formatearFecha(item.fecha_inicio)}).`
+        );
+      }
 
-    if (
-      data.fechaInicio &&
-      (item.fecha_inicio < data.fechaInicio ||
-        item.fecha_fin < data.fechaInicio)
-    ) {
-      return "Las fechas no pueden ser anteriores al inicio del proyecto.";
-    }
+      if (data.fechaInicio && item.fecha_fin < data.fechaInicio) {
+        errores.push(
+          `La fecha de fin (${formatearFecha(item.fecha_fin)}) es anterior al inicio del proyecto (${formatearFecha(data.fechaInicio)}).`
+        );
+      }
 
-    if (
-      data.fechaTermino &&
-      (item.fecha_inicio > data.fechaTermino ||
-        item.fecha_fin > data.fechaTermino)
-    ) {
-      return "Las fechas no pueden superar el término del proyecto.";
+      if (data.fechaTermino && item.fecha_fin > data.fechaTermino) {
+        errores.push(
+          `La fecha de fin (${formatearFecha(item.fecha_fin)}) supera el término del proyecto (${formatearFecha(data.fechaTermino)}).`
+        );
+      }
     }
 
     if (!item.responsable?.trim()) {
-      return "Indica el responsable de la acción.";
+      errores.push("Falta indicar el responsable de la acción.");
     }
 
     if (!item.evidencia_esperada?.trim()) {
-      return "Indica la evidencia esperada.";
+      errores.push("Falta indicar la evidencia esperada.");
     }
 
-    return null;
+    return errores;
   };
 
-  const tieneErroresFecha = cronogramas.some((item) => {
-    if (!item) return true;
+  const erroresCronograma = actividadesValidas
+    .map(({ actividad, id }) => {
+      const acciones = cronogramas.filter(
+        (item) => String(item?.actividad_id ?? "") === id
+      );
 
-    if (
-      item.fecha_inicio &&
-      item.fecha_fin &&
-      item.fecha_fin < item.fecha_inicio
-    ) {
-      return true;
-    }
+      const errores = acciones.flatMap((item) =>
+        obtenerErroresFila(item)
+      );
 
-    if (
-      item.fecha_inicio &&
-      ((data.fechaInicio && item.fecha_inicio < data.fechaInicio) ||
-        (data.fechaTermino &&
-          item.fecha_inicio > data.fechaTermino))
-    ) {
-      return true;
-    }
+      return {
+        id,
+        cantidad: errores.length,
+        mensaje: `${actividad.nombre}: ${[...new Set(errores)].join(" ")}`,
+      };
+    })
+    .filter(({ cantidad }) => cantidad > 0);
 
-    if (
-      item.fecha_fin &&
-      ((data.fechaInicio && item.fecha_fin < data.fechaInicio) ||
-        (data.fechaTermino && item.fecha_fin > data.fechaTermino))
-    ) {
-      return true;
-    }
-
-    return false;
-  });
-
-  const tieneCamposVacios = cronogramas.some(
-    (item) => !item || Boolean(obtenerErrorFila(item))
+  const idsActividadValidos = new Set(
+    actividadesValidas.map(({ id }) => id)
   );
 
+  const accionesSinActividad = cronogramas.filter(
+    (item) => !idsActividadValidos.has(String(item?.actividad_id ?? ""))
+  );
+
+  const cantidadProblemas =
+    erroresCronograma.reduce(
+      (total, error) => total + error.cantidad,
+      0
+    ) + accionesSinActividad.length;
+
+  const inputClass =
+    "w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-2 text-[11px] text-slate-700 outline-none transition focus:border-[#5E151D] focus:ring-1 focus:ring-[#5E151D]/20";
+
   return (
-    <div className="space-y-6 transition-all duration-300">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold text-[#b1122b]">
-            VII.
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-800">
+            Cronograma de Acciones
+          </h2>
+
+          <span className="mt-0.5 block text-xs text-slate-500">
+            Sección 7 de 9
           </span>
-
-          <div>
-            <h2 className="text-xl font-semibold text-slate-800 m-0">
-              Cronograma de Acciones
-            </h2>
-
-            <span className="text-xs text-slate-500 block mt-0.5">
-              Sección 7 de 9
-            </span>
-          </div>
         </div>
-
-        <button
-          type="button"
-          onClick={addAccion}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[#b1122b] text-white rounded-md text-xs font-semibold hover:bg-[#8f0e22] transition-colors shadow-sm"
-        >
-          + Agregar Acción
-        </button>
       </div>
 
       {actividadesValidas.length === 0 && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-          Primero registra al menos una actividad con nombre en la
-          sección VI.
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          No hay actividades registradas. Registra al menos una actividad
+          con nombre en la sección VI para poder agregar acciones.
         </div>
       )}
 
-      {cronogramas.length > 0 &&
-        (tieneCamposVacios || tieneErroresFecha) && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1 text-xs text-red-700">
-            Completa los campos obligatorios y corrige las fechas antes
-            de enviar el proyecto a revisión.
+      {(erroresCronograma.length > 0 ||
+        accionesSinActividad.length > 0) && (
+          <div
+            role="alert"
+            className="space-y-2 rounded-md border border-red-200 bg-red-50 px-3 py-3 text-xs text-red-800"
+          >
+            <p className="font-semibold">
+              El cronograma tiene errores pendientes. Se encontraron{" "}
+              {cantidadProblemas} problema(s). Corrige los siguientes puntos:
+            </p>
+
+            <ul className="list-disc space-y-1 pl-5">
+              {erroresCronograma.map(({ id, mensaje }) => (
+                <li key={id}>{mensaje}</li>
+              ))}
+
+              {accionesSinActividad.map((item, index) => (
+                <li key={`sin-actividad-${index}`}>
+                  Acción con descripción «
+                  {item?.descripcion?.trim() || "Sin descripción"}»: la
+                  actividad asociada ya no existe o no es válida. Verifica
+                  las actividades registradas en la sección VI.
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm bg-white">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="text-left text-xs font-bold text-slate-500 bg-slate-50 border-b border-slate-200 uppercase tracking-wider">
-              <th className="p-3 text-center">N.º</th>
-              <th className="p-3">Actividad *</th>
-              <th className="p-3">Acción / Descripción *</th>
-              <th className="p-3">Fecha inicio *</th>
-              <th className="p-3">Fecha fin *</th>
-              <th className="p-3">Responsable *</th>
-              <th className="p-3">Evidencia esperada *</th>
-              <th className="p-3 text-center">Eliminar</th>
-            </tr>
-          </thead>
+      {actividadesValidas.map(({ actividad, id }, actividadIndex) => {
+        const acciones = cronogramas
+          .map((item, index) => ({ item, index }))
+          .filter(({ item }) => String(item?.actividad_id ?? "") === id);
 
-          <tbody className="divide-y divide-slate-100">
-            {cronogramas.map((item, index) => {
-              const errorFila = obtenerErrorFila(item);
+        return (
+          <section
+            key={id}
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#5E151D]/15 bg-slate-50 p-3">
+              <h3 className="inline-flex max-w-full items-center rounded-md border border-[#5E151D]/20 bg-white px-4 py-2 text-sm font-semibold text-[#5E151D]">
+                <span className="break-words">
+                  Actividad {actividadIndex + 1}: {actividad.nombre}
+                </span>
+              </h3>
 
-              const errorFecha =
-                item?.fecha_inicio &&
-                item?.fecha_fin &&
-                item.fecha_fin < item.fecha_inicio;
+              <button
+                type="button"
+                onClick={() => addAccion(id)}
+                className="shrink-0 rounded-md bg-[#5E151D] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#451017]"
+              >
+                + Agregar Acción
+              </button>
+            </div>
 
-              return (
-                <tr
-                  key={index}
-                  className={
-                    errorFila
-                      ? "bg-red-50/20"
-                      : "hover:bg-slate-50/50"
-                  }
-                >
-                  <td className="p-2 text-center text-xs font-bold text-slate-400">
-                    {index + 1}
-                  </td>
-
-                  <td className="p-2 min-w-48">
-                    <select
-                      value={item.actividad_id ?? ""}
-                      onChange={(e) =>
-                        handleChangeCronograma(
-                          index,
-                          "actividad_id",
-                          e.target.value
-                        )
-                      }
-                      className="w-full border border-slate-300 rounded-md px-2.5 py-2 text-xs text-slate-700"
-                    >
-                      <option value="">Seleccionar actividad</option>
-
-                      {actividadesValidas.map(({ actividad, id }) => (
-                        <option key={id} value={id}>
-                          {actividad.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
-                  <td className="p-2 min-w-48">
-                    <input
-                      value={item.descripcion || ""}
-                      onChange={(e) =>
-                        handleChangeCronograma(
-                          index,
-                          "descripcion",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Descripción de la acción"
-                      className="w-full border border-slate-300 rounded-md px-2.5 py-2 text-xs"
-                    />
-                  </td>
-
-                  <td className="p-2 min-w-36">
-                    <input
-                      type="date"
-                      value={item.fecha_inicio || ""}
-                      min={data.fechaInicio || undefined}
-                      max={data.fechaTermino || undefined}
-                      onChange={(e) =>
-                        handleChangeCronograma(
-                          index,
-                          "fecha_inicio",
-                          e.target.value
-                        )
-                      }
-                      className="w-full border border-slate-300 rounded-md px-2 py-2 text-xs"
-                    />
-                  </td>
-
-                  <td className="p-2 min-w-36">
-                    <input
-                      type="date"
-                      value={item.fecha_fin || ""}
-                      min={
-                        item.fecha_inicio ||
-                        data.fechaInicio ||
-                        undefined
-                      }
-                      max={data.fechaTermino || undefined}
-                      onChange={(e) =>
-                        handleChangeCronograma(
-                          index,
-                          "fecha_fin",
-                          e.target.value
-                        )
-                      }
-                      className="w-full border border-slate-300 rounded-md px-2 py-2 text-xs"
-                    />
-
-                    {errorFecha && (
-                      <span className="text-[10px] text-red-600 block mt-1">
-                        Fin anterior al inicio
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="p-2 min-w-40">
-                    <input
-                      value={item.responsable || ""}
-                      onChange={(e) =>
-                        handleChangeCronograma(
-                          index,
-                          "responsable",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Nombre o rol"
-                      className="w-full border border-slate-300 rounded-md px-2.5 py-2 text-xs"
-                    />
-                  </td>
-
-                  <td className="p-2 min-w-44">
-                    <input
-                      value={item.evidencia_esperada || ""}
-                      onChange={(e) =>
-                        handleChangeCronograma(
-                          index,
-                          "evidencia_esperada",
-                          e.target.value
-                        )
-                      }
-                      placeholder="Ej. Lista de asistencia"
-                      className="w-full border border-slate-300 rounded-md px-2.5 py-2 text-xs"
-                    />
-                  </td>
-
-                  <td className="p-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => removeAccion(index)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
-                      title="Eliminar acción"
-                      aria-label={`Eliminar acción ${index + 1}`}
-                    >
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-white text-left text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <th className="w-10 px-2 py-3 text-center">N.º</th>
+                    <th className="w-52 px-2 py-3">
+                      Acción / Descripción *
+                    </th>
+                    <th className="w-36 px-2 py-3">Fecha inicio *</th>
+                    <th className="w-36 px-2 py-3">Fecha fin *</th>
+                    <th className="w-40 px-2 py-3">Responsable *</th>
+                    <th className="w-48 px-2 py-3">
+                      Evidencia esperada *
+                    </th>
+                    <th className="w-20 px-2 py-3 text-center">
                       Eliminar
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+                    </th>
+                  </tr>
+                </thead>
 
-            {cronogramas.length === 0 && (
-              <tr>
-                <td
-                  colSpan={8}
-                  className="text-center py-8 text-xs text-slate-400"
-                >
-                  No hay acciones registradas. Presiona “Agregar Acción”
-                  para comenzar.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                <tbody className="divide-y divide-slate-100">
+                  {acciones.map(({ item, index }, accionIndex) => {
+                    const errores = obtenerErroresFila(item);
+
+                    return (
+                      <tr
+                        key={`${id}-${index}`}
+                        className={
+                          errores.length > 0
+                            ? "bg-red-50/20"
+                            : "hover:bg-slate-50/50"
+                        }
+                      >
+                        <td className="px-2 py-2 text-center text-slate-500">
+                          {accionIndex + 1}
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <input
+                            value={item.descripcion || ""}
+                            onChange={(e) =>
+                              handleChangeCronograma(
+                                index,
+                                "descripcion",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Descripción de la acción"
+                            aria-label={`Descripción de la acción ${accionIndex + 1} de la actividad ${actividadIndex + 1}`}
+                            className={inputClass}
+                          />
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <input
+                            type="date"
+                            value={item.fecha_inicio || ""}
+                            min={data.fechaInicio || undefined}
+                            max={data.fechaTermino || undefined}
+                            onChange={(e) =>
+                              handleChangeCronograma(
+                                index,
+                                "fecha_inicio",
+                                e.target.value
+                              )
+                            }
+                            aria-label={`Fecha de inicio de la acción ${accionIndex + 1}`}
+                            className={inputClass}
+                          />
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <input
+                            type="date"
+                            value={item.fecha_fin || ""}
+                            min={
+                              item.fecha_inicio ||
+                              data.fechaInicio ||
+                              undefined
+                            }
+                            max={data.fechaTermino || undefined}
+                            onChange={(e) =>
+                              handleChangeCronograma(
+                                index,
+                                "fecha_fin",
+                                e.target.value
+                              )
+                            }
+                            aria-label={`Fecha de fin de la acción ${accionIndex + 1}`}
+                            className={inputClass}
+                          />
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <input
+                            value={item.responsable || ""}
+                            onChange={(e) =>
+                              handleChangeCronograma(
+                                index,
+                                "responsable",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Nombre o rol"
+                            aria-label={`Responsable de la acción ${accionIndex + 1}`}
+                            className={inputClass}
+                          />
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <input
+                            value={item.evidencia_esperada || ""}
+                            onChange={(e) =>
+                              handleChangeCronograma(
+                                index,
+                                "evidencia_esperada",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Ej. Lista de asistencia"
+                            aria-label={`Evidencia esperada de la acción ${accionIndex + 1}`}
+                            className={inputClass}
+                          />
+                        </td>
+
+                        <td className="px-2 py-2 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeAccion(index)}
+                            className="rounded px-2 py-1.5 text-[11px] text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                            title="Eliminar acción"
+                            aria-label={`Eliminar acción ${accionIndex + 1} de ${actividad.nombre}`}
+                          >
+                            Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {acciones.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-3 py-6 text-center text-xs text-slate-400"
+                      >
+                        No hay acciones para esta actividad. Presiona
+                        “Agregar Acción” para comenzar.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
