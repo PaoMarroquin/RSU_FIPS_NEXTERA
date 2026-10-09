@@ -121,6 +121,9 @@ def guardar_informe(proyecto, usuario, data):
     if proyecto.docente_responsable != usuario:
         raise PermissionDenied('Solo el docente responsable completa el Informe de Finalización.')
     sincronizar_ejecucion(proyecto)
+    if proyecto.estado == 'finalizado':
+        raise serializers.ValidationError(
+            'El proyecto ya está finalizado: su Informe de Finalización ya no se puede modificar.')
     if proyecto.estado != 'en_ejecucion' or proyecto.porcentaje_ejecucion < 100:
         raise serializers.ValidationError(
             'El Informe de Finalización se habilita cuando el proyecto en ejecución '
