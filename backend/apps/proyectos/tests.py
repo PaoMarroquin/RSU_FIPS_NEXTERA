@@ -628,13 +628,40 @@ class CronogramaAPITests(BaseProyectoTestCase):
     def test_docente_puede_agregar_accion_cronograma(self):
         self.client.force_authenticate(user=self.docente)
         url = reverse('cronograma-list', args=[self.proyecto_borrador.id])
-        data = {'descripcion': 'Reunión inicial', 'mes_semana': 'Mes 1', 'orden': 1}
+        actividad = ActividadProyecto.objects.create(
+            proyecto=self.proyecto_borrador, nombre='Taller', descripcion='d', orden=1)
+        data = {'descripcion': 'Reunión inicial', 'actividad': actividad.pk, 'orden': 1}
 
         response = self.client.post(url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['descripcion'], 'Reunión inicial')
-        self.assertTrue(CronogramaAccion.objects.filter(proyecto=self.proyecto_borrador).exists())
+        self.assertTrue(CronogramaAccion.objects.filter(
+            proyecto=self.proyecto_borrador, actividad=actividad).exists())
+
+    def test_accion_de_cronograma_exige_actividad(self):
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-list', args=[self.proyecto_borrador.id])
+        response = self.client.post(url, {'descripcion': 'Suelta', 'orden': 1}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('actividad', response.data['errors'])
+
+    def test_accion_de_cronograma_rechaza_actividad_de_otro_proyecto(self):
+        ajena = ActividadProyecto.objects.create(
+            proyecto=self.proyecto_en_revision, nombre='Ajena', descripcion='d', orden=1)
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('cronograma-list', args=[self.proyecto_borrador.id])
+        response = self.client.post(
+            url, {'descripcion': 'X', 'actividad': ajena.pk, 'orden': 1}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_proyecto_ignora_cronograma_plano_en_el_payload(self):
+        proyecto = self.proyecto_borrador
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('proyecto-detail', args=[proyecto.pk]), {
+            'cronograma': [{'descripcion': 'Suelta'}]}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(proyecto.cronograma.exists())
 
     def test_no_propietario_no_puede_agregar_accion_cronograma(self):
         self.client.force_authenticate(user=self.otro_docente)

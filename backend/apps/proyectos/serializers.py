@@ -76,7 +76,7 @@ class CronogramaAccionSerializer(serializers.ModelSerializer):
             'id', 'actividad', 'descripcion', 'fecha_inicio', 'fecha_fin',
             'responsable', 'evidencia_esperada', 'estado_avance', 'orden',
         ]
-        extra_kwargs = {'actividad': {'required': False}}
+        extra_kwargs = {'actividad': {'required': True, 'allow_null': False}}
 
     def validate(self, attrs):
         inicio = attrs.get('fecha_inicio', getattr(self.instance, 'fecha_inicio', None))
@@ -383,7 +383,7 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     asignaturas = ProyectoAsignaturaSerializer(many=True, required=False)
     docentes_adicionales = ProyectoDocenteSerializer(many=True, required=False)
     actividades = ActividadProyectoSerializer(many=True, required=False)
-    cronograma = CronogramaAccionSerializer(many=True, required=False)
+    cronograma = CronogramaAccionSerializer(many=True, read_only=True)
     documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
     metas_indicadores = MetaIndicadorProyectoSerializer(many=True, required=False)
     ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
@@ -731,7 +731,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             'asignaturas':           ProyectoAsignatura,
             'docentes_adicionales':  ProyectoDocente,
             'actividades':           ActividadProyecto,
-            'cronograma':            CronogramaAccion,
             'documentos_sustento':   DocumentoSustentoProyecto,
             'metas_indicadores':     MetaIndicadorProyecto,
         }
@@ -744,14 +743,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
             model = mapping[attr]
             if replace:
                 qs = getattr(proyecto, attr).all()
-                # El cronograma plano solo reemplaza acciones sin actividad:
-                # las de cada actividad se guardan con su bloque (`acciones`).
-                if attr == 'cronograma':
-                    qs = qs.filter(actividad__isnull=True)
                 qs.delete()
             for item in items:
-                if attr == 'cronograma':
-                    item.pop('actividad', None)
                 model.objects.create(proyecto=proyecto, **item)
 
     def _save_actividades(self, proyecto, items, replace):
@@ -790,7 +783,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         asignaturas_data   = validated_data.pop('asignaturas', [])
         docentes_data      = validated_data.pop('docentes_adicionales', [])
         actividades_data   = validated_data.pop('actividades', [])
-        cronograma_data    = validated_data.pop('cronograma', [])
         documentos_data    = validated_data.pop('documentos_sustento', [])
         metas_data         = validated_data.pop('metas_indicadores', [])
         ods_data           = validated_data.pop('ods', [])
@@ -818,7 +810,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'asignaturas':           asignaturas_data,
                 'docentes_adicionales':  docentes_data,
                 'actividades':           actividades_data,
-                'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
                 'metas_indicadores':     metas_data,
             }, replace=False)
@@ -834,7 +825,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
         asignaturas_data   = validated_data.pop('asignaturas', None)
         docentes_data      = validated_data.pop('docentes_adicionales', None)
         actividades_data   = validated_data.pop('actividades', None)
-        cronograma_data    = validated_data.pop('cronograma', None)
         documentos_data    = validated_data.pop('documentos_sustento', None)
         metas_data         = validated_data.pop('metas_indicadores', None)
         ods_data           = validated_data.pop('ods', None)
@@ -866,7 +856,6 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
                 'asignaturas':           asignaturas_data,
                 'docentes_adicionales':  docentes_data,
                 'actividades':           actividades_data,
-                'cronograma':            cronograma_data,
                 'documentos_sustento':   documentos_data,
                 'metas_indicadores':     metas_data,
             }, replace=True)

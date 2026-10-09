@@ -489,9 +489,21 @@ class CronogramaAccionListCreateView(generics.ListCreateAPIView):
             proyecto_id=self.kwargs['proyecto_pk']
         ).order_by('orden')
 
+    def create(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], request.user)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        _validar_actividad_del_proyecto(serializer.validated_data.get('actividad'), proyecto)
         serializer.save(proyecto=proyecto)
+
+
+def _validar_actividad_del_proyecto(actividad, proyecto):
+    """Toda acción del cronograma pertenece a una actividad del mismo proyecto."""
+    if actividad is not None and actividad.proyecto_id != proyecto.pk:
+        raise serializers.ValidationError(
+            {'actividad': 'La actividad no pertenece a este proyecto.'})
 
 
 class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -506,6 +518,11 @@ class CronogramaAccionDetailView(generics.RetrieveUpdateDestroyAPIView):
     def update(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        _validar_actividad_del_proyecto(
+            serializer.validated_data.get('actividad'), serializer.instance.proyecto)
+        serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
