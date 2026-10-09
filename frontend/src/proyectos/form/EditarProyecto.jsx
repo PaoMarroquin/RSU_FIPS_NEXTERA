@@ -99,6 +99,8 @@ export default function EditarProyecto() {
 
           // Paso 6: Actividades
           actividades: data.actividades?.length > 0 ? data.actividades.map(act => ({
+            id: act.id,
+            orden: act.orden,
             nombre: act.nombre || '',
             descripcion: act.descripcion || '',
             curso_vinculado: act.curso_vinculado || '',
@@ -109,10 +111,14 @@ export default function EditarProyecto() {
 
           // Paso 7: Cronograma
           cronogramas: data.cronograma?.length > 0 ? data.cronograma.map(cro => ({
+            // Sin actividad_id la acción pierde su actividad y se borra al guardar.
+            actividad_id: cro.actividad != null ? String(cro.actividad) : '',
+            orden: cro.orden,
             descripcion: cro.descripcion || '',
             fecha_inicio: cro.fecha_inicio || '',
             fecha_fin: cro.fecha_fin || '',
             responsable: cro.responsable || '',
+            evidencia_esperada: cro.evidencia_esperada || '',
             estado_avance: cro.estado_avance || 'pendiente'
           })) : [{ descripcion: '', fecha_inicio: '', fecha_fin: '', responsable: '', estado_avance: 'pendiente' }],
 
