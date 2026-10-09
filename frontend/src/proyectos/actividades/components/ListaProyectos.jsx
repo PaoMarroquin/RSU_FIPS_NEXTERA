@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  FiFolder,
   FiInbox,
   FiChevronRight,
   FiClock,
@@ -11,8 +10,14 @@ import {
   FiLoader,
 } from "react-icons/fi";
 
-export default function ListaProyectos({ proyectos, loading, onSelect }) {
+export default function ListaProyectos({
+  proyectos = [],
+  loading = false,
+  onSelect,
+}) {
   const [filtro, setFiltro] = useState("todos");
+
+  const listaProyectos = Array.isArray(proyectos) ? proyectos : [];
 
   const calcularInformacion = (proy) => {
     const actividades = Array.isArray(proy.actividades)
@@ -34,7 +39,11 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
     ).length;
 
     const avance =
-      total > 0 ? Math.round((completadas / total) * 100) : 0;
+      proy.porcentaje_ejecucion != null
+        ? Number(proy.porcentaje_ejecucion)
+        : total > 0
+          ? Math.round((completadas / total) * 100)
+          : 0;
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -44,40 +53,30 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
         (actividad) =>
           actividad.fecha && actividad.estado !== "completada"
       )
-      .sort(
-        (a, b) =>
-          new Date(a.fecha) - new Date(b.fecha)
-      );
+      .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
     const proximaActividad = actividadesOrdenadas[0];
 
     let prioridad = "Sin prioridad";
     let prioridadClase = "bg-slate-100 text-slate-500";
-    let prioridadIcono = (
-      <FiClock className="text-slate-400 text-sm" />
-    );
+    let prioridadIcono = <FiClock className="text-slate-400 text-sm" />;
 
     if (proximaActividad) {
       const fechaActividad = new Date(proximaActividad.fecha);
       fechaActividad.setHours(0, 0, 0, 0);
 
       const diferencia = Math.ceil(
-        (fechaActividad - hoy) /
-          (1000 * 60 * 60 * 24)
+        (fechaActividad - hoy) / (1000 * 60 * 60 * 24)
       );
 
       if (diferencia < 0) {
         prioridad = "Urgente";
         prioridadClase = "bg-red-100 text-red-700";
-        prioridadIcono = (
-          <FiAlertCircle className="text-red-500 text-sm" />
-        );
+        prioridadIcono = <FiAlertCircle className="text-red-500 text-sm" />;
       } else if (diferencia <= 3) {
         prioridad = "Alta";
         prioridadClase = "bg-red-100 text-red-600";
-        prioridadIcono = (
-          <FiAlertCircle className="text-red-500 text-sm" />
-        );
+        prioridadIcono = <FiAlertCircle className="text-red-500 text-sm" />;
       } else if (diferencia <= 7) {
         prioridad = "Media";
         prioridadClase = "bg-amber-100 text-amber-600";
@@ -100,12 +99,14 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
     };
   };
 
-  const proyectosConInformacion = useMemo(() => {
-    return proyectos.map((proy) => ({
-      ...proy,
-      informacion: calcularInformacion(proy),
-    }));
-  }, [proyectos]);
+  const proyectosConInformacion = useMemo(
+    () =>
+      listaProyectos.map((proy) => ({
+        ...proy,
+        informacion: calcularInformacion(proy),
+      })),
+    [proyectos]
+  );
 
   const proyectosFiltrados = useMemo(() => {
     switch (filtro) {
@@ -120,14 +121,12 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
         return proyectosConInformacion.filter(
           ({ informacion }) =>
             informacion.enEjecucion > 0 ||
-            (informacion.avance > 0 &&
-              informacion.avance < 100)
+            (informacion.avance > 0 && informacion.avance < 100)
         );
 
       case "pendientes":
         return proyectosConInformacion.filter(
-          ({ informacion }) =>
-            informacion.pendientes > 0
+          ({ informacion }) => informacion.pendientes > 0
         );
 
       case "urgentes":
@@ -155,14 +154,12 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
         return proyectosConInformacion.filter(
           ({ informacion }) =>
             informacion.enEjecucion > 0 ||
-            (informacion.avance > 0 &&
-              informacion.avance < 100)
+            (informacion.avance > 0 && informacion.avance < 100)
         ).length;
 
       case "pendientes":
         return proyectosConInformacion.filter(
-          ({ informacion }) =>
-            informacion.pendientes > 0
+          ({ informacion }) => informacion.pendientes > 0
         ).length;
 
       case "urgentes":
@@ -179,11 +176,6 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
 
   return (
     <div className="flex-1 flex flex-col">
-
-      {/* =====================================================
-          HEADER (mismo patrón que Repositorio / Notificaciones)
-      ===================================================== */}
-
       <div className="mb-6 shrink-0">
         <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           Actividades Proyectos Aprobados
@@ -195,35 +187,15 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
         </p>
       </div>
 
-      {/* =====================================================
-          BARRA DE FILTROS
-      ===================================================== */}
-
-      {!loading && proyectos.length > 0 && (
+      {!loading && listaProyectos.length > 0 && (
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
-
           <div className="flex flex-wrap gap-2">
             {[
-              {
-                id: "todos",
-                label: "Todos",
-              },
-              {
-                id: "en_avance",
-                label: "En avance",
-              },
-              {
-                id: "pendientes",
-                label: "Pendientes",
-              },
-              {
-                id: "completados",
-                label: "Completados",
-              },
-              {
-                id: "urgentes",
-                label: "Prioridad alta",
-              },
+              { id: "todos", label: "Todos" },
+              { id: "en_avance", label: "En avance" },
+              { id: "pendientes", label: "Pendientes" },
+              { id: "completados", label: "Completados" },
+              { id: "urgentes", label: "Prioridad alta" },
             ].map((opcion) => (
               <button
                 key={opcion.id}
@@ -236,12 +208,9 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                 }`}
               >
                 {opcion.label}
-
                 <span
                   className={`ml-1.5 ${
-                    filtro === opcion.id
-                      ? "text-white/80"
-                      : "text-slate-400"
+                    filtro === opcion.id ? "text-white/80" : "text-slate-400"
                   }`}
                 >
                   ({cantidadFiltro(opcion.id)})
@@ -252,49 +221,30 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
         </div>
       )}
 
-      {/* =====================================================
-          LOADING / RESULTADOS
-      ===================================================== */}
-
       {loading ? (
-
         <div className="flex flex-col items-center justify-center flex-1 py-12">
-
           <FiLoader className="animate-spin text-[#b1122b] text-4xl mb-4" />
-
           <span className="text-slate-500 font-medium">
             Consultando proyectos...
           </span>
-
         </div>
-
-      ) : proyectos.length === 0 ? (
-
+      ) : listaProyectos.length === 0 ? (
         <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
-
           <FiInbox className="w-10 h-10 text-slate-300 mb-2" />
-
           <span className="text-slate-500 text-sm font-semibold">
             No registras proyectos en ejecución
           </span>
-
           <span className="text-slate-400 text-xs mt-1 max-w-xs">
             Actualmente no cuentas con planes de trabajo en estado
             "Aprobado" o "En Ejecución".
           </span>
-
         </div>
-
       ) : proyectosFiltrados.length === 0 ? (
-
         <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
-
           <FiFilter className="w-10 h-10 text-slate-300 mb-2" />
-
           <span className="text-slate-500 text-sm font-semibold">
             No hay proyectos con este filtro
           </span>
-
           <button
             type="button"
             onClick={() => setFiltro("todos")}
@@ -302,18 +252,13 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
           >
             Ver todos los proyectos
           </button>
-
         </div>
-
       ) : (
-
         <div className="flex flex-col gap-3">
           {proyectosFiltrados.map((proy) => {
             const {
-              total,
               completadas,
               enEjecucion,
-              pendientes,
               avance,
               proximaActividad,
               prioridad,
@@ -324,7 +269,15 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
             return (
               <div
                 key={proy.id}
-                onClick={() => onSelect(proy)}
+                onClick={() => onSelect?.(proy)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect?.(proy);
+                  }
+                }}
                 className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#b1122b] shadow-sm hover:shadow-md transition-all cursor-pointer group"
               >
                 <div className="flex justify-between items-start">
@@ -352,7 +305,6 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <FiCheckCircle className="text-[#b1122b]" />
-
                       <span className="text-[11px] font-semibold text-slate-600">
                         Avance de actividades
                       </span>
@@ -367,7 +319,7 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                     <div
                       className="h-full bg-[#b1122b] rounded-full transition-all"
                       style={{
-                        width: `${avance}%`,
+                        width: `${Math.min(100, Math.max(0, avance))}%`,
                       }}
                     />
                   </div>
@@ -376,7 +328,6 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                     <span className="text-slate-400">
                       {completadas} completadas
                     </span>
-
                     <span className="text-blue-500">
                       {enEjecucion} en avance
                     </span>
@@ -387,7 +338,6 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                   <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                       <FiCalendar className="text-slate-500 text-sm" />
-
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         Próxima actividad
                       </span>
@@ -398,11 +348,10 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                         <p className="text-xs font-semibold text-slate-700 truncate">
                           {proximaActividad.nombre}
                         </p>
-
                         <p className="text-[10px] text-slate-400 mt-1">
-                          {new Date(
-                            proximaActividad.fecha
-                          ).toLocaleDateString("es-PE")}
+                          {new Date(proximaActividad.fecha).toLocaleDateString(
+                            "es-PE"
+                          )}
                         </p>
                       </>
                     ) : (
@@ -415,7 +364,6 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
                   <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                       {prioridadIcono}
-
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         Prioridad
                       </span>
@@ -432,7 +380,6 @@ export default function ListaProyectos({ proyectos, loading, onSelect }) {
             );
           })}
         </div>
-
       )}
     </div>
   );

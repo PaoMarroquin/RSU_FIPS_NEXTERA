@@ -2,26 +2,87 @@ import { useState, useEffect } from "react";
 import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 import { useToast } from "../../../shared/context/ToastContext";
 
+const obtenerLista = (respuesta) => {
+  if (Array.isArray(respuesta)) return respuesta;
+  if (Array.isArray(respuesta?.results)) return respuesta.results;
+  return [];
+};
+
+const extensionesPermitidas = [
+  "pdf",
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "gif",
+  "bmp",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+];
+
+const tiposPermitidos = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/bmp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+
+const obtenerMensajeError = (error) => {
+  const detalle = error?.response?.data;
+
+  if (typeof detalle === "string") return detalle;
+
+  if (typeof detalle?.detail === "string") return detalle.detail;
+  if (typeof detalle?.error === "string") return detalle.error;
+
+  const campos = [
+    "archivo",
+    "url",
+    "enlace_drive",
+    "tipo",
+    "observacion",
+    "non_field_errors",
+  ];
+
+  for (const campo of campos) {
+    const valor = detalle?.[campo];
+
+    if (Array.isArray(valor) && valor.length > 0) {
+      return String(valor[0]);
+    }
+
+    if (typeof valor === "string" && valor) {
+      return valor;
+    }
+  }
+
+  return "No se pudo registrar la evidencia de la actividad.";
+};
+
 export const useActividades = () => {
   const [proyectos, setProyectos] = useState([]);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
-
   const [actividades, setActividades] = useState([]);
   const [avances, setAvances] = useState([]);
   const [evidencias, setEvidencias] = useState({});
   const [metasIndicadores, setMetasIndicadores] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
-
   const [filtroEstado, setFiltroEstado] = useState("todos");
-  const [urlInputs, setUrlInputs] = useState({});
 
   const { showToast } = useToast();
-
-  // =========================================================
-  // CARGAR PROYECTOS
-  // =========================================================
 
   useEffect(() => {
     const cargarProyectosDocente = async () => {
@@ -29,20 +90,17 @@ export const useActividades = () => {
         setLoading(true);
 
         const response = await proyectoApi.obtenerProyectos();
+        const listaProyectos = obtenerLista(response);
 
-        const listaProyectos = response?.results
-          ? response.results
-          : Array.isArray(response)
-            ? response
-            : [];
+        setProyectos(
+          listaProyectos.filter((proyecto) => {
+            const estado = String(proyecto.estado || "")
+              .toLowerCase()
+              .replaceAll(" ", "_");
 
-        const proyectosEnEjecucion = listaProyectos.filter(
-          (proyecto) =>
-            proyecto.estado?.toLowerCase() === "aprobado" ||
-            proyecto.estado?.toLowerCase() === "en_ejecucion"
+            return estado === "aprobado" || estado === "en_ejecucion";
+          })
         );
-
-        setProyectos(proyectosEnEjecucion);
       } catch (error) {
         console.error("Error cargando proyectos:", error);
 
@@ -58,68 +116,51 @@ export const useActividades = () => {
     cargarProyectosDocente();
   }, [showToast]);
 
-  // =========================================================
-  // SELECCIONAR PROYECTO
-  // =========================================================
-
   const seleccionarProyecto = async (proyecto) => {
     try {
       setLoadingDetalle(true);
       setProyectoSeleccionado(proyecto);
 
-      const [
-        dataActividades,
-        dataAvances,
-        dataMetasIndicadores
-      ] = await Promise.all([
-        proyectoApi.obtenerActividades(proyecto.id),
-        proyectoApi.obtenerAvances(proyecto.id),
-        proyectoApi.obtenerMetasIndicadores(proyecto.id)
-      ]);
+      setActividades([]);
+      setAvances([]);
+      setEvidencias({});
+      setMetasIndicadores([]);
 
-      const listaActividades = Array.isArray(dataActividades)
-        ? dataActividades
-        : dataActividades?.results || [];
+      const [dataActividades, dataAvances, dataMetasIndicadores] =
+        await Promise.all([
+          proyectoApi.obtenerActividades(proyecto.id),
+          proyectoApi.obtenerAvances(proyecto.id),
+          proyectoApi.obtenerMetasIndicadores(proyecto.id),
+        ]);
 
-      const listaAvances = Array.isArray(dataAvances)
-        ? dataAvances
-        : dataAvances?.results || [];
-
-      const listaMetasIndicadores = Array.isArray(dataMetasIndicadores)
-        ? dataMetasIndicadores
-        : dataMetasIndicadores?.results || [];
+      const listaActividades = obtenerLista(dataActividades);
+      const listaAvances = obtenerLista(dataAvances);
+      const listaMetasIndicadores = obtenerLista(dataMetasIndicadores);
 
       setActividades(listaActividades);
       setAvances(listaAvances);
       setMetasIndicadores(listaMetasIndicadores);
-
-      // =====================================================
-      // CARGAR EVIDENCIAS
-      // =====================================================
 
       const evidenciasPorAvance = {};
 
       await Promise.all(
         listaAvances.map(async (avance) => {
           try {
-            const response =
-              await proyectoApi.obtenerEvidenciasAvance(
-                proyecto.id,
-                avance.id
-              );
+            const respuesta = await proyectoApi.obtenerEvidenciasAvance(
+              proyecto.id,
+              avance.id
+            );
 
-            const listaEvidencias = Array.isArray(response)
-              ? response
-              : response?.results || [];
-
-            evidenciasPorAvance[avance.id] = listaEvidencias;
+            evidenciasPorAvance[avance.id] = Array.isArray(respuesta)
+              ? respuesta
+              : respuesta?.results || respuesta?.evidencias || avance.evidencias || [];
           } catch (error) {
             console.error(
               `Error cargando evidencias del avance ${avance.id}:`,
               error
             );
 
-            evidenciasPorAvance[avance.id] = [];
+            evidenciasPorAvance[avance.id] = avance.evidencias || [];
           }
         })
       );
@@ -137,313 +178,205 @@ export const useActividades = () => {
     }
   };
 
-  // =========================================================
-  // DESELECCIONAR PROYECTO
-  // =========================================================
-
   const deseleccionarProyecto = () => {
     setProyectoSeleccionado(null);
     setActividades([]);
     setAvances([]);
     setEvidencias({});
     setMetasIndicadores([]);
-    setUrlInputs({});
+    setFiltroEstado("todos");
   };
 
-  // =========================================================
-  // CAMBIAR ESTADO DE ACTIVIDAD
-  // =========================================================
-const cambiarEstadoActividad = async (
-  actividadId,
-  estadoActual
-) => {
-  try {
-    // Si ya está completada, no permitir cambios
-    if (estadoActual === "completada") {
-      showToast(
-        "info",
-        "Esta actividad ya fue completada y no puede modificarse."
-      );
-      return;
-    }
-
-    let nuevoEstado;
-
-    if (estadoActual === "pendiente") {
-      nuevoEstado = "en_ejecucion";
-    } else if (estadoActual === "en_ejecucion") {
-      nuevoEstado = "completada";
-    }
-
-    // Actualizar actividad
-    const actividadActualizada =
-      await proyectoApi.actualizarActividad(
-        proyectoSeleccionado.id,
-        actividadId,
-        {
-          estado: nuevoEstado
-        }
-      );
-
-    setActividades((prev) =>
-      prev.map((actividad) =>
-        actividad.id === actividadId
-          ? actividadActualizada
-          : actividad
-      )
-    );
-
-    // Si se completó, registrar el avance
-    if (nuevoEstado === "completada") {
-      const nuevoAvance =
-        await proyectoApi.crearAvance(
-          proyectoSeleccionado.id,
-          {
-            actividad: actividadId,
-            descripcion: "Actividad completada",
-            estado_actividad: "completada",
-            observaciones: ""
-          }
-        );
-
-      setAvances((prev) => [
-        ...prev,
-        nuevoAvance
-      ]);
-
-      setEvidencias((prev) => ({
-        ...prev,
-        [nuevoAvance.id]: []
-      }));
-    }
-
-    showToast(
-      "success",
-      `Actividad actualizada a: ${nuevoEstado
-        .replace("_", " ")
-        .toUpperCase()}`
-    );
-
-    return actividadActualizada;
-
-  } catch (error) {
-    console.error(
-      "Error actualizando actividad:",
-      error
-    );
-
-    showToast(
-      "error",
-      "No se pudo actualizar el estado de la actividad."
-    );
-
-    throw error;
-  }
-};
-
-  // =========================================================
-  // REGISTRAR AVANCE
-  // =========================================================
-
-  const registrarAvance = async (
+  const registrarEvidenciaActividad = async (
     actividadId,
-    descripcion,
-    observaciones = ""
+    {
+      archivo = null,
+      enlace_drive = "",
+      url = "",
+      observacion = "",
+    } = {}
   ) => {
-    try {
-      const actividad = actividades.find(
-        (actividad) => actividad.id === actividadId
-      );
+    const enlace = String(url || enlace_drive || "").trim();
+    const observacionFinal = String(observacion || "").trim();
 
-      if (!actividad) {
-        throw new Error("Actividad no encontrada.");
+    if (!proyectoSeleccionado) {
+      showToast("error", "No hay ningún proyecto seleccionado.");
+      return null;
+    }
+
+    if (Boolean(archivo) === Boolean(enlace)) {
+      showToast(
+        "error",
+        "Adjunte un archivo o pegue un enlace de Drive (solo uno de los dos)."
+      );
+      return null;
+    }
+
+    const actividad = actividades.find(
+      (item) => Number(item.id) === Number(actividadId)
+    );
+
+    if (!actividad) {
+      showToast("error", "No se encontró la actividad.");
+      return null;
+    }
+
+    if (actividad.estado === "completada") {
+      showToast("info", "La actividad ya está completada.");
+      return null;
+    }
+
+    if (archivo) {
+      const extension = String(archivo.name || "")
+        .split(".")
+        .pop()
+        .toLowerCase();
+
+      if (
+        !extensionesPermitidas.includes(extension) ||
+        (archivo.type &&
+          !tiposPermitidos.includes(archivo.type) &&
+          !archivo.type.startsWith("image/"))
+      ) {
+        showToast(
+          "error",
+          "Formato no permitido. Adjunta una imagen, PDF, Word, Excel o PowerPoint."
+        );
+        return null;
       }
 
-      const nuevoAvance =
-        await proyectoApi.crearAvance(
-          proyectoSeleccionado.id,
-          {
-            actividad: actividadId,
-            descripcion: descripcion || "",
-            estado_actividad:
-              actividad.estado || "pendiente",
-            observaciones: observaciones || ""
-          }
-        );
-
-      setAvances((prev) => [
-        ...prev,
-        nuevoAvance
-      ]);
-
-      setEvidencias((prev) => ({
-        ...prev,
-        [nuevoAvance.id]: []
-      }));
-
-      showToast(
-        "success",
-        "Avance registrado correctamente."
-      );
-
-      return nuevoAvance;
-    } catch (error) {
-      console.error("Error registrando avance:", error);
-
-      showToast(
-        "error",
-        "No se pudo registrar el avance."
-      );
-
-      throw error;
+      if (archivo.size > 10 * 1024 * 1024) {
+        showToast("error", "El archivo no debe superar los 10 MB.");
+        return null;
+      }
     }
-  };
 
-  // =========================================================
-  // OBTENER DETALLE DE AVANCE
-  // =========================================================
+    if (enlace) {
+      try {
+        const urlValidada = new URL(enlace);
 
-  const obtenerDetalleAvance = async (avanceId) => {
-    try {
-      return await proyectoApi.obtenerAvancePorId(
-        proyectoSeleccionado.id,
-        avanceId
-      );
-    } catch (error) {
-      console.error("Error obteniendo avance:", error);
+        const esGoogleDrive =
+          urlValidada.protocol === "https:" &&
+          (urlValidada.hostname === "drive.google.com" ||
+            urlValidada.hostname === "docs.google.com");
 
-      showToast(
-        "error",
-        "No se pudo obtener el detalle del avance."
-      );
-
-      throw error;
+        if (!esGoogleDrive) {
+          showToast(
+            "error",
+            "Ingresa un enlace HTTPS válido de Google Drive."
+          );
+          return null;
+        }
+      } catch {
+        showToast("error", "Ingresa un enlace válido de Google Drive.");
+        return null;
+      }
     }
-  };
-
-  // =========================================================
-  // SUBIR ARCHIVO DE EVIDENCIA
-  // =========================================================
-
-  const subirEvidencia = async (avanceId, file) => {
-    if (!file) return;
 
     try {
+      const proyectoId = proyectoSeleccionado.id;
       const formData = new FormData();
 
-      formData.append("tipo", "archivo");
-      formData.append("archivo", file);
-      formData.append("nombre", file.name);
+      formData.append("tipo", archivo ? "archivo" : "enlace");
 
-      const nuevaEvidencia =
-        await proyectoApi.crearEvidenciaAvance(
-          proyectoSeleccionado.id,
-          avanceId,
-          formData
+      if (archivo) {
+        formData.append("archivo", archivo);
+      } else {
+        formData.append("url", enlace);
+      }
+
+      formData.append("observacion", observacionFinal);
+
+      const resultado = await proyectoApi.registrarEvidenciaActividad(
+        proyectoId,
+        actividadId,
+        formData
+      );
+
+      if (!resultado?.actividad || !resultado?.avance) {
+        throw new Error(
+          "El servidor no devolvió la actividad y el avance esperados."
         );
+      }
+
+      const actividadActualizada = resultado.actividad;
+      const nuevoAvance = resultado.avance;
+
+      const actualizarActividad = (item) =>
+        Number(item.id) === Number(actividadId)
+          ? { ...item, ...actividadActualizada }
+          : item;
+
+      setActividades((prev) => prev.map(actualizarActividad));
+
+      setAvances((prev) => {
+        const existe = prev.some(
+          (item) => Number(item.id) === Number(nuevoAvance.id)
+        );
+
+        return existe
+          ? prev.map((item) =>
+              Number(item.id) === Number(nuevoAvance.id)
+                ? { ...item, ...nuevoAvance }
+                : item
+            )
+          : [...prev, nuevoAvance];
+      });
+
+      const evidenciasNuevas =
+        nuevoAvance.evidencias ||
+        resultado.evidencias ||
+        [];
 
       setEvidencias((prev) => ({
         ...prev,
-        [avanceId]: [
-          ...(prev[avanceId] || []),
-          nuevaEvidencia
-        ]
+        [nuevoAvance.id]: evidenciasNuevas,
       }));
+
+      const porcentaje = Number(resultado.porcentaje_ejecucion);
+
+      setProyectoSeleccionado((prev) => ({
+        ...prev,
+        estado: resultado.estado_proyecto || prev.estado,
+        ...(resultado.porcentaje_ejecucion != null &&
+        Number.isFinite(porcentaje)
+          ? { porcentaje_ejecucion: porcentaje }
+          : {}),
+        actividades: (prev?.actividades || []).map(actualizarActividad),
+      }));
+
+      setProyectos((prev) =>
+        prev.map((proyecto) =>
+          Number(proyecto.id) === Number(proyectoId)
+            ? {
+                ...proyecto,
+                estado: resultado.estado_proyecto || proyecto.estado,
+                ...(resultado.porcentaje_ejecucion != null &&
+                Number.isFinite(porcentaje)
+                  ? { porcentaje_ejecucion: porcentaje }
+                  : {}),
+                actividades: (proyecto.actividades || []).map(
+                  actualizarActividad
+                ),
+              }
+            : proyecto
+        )
+      );
 
       showToast(
         "success",
-        "Evidencia adjuntada correctamente."
+        "Evidencia registrada y actividad completada correctamente."
       );
 
-      return nuevaEvidencia;
+      return resultado;
     } catch (error) {
-      console.error("Error subiendo evidencia:", error);
-
-      showToast(
-        "error",
-        "No se pudo subir la evidencia."
-      );
-
+      console.error("Error registrando evidencia de actividad:", error);
+      showToast("error", obtenerMensajeError(error));
       throw error;
     }
   };
 
-  // =========================================================
-  // GUARDAR ENLACE GOOGLE DRIVE
-  // =========================================================
-
-  const guardarUrlEvidencia = async (avanceId) => {
-    const url = urlInputs[avanceId]?.trim();
-
-    if (!url) return;
-
-    try {
-      const formData = new FormData();
-
-      formData.append("tipo", "enlace");
-      formData.append("enlace_drive", url);
-      formData.append(
-        "nombre",
-        "Evidencia - Google Drive"
-      );
-
-      const nuevaEvidencia =
-        await proyectoApi.crearEvidenciaAvance(
-          proyectoSeleccionado.id,
-          avanceId,
-          formData
-        );
-
-      setEvidencias((prev) => ({
-        ...prev,
-        [avanceId]: [
-          ...(prev[avanceId] || []),
-          nuevaEvidencia
-        ]
-      }));
-
-      setUrlInputs((prev) => ({
-        ...prev,
-        [avanceId]: ""
-      }));
-
-      showToast(
-        "success",
-        "Enlace de Google Drive registrado correctamente."
-      );
-
-      return nuevaEvidencia;
-    } catch (error) {
-      console.error("Error guardando enlace:", error);
-
-      showToast(
-        "error",
-        "No se pudo guardar el enlace."
-      );
-
-      throw error;
-    }
-  };
-
-  // =========================================================
-  // ACTUALIZAR INPUT URL
-  // =========================================================
-
-  const actualizarUrlInput = (avanceId, valor) => {
-    setUrlInputs((prev) => ({
-      ...prev,
-      [avanceId]: valor
-    }));
-  };
-
-  // =========================================================
-  // ELIMINAR EVIDENCIA
-  // =========================================================
-
-  const eliminarEvidencia = async (
-    avanceId,
-    evidenciaId
-  ) => {
+  const eliminarEvidencia = async (avanceId, evidenciaId) => {
     try {
       await proyectoApi.eliminarEvidenciaAvance(
         proyectoSeleccionado.id,
@@ -453,32 +386,45 @@ const cambiarEstadoActividad = async (
 
       setEvidencias((prev) => ({
         ...prev,
-        [avanceId]:
-          (prev[avanceId] || []).filter(
-            (evidencia) =>
-              evidencia.id !== evidenciaId
-          )
+        [avanceId]: (prev[avanceId] || []).filter(
+          (evidencia) => Number(evidencia.id) !== Number(evidenciaId)
+        ),
       }));
 
-      showToast(
-        "success",
-        "Evidencia eliminada correctamente."
+      setAvances((prev) =>
+        prev.map((avance) =>
+          Number(avance.id) === Number(avanceId)
+            ? {
+                ...avance,
+                evidencias: (avance.evidencias || []).filter(
+                  (evidencia) =>
+                    Number(evidencia.id) !== Number(evidenciaId)
+                ),
+              }
+            : avance
+        )
       );
+
+      showToast("success", "Evidencia eliminada correctamente.");
     } catch (error) {
       console.error("Error eliminando evidencia:", error);
-
-      showToast(
-        "error",
-        "No se pudo eliminar la evidencia."
-      );
-
+      showToast("error", "No se pudo eliminar la evidencia.");
       throw error;
     }
   };
 
-  // =========================================================
-  // CORREGIR AVANCE OBSERVADO
-  // =========================================================
+  const obtenerDetalleAvance = async (avanceId) => {
+    try {
+      return await proyectoApi.obtenerAvancePorId(
+        proyectoSeleccionado.id,
+        avanceId
+      );
+    } catch (error) {
+      console.error("Error obteniendo avance:", error);
+      showToast("error", "No se pudo obtener el detalle del avance.");
+      throw error;
+    }
+  };
 
   const corregirAvance = async (avanceId) => {
     try {
@@ -487,163 +433,104 @@ const cambiarEstadoActividad = async (
         avanceId
       );
 
-      const avanceActualizado =
-        await proyectoApi.obtenerAvancePorId(
-          proyectoSeleccionado.id,
-          avanceId
-        );
+      const avanceActualizado = await proyectoApi.obtenerAvancePorId(
+        proyectoSeleccionado.id,
+        avanceId
+      );
 
       setAvances((prev) =>
         prev.map((avance) =>
-          avance.id === avanceId
+          Number(avance.id) === Number(avanceId)
             ? avanceActualizado
             : avance
         )
       );
 
-      showToast(
-        "success",
-        "El avance fue marcado como corregido."
-      );
+      showToast("success", "El avance fue marcado como corregido.");
 
       return avanceActualizado;
     } catch (error) {
       console.error("Error corrigiendo avance:", error);
-
-      showToast(
-        "error",
-        "No se pudo corregir el avance."
-      );
-
+      showToast("error", "No se pudo corregir el avance.");
       throw error;
     }
   };
 
-  // =========================================================
-  // OBSERVAR AVANCE
-  // =========================================================
-
-  const observarAvance = async (
-    avanceId,
-    comentario = ""
-  ) => {
+  const observarAvance = async (avanceId, comentario = "") => {
     try {
       await proyectoApi.observarAvance(
         proyectoSeleccionado.id,
         avanceId,
-        {
-          comentario_revision: comentario
-        }
+        { comentario_revision: comentario }
       );
 
-      const avanceActualizado =
-        await proyectoApi.obtenerAvancePorId(
-          proyectoSeleccionado.id,
-          avanceId
-        );
+      const avanceActualizado = await proyectoApi.obtenerAvancePorId(
+        proyectoSeleccionado.id,
+        avanceId
+      );
 
       setAvances((prev) =>
         prev.map((avance) =>
-          avance.id === avanceId
+          Number(avance.id) === Number(avanceId)
             ? avanceActualizado
             : avance
         )
       );
 
-      showToast(
-        "success",
-        "El avance fue observado correctamente."
-      );
+      showToast("success", "El avance fue observado correctamente.");
 
       return avanceActualizado;
     } catch (error) {
       console.error("Error observando avance:", error);
-
-      showToast(
-        "error",
-        "No se pudo observar el avance."
-      );
-
+      showToast("error", "No se pudo observar el avance.");
       throw error;
     }
   };
 
-  // =========================================================
-  // FILTRAR ACTIVIDADES
-  // =========================================================
-
-  const actividadesFiltradas =
-    Array.isArray(actividades)
-      ? actividades.filter(
-          (actividad) =>
-            filtroEstado === "todos" ||
-            actividad.estado === filtroEstado
-        )
-      : [];
-
-  // =========================================================
-  // PROGRESO
-  // =========================================================
+  const actividadesFiltradas = actividades.filter(
+    (actividad) =>
+      filtroEstado === "todos" || actividad.estado === filtroEstado
+  );
 
   const totalActividades = actividades.length;
 
-  const actividadesCompletadas =
-    actividades.filter(
-      (actividad) =>
-        actividad.estado === "completada"
-    ).length;
+  const actividadesCompletadas = actividades.filter(
+    (actividad) => actividad.estado === "completada"
+  ).length;
 
-  const porcentajeProgreso =
+  const porcentajeCalculado =
     totalActividades > 0
-      ? Math.round(
-          (actividadesCompletadas /
-            totalActividades) *
-            100
-        )
+      ? Math.round((actividadesCompletadas / totalActividades) * 100)
       : 0;
 
-  // =========================================================
-  // RETURN
-  // =========================================================
+  const porcentajeBackend = proyectoSeleccionado?.porcentaje_ejecucion;
+
+  const porcentajeProgreso =
+    porcentajeBackend != null && Number.isFinite(Number(porcentajeBackend))
+      ? Number(porcentajeBackend)
+      : porcentajeCalculado;
 
   return {
     proyectos,
     proyectoSeleccionado,
-
     actividades,
     actividadesFiltradas,
-
     avances,
     evidencias,
-
     metasIndicadores,
-
     loading,
     loadingDetalle,
-
     filtroEstado,
     setFiltroEstado,
-
-    urlInputs,
-
     totalActividades,
     actividadesCompletadas,
     porcentajeProgreso,
-
     seleccionarProyecto,
     deseleccionarProyecto,
-
-    cambiarEstadoActividad,
-
-    registrarAvance,
+    registrarEvidenciaActividad,
     obtenerDetalleAvance,
-
-    subirEvidencia,
-    guardarUrlEvidencia,
-    actualizarUrlInput,
     eliminarEvidencia,
-
     observarAvance,
-    corregirAvance
+    corregirAvance,
   };
 };

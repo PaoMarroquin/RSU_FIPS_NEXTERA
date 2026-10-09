@@ -752,30 +752,23 @@ export const proyectoApi = {
   // SPRINT 8 — EVIDENCIA DE ACTIVIDAD
   // =====================================================
 
-  registrarEvidenciaActividad:
-    async (
-      proyectoPk,
-      actividadId,
-      datosEvidencia
-    ) => {
-      const isFormData =
-        datosEvidencia instanceof FormData;
+  registrarEvidenciaActividad: async (
+    proyectoPk,
+    actividadId,
+    datosEvidencia
+  ) => {
+    const response = await api.post(
+      `/api/v1/proyectos/${proyectoPk}/actividades/${actividadId}/evidencia/`,
+      datosEvidencia,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
-      const response = await api.post(
-        `/api/v1/proyectos/${proyectoPk}/actividades/${actividadId}/evidencia/`,
-        datosEvidencia,
-        {
-          headers: isFormData
-            ? {
-                'Content-Type':
-                  'multipart/form-data',
-              }
-            : {},
-        }
-      );
-
-      return response.data;
-    },
+    return response.data;
+  },
 
   // =====================================================
   // SPRINT 8 — CONSTANCIAS
