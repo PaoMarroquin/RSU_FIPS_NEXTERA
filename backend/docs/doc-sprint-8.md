@@ -74,63 +74,98 @@ GET /proyectos/<id>/informe-finalizacion/
 Authorization: Bearer <token>
 ```
 
-**Respuesta (200):**
+**Respuesta (200)** (resumida: en las listas se muestra un solo elemento):
 ```json
 {
-  "proyecto_id": 12,
+  "id": 12,
   "codigo": "RSU-FIPS-2026-015",
   "titulo": "Proyecto de reciclaje Cayma",
   "estado": "en_ejecucion",
-  "porcentaje_ejecucion": 100.0,
+  "estado_display": "En Ejecución",
+  "semestre_academico": "2026-I",
+  "periodo": {"id": 1, "nombre": "2026-I"},
+  "facultad": {"id": 1, "nombre": "Ingeniería de Producción y Servicios"},
+  "departamento": {"id": 1, "nombre": "..."},
+  "ejes_rsu": [{"id": 4, "nombre": "Extensión"}],
+  "docente_responsable": "Ana Pérez",
+  "fecha_inicio": "2026-03-01",
+  "fecha_termino": "2026-07-31",
+  "fecha_cierre": null,
+
   "finalizacion": {
-    "habilitado": true,
     "estado": "borrador",
-    "campos_pendientes": ["conclusiones", "recomendaciones"]
+    "estado_display": "Borrador",
+    "habilitado": true,
+    "editable": true,
+    "campos_pendientes": ["conclusiones", "metas_valor_alcanzado"],
+    "metas_sin_valor_alcanzado": [1],
+    "fecha_envio": null,
+    "fecha_aprobacion": null,
+    "constancia_aprobada": false
   },
-  "datos_proyecto": {
-    "periodo": "2026-I",
-    "fecha_inicio": "2026-03-01",
-    "fecha_termino": "2026-07-31",
-    "lugar_ejecucion": "...",
-    "nro_beneficiarios": 80,
-    "eje_rsu": "Compromiso Social"
-  },
-  "docentes_participantes": ["Ana Pérez", "Luis Quispe"],
-  "actividades": [
-    {
-      "id": 4,
-      "nombre": "Taller de reciclaje",
-      "estado": "completada",
-      "avances": [
-        {
-          "id": 10,
-          "descripcion": "Se realizó el taller",
-          "fecha_registro": "2026-05-10",
-          "evidencias": [
-            {"tipo": "archivo", "archivo": "https://.../media/evidencias/foto.jpg"}
-          ]
-        }
-      ]
-    }
-  ],
-  "metas_indicadores": [
-    {"id": 1, "descripcion": "Reducir residuos", "linea_base": 100, "valor_meta": 60, "valor_alcanzado": null}
-  ],
-  "partidas_presupuesto": [
-    {"id": 3, "partida": "Materiales", "monto": "500.00", "monto_ejecutado": null}
-  ],
-  "textos": {
+
+  "informe_final": {
     "conclusiones": "",
     "recomendaciones": "",
     "lecciones_aprendidas": "",
-    "medio_difusion": ""
+    "medio_difusion": "",
+    "completo": false,
+    "campos_pendientes": ["conclusiones"]
   },
-  "revisiones_finalizacion": []
+
+  "resultados_esperados": {"en_beneficiarios": "...", "en_curriculo": "...", "impacto_esperado": "..."},
+
+  "resultados_alcanzados": {
+    "avance": {"porcentaje_ejecucion": 100.0, "actividades_total": 2, "actividades_completadas": 2, "...": "..."},
+    "metas": {"total": 1, "cumplidas": 0, "sin_medir": 1, "porcentaje_cumplimiento": 0.0},
+    "presupuesto": {"monto_presupuestado": 800.0, "monto_ejecutado": 0.0, "saldo_por_ejecutar": 800.0, "...": "..."},
+    "detalle_metas": [
+      {"id": 1, "meta": "Reducir residuos", "indicador": "Kg separados", "linea_base": 100.0,
+       "valor_meta": 60.0, "valor_alcanzado": null, "porcentaje_avance": null}
+    ]
+  },
+
+  "presupuesto_detalle": [
+    {"id": 3, "descripcion": "Materiales", "categoria": "Otros", "cantidad": 1,
+     "costo_unitario": 800.0, "monto_presupuestado": 800.0, "monto_ejecutado": 0.0}
+  ],
+
+  "observaciones": [
+    {"id": 2, "decision": "observado", "comentario": "...", "revisor": "...", "created_at": "..."}
+  ],
+
+  "ejecucion": {
+    "porcentaje_ejecucion": 100.0,
+    "actividades_total": 2,
+    "actividades_completadas": 2,
+    "actividades": [
+      {
+        "id": 4, "nombre": "Taller de reciclaje", "estado": "completada", "completada": true,
+        "acciones": [{"id": 7, "descripcion": "...", "fecha_inicio": "...", "fecha_fin": "...",
+                      "responsable": "...", "evidencia_esperada": "..."}],
+        "avances": [{"id": 10, "descripcion": "Se realizó el taller", "autor": "...", "created_at": "..."}],
+        "evidencias": [{"id": 5, "tipo": "archivo", "nombre": "foto.jpg", "url": "https://.../media/...", "uploaded_at": "..."}]
+      }
+    ]
+  }
 }
 ```
 
-`finalizacion.habilitado = true` cuando el proyecto está en ejecución al 100%.
-`campos_pendientes` lista los textos que faltan completar.
+Dónde está cada dato:
+
+| Dato | Clave |
+|---|---|
+| Estado del informe y si se puede editar | `finalizacion.estado`, `finalizacion.habilitado`, `finalizacion.editable` |
+| Textos (conclusiones, etc.) | `informe_final.conclusiones`, `.recomendaciones`, `.lecciones_aprendidas`, `.medio_difusion` |
+| Metas (y su `id` para el PATCH) | `resultados_alcanzados.detalle_metas[]` |
+| Partidas (y su `id` para el PATCH) | `presupuesto_detalle[]` |
+| Actividades, avances y evidencias | `ejecucion.actividades[]` |
+| Comentarios del Departamento | `observaciones[]` |
+
+- `finalizacion.habilitado = true` cuando el proyecto está en ejecución (o aprobado) y **todas sus actividades están completadas**; se cuenta con las actividades reales.
+- `finalizacion.editable = true` solo si además el informe está en `borrador` u `observado`. La pantalla debe usar este valor para habilitar o bloquear el formulario.
+- `campos_pendientes` lista lo que falta para poder enviar.
+- Si la pantalla necesita datos del proyecto que no están aquí (docentes adicionales, fuentes de financiamiento, etc.), los toma de `GET /proyectos/<id>/`, que además trae `informe_finalizacion_estado`.
 
 ---
 
@@ -162,7 +197,11 @@ POST /proyectos/<id>/informe-finalizacion/enviar/
 Authorization: Bearer <token>
 ```
 
+El body es opcional. Si se envía, acepta lo mismo que el PATCH (textos, `metas`, `partidas`): se guarda y se envía en una sola operación, y si algo falla no queda nada guardado.
+
 Si hay `campos_pendientes` responde `400` con la lista. Si está completo, cambia estado a `enviado` y notifica al Departamento.
+
+Si el proyecto ya está finalizado, el PATCH y el envío responden `400`: "El proyecto ya está finalizado: su Informe de Finalización ya no se puede modificar".
 
 ---
 
@@ -278,4 +317,4 @@ python manage.py migrate
 - El PDF de constancia es **formato provisional**; el cliente definirá el oficial.
 - Backend y frontend deben subir juntos: con backend nuevo y frontend actual, el docente no podría enviar a revisión ni completar actividades.
 - Ejecutar `migrate` antes de arrancar el servidor.
-- Pruebas: **151 tests pasan en SQLite**. Pendiente: correr en PostgreSQL (Docker no respondió en esta sesión).
+- Pruebas: los tests del backend pasan en SQLite y en PostgreSQL (Docker).
