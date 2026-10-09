@@ -48,6 +48,7 @@ export default function RevisionProyectos() {
   const navigate = useNavigate();
   const {
     proyectos, loading, modalOpen, setModalOpen, selectedProyecto,
+    codigoProyecto, setCodigoProyecto,
     observacionesCampos, evaluating, actionType, activeTab, setActiveTab,
     loadingDetalle,
     modalVistaOpen, setModalVistaOpen, proyectoDetalle, loadingVista,
@@ -308,9 +309,8 @@ export default function RevisionProyectos() {
                     <button
                       key={sec.id}
                       onClick={() => setActiveTab(sec.id)}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors ${
-                        activa ? "bg-white text-[#b1122b] font-semibold" : "text-slate-600 hover:bg-white/70"
-                      }`}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors ${activa ? "bg-white text-[#b1122b] font-semibold" : "text-slate-600 hover:bg-white/70"
+                        }`}
                     >
                       <Icon size={15} className={activa ? "text-[#b1122b]" : "text-slate-400"} />
                       <span className="flex-1">{sec.label}</span>
@@ -404,18 +404,27 @@ export default function RevisionProyectos() {
 
             {/* Cierre y acciones */}
             <div className="border-t border-slate-100 px-6 py-3 shrink-0 bg-white">
-              {actionType === 'observar' && selectedProyecto && (
+              {actionType === "aprobar" && (
                 <div className="mb-3">
                   <label className="text-xs font-semibold text-slate-700 block mb-1">
-                    Observación general / conclusión del dictamen
+                    Código alfanumérico del proyecto
                   </label>
-                  <textarea
-                    className="w-full text-sm px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#b1122b]/15 focus:border-[#b1122b] text-slate-700 resize-none placeholder:text-slate-400"
-                    rows="2"
-                    placeholder="Escriba un resumen de las correcciones que se le solicitan al docente..."
-                    value={observacionesCampos.observacion_general || ""}
-                    onChange={(e) => handleInputChange("observacion_general", e.target.value)}
+                  <input
+                    type="text"
+                    value={codigoProyecto}
+                    onChange={(e) =>
+                      setCodigoProyecto(
+                        e.target.value.replace(/[^a-zA-Z0-9-]/g, "").toUpperCase()
+                      )
+                    }
+                    placeholder="Ej. RSU-2026-A12"
+                    maxLength={30}
+                    required
+                    className="w-full text-sm px-3 py-2 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 text-slate-700"
                   />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Solo letras, números y guiones.
+                  </p>
                 </div>
               )}
               <div className="flex items-center justify-end gap-2">
@@ -428,10 +437,13 @@ export default function RevisionProyectos() {
                 </button>
                 <button
                   onClick={handleEvaluate}
-                  disabled={evaluating || !selectedProyecto}
-                  className={`px-4 py-2 text-sm font-semibold text-white rounded-md flex items-center gap-1.5 transition-colors ${
-                    actionType === 'aprobar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#b1122b] hover:bg-[#960f24]'
-                  } disabled:opacity-50`}
+                  disabled={
+                    evaluating ||
+                    !selectedProyecto ||
+                    (actionType === "aprobar" && !codigoProyecto.trim())
+                  }
+                  className={`px-4 py-2 text-sm font-semibold text-white rounded-md flex items-center gap-1.5 transition-colors ${actionType === 'aprobar' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-[#b1122b] hover:bg-[#960f24]'
+                    } disabled:opacity-50`}
                 >
                   {evaluating ? (
                     <>

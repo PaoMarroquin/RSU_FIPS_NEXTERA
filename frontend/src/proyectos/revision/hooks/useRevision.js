@@ -13,6 +13,7 @@ export const useRevision = () => {
   const [observacionesCampos, setObservacionesCampos] = useState({});
   const [evaluating, setEvaluating] = useState(false);
   const [actionType, setActionType] = useState(null); // 'aprobar' o 'observar'
+  const [codigoProyecto, setCodigoProyecto] = useState("");
   const [activeTab, setActiveTab] = useState("general");
   const [loadingDetalle, setLoadingDetalle] = useState(false);
 
@@ -85,6 +86,7 @@ export const useRevision = () => {
   const openModalRevision = async (proyecto, action) => {
     setSelectedProyecto(null);
     setActionType(action);
+    setCodigoProyecto("");
     setActiveTab("general");
     setModalOpen(true);
     setLoadingDetalle(true);
@@ -123,6 +125,11 @@ export const useRevision = () => {
       const payload = {};
 
       if (actionType === "aprobar") {
+        if (!codigoProyecto.trim()) {
+          showToast("error", "Debes ingresar el código del proyecto.");
+          return;
+        }
+        payload.codigo = codigoProyecto.trim().toUpperCase();
         payload.comentario = "El proyecto cumple con los requisitos normativos.";
         await proyectoApi.aprobarProyecto(selectedProyecto.id, payload);
       } else if (actionType === "observar") {
@@ -155,6 +162,7 @@ export const useRevision = () => {
 
   return {
     proyectos, loading, modalOpen, setModalOpen, selectedProyecto,
+    codigoProyecto, setCodigoProyecto,
     observacionesCampos, evaluating, actionType, activeTab, setActiveTab,
     loadingDetalle,
     modalVistaOpen, setModalVistaOpen, proyectoDetalle, loadingVista,
