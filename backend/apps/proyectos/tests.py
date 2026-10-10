@@ -1719,6 +1719,24 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         pdf = exportar_constancia_pdf(self.proyecto, None, self.depto).getvalue()
         self.assertTrue(pdf.startswith(b'%PDF'))
 
+    def test_constancia_varios_ejes_y_detalle_de_otros(self):
+        from apps.planificacion.models import EjeRSU
+        otros, _ = EjeRSU.objects.get_or_create(nombre='Otros')
+        gestion, _ = EjeRSU.objects.get_or_create(nombre='Gestión')
+        self.proyecto.ejes_rsu.set([gestion, otros])
+        self.proyecto.eje_detalle = 'Voluntariado ambiental'
+        self.proyecto.save(update_fields=['eje_detalle'])
+        datos = self._datos_constancia()
+        self.assertEqual(datos['n_ejes'], 2)
+        self.assertIn('Voluntariado ambiental', datos['ejes'])
+        self.assertNotIn('Otros', datos['ejes'])
+
+    def test_constancia_un_solo_participante(self):
+        self.proyecto.docentes_participantes = ['Ana Quispe']
+        self.proyecto.save(update_fields=['docentes_participantes'])
+        datos = self._datos_constancia()
+        self.assertEqual((datos['n_participantes'], datos['participantes']), (1, 'Ana Quispe'))
+
     def test_constancia_firma_quien_la_aprueba(self):
         datos = self._datos_constancia(self.depto)
         self.assertEqual(datos['firmante'], f'{self.depto.nombres} {self.depto.apellidos}'.strip())

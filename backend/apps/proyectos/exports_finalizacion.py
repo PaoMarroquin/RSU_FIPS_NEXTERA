@@ -121,7 +121,6 @@ def _num(valor):
 
 MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
          'septiembre', 'octubre', 'noviembre', 'diciembre')
-ROJO_PLANTILLA = colors.HexColor('#EE0000')
 
 
 def _fecha_larga(fecha):
@@ -164,16 +163,22 @@ def datos_constancia(proyecto, informe, firmante):
     beneficiarios = (proyecto.benef_otro_detalle or '').strip() or _enumerar(
         [str(b) for b in proyecto.beneficiarios.all()])
     aprobada_en = informe.constancia_aprobada_en if informe else None
+    detalle_otros = (proyecto.eje_detalle or '').strip()
+    ejes = [detalle_otros if e == 'Otros' and detalle_otros else e
+            for e in proyecto.ejes_rsu.order_by('id').values_list('nombre', flat=True)]
+    participantes = [n for n in (proyecto.docentes_participantes or []) if n]
     return {
         'departamento': _nombre_departamento(proyecto.departamento),
         'numero': proyecto.codigo or '—',
         'facultad': proyecto.facultad.nombre if proyecto.facultad else '—',
         'titulo': proyecto.titulo,
         'docente': f'{docente.nombres} {docente.apellidos}'.strip(),
-        'participantes': _enumerar(proyecto.docentes_participantes or []),
+        'participantes': _enumerar(participantes),
+        'n_participantes': len(participantes),
         'fecha_inicio': _fecha_larga(proyecto.fecha_inicio),
         'fecha_fin': _fecha_larga(_fecha_fin_real(proyecto)),
-        'ejes': _enumerar(list(proyecto.ejes_rsu.values_list('nombre', flat=True))) or '—',
+        'ejes': _enumerar(ejes) or '—',
+        'n_ejes': len(ejes),
         'ods': _enumerar([f'ODS {n}' for n in ods]),
         'beneficiarios': beneficiarios or '—',
         'fecha_documento': timezone.localtime(aprobada_en or timezone.now()).date(),
@@ -227,8 +232,13 @@ def _elementos_constancia(d, separacion):
                               textColor=color)
 
     cuerpo = estilo(11, TA_JUSTIFY)
-    participantes = (f' con la participación de los docentes: <b>{d["participantes"]}.</b>'
-                     if d['participantes'] else '.')
+    if d['n_participantes'] > 1:
+        participantes = f' con la participación de los docentes: <b>{d["participantes"]}.</b>'
+    elif d['n_participantes'] == 1:
+        participantes = f' con la participación del docente: <b>{d["participantes"]}.</b>'
+    else:
+        participantes = '.'
+    eje = 'de los ejes RSU' if d['n_ejes'] > 1 else 'del eje RSU'
     ods = f' y alineado a los <b>{d["ods"]}</b>' if d['ods'] else ''
     fecha = d['fecha_documento']
 
@@ -238,7 +248,7 @@ def _elementos_constancia(d, separacion):
                   estilo(12, TA_CENTER, 'Times-Bold')),
         Paragraph('&nbsp;', estilo(10, despues=15)),
         Paragraph('CONSTANCIA DE FINALIZACIÓN DE PROYECTO RSU', estilo(16, TA_CENTER, 'Times-Bold')),
-        Paragraph(f'N° {d["numero"]} ', estilo(16, TA_CENTER, 'Times-Italic', color=ROJO_PLANTILLA)),
+        Paragraph(f'N° {d["numero"]} ', estilo(16, TA_CENTER, 'Times-Italic')),
         Paragraph('&nbsp;', estilo(10, despues=15)),
         Paragraph(
             f'El director de <b>{d["departamento"]},</b> de la facultad de <b>{d["facultad"]}</b>,  '
@@ -248,7 +258,7 @@ def _elementos_constancia(d, separacion):
         Paragraph('&nbsp;', estilo(11)),
         Paragraph(
             f'El proyecto se desarrolló durante el periodo comprendido entre el <b>{d["fecha_inicio"]}</b> '
-            f'y el <b>{d["fecha_fin"]}</b>, en el marco del eje RSU <b>{d["ejes"]}</b>{ods}, logrando '
+            f'y el <b>{d["fecha_fin"]}</b>, en el marco {eje} <b>{d["ejes"]}</b>{ods}, logrando '
             f'beneficiar a <b>{d["beneficiarios"]}</b>.', cuerpo),
         Paragraph('&nbsp;', estilo(11)),
         Paragraph(
