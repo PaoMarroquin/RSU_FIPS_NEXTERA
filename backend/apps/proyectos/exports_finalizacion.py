@@ -119,34 +119,177 @@ def _num(valor):
     return '—' if valor is None else f'{valor:g}'
 
 
-def exportar_constancia_pdf(proyecto, informe):
-    salida = io.BytesIO()
-    doc = SimpleDocTemplate(salida, pagesize=A4, leftMargin=25 * mm, rightMargin=25 * mm,
-                            topMargin=35 * mm, bottomMargin=25 * mm,
-                            title='Constancia de Finalización')
-    e = _estilos()
-    docente = proyecto.docente_responsable
-    fecha = (informe.fecha_aprobacion or timezone.now()).strftime('%d/%m/%Y')
-    departamento = proyecto.departamento.nombre if proyecto.departamento else '—'
+MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+         'septiembre', 'octubre', 'noviembre', 'diciembre')
+ROJO_PLANTILLA = colors.HexColor('#EE0000')
 
-    elementos = [
-        Paragraph('Universidad Nacional de San Agustín de Arequipa', e['centro']),
-        Paragraph('Oficina de Responsabilidad Social Universitaria', e['centro']),
-        Spacer(1, 18 * mm),
-        Paragraph('CONSTANCIA DE FINALIZACIÓN DE PROYECTO RSU', e['titulo']),
-        Spacer(1, 10 * mm),
-        Paragraph(
-            f'Se deja constancia de que el proyecto <b>{proyecto.titulo}</b>, con código '
-            f'<b>{proyecto.codigo or "—"}</b>, a cargo del docente '
-            f'<b>{docente.nombres} {docente.apellidos}</b>, del {departamento}, '
-            f'fue ejecutado y su Informe de Finalización aprobado el {fecha}.',
-            e['centro']),
-        Spacer(1, 25 * mm),
-        Paragraph('_______________________________', e['centro']),
-        Paragraph('Departamento Académico', e['centro']),
-        Spacer(1, 10 * mm),
-        Paragraph('Formato provisional', e['normal']),
-    ]
-    doc.build(elementos)
+
+def _fecha_larga(fecha):
+    return f'{fecha.day} de {MESES[fecha.month - 1]} de {fecha.year}' if fecha else '—'
+
+
+def _enumerar(nombres):
+    nombres = [n for n in nombres if n]
+    if len(nombres) <= 1:
+        return ''.join(nombres)
+    return f'{", ".join(nombres[:-1])} y {nombres[-1]}'
+
+
+def _nombre_departamento(departamento):
+    """Nombre completo, sin repetir 'Departamento' si ya viene en el dato."""
+    if not departamento:
+        return '—'
+    nombre = departamento.nombre.strip()
+    if nombre.lower().startswith('departamento'):
+        return nombre
+    return f'Departamento Académico de {nombre}'
+
+
+def _fecha_fin_real(proyecto):
+    """Fecha de término planificada, o la de la última actividad completada si fue después."""
+    ultima = (proyecto.avances.filter(estado_actividad='completada')
+              .order_by('-created_at').values_list('created_at', flat=True).first())
+    fin = proyecto.fecha_termino
+    if ultima:
+        ultima = timezone.localtime(ultima).date()
+        if fin is None or ultima > fin:
+            return ultima
+    return fin
+
+
+def datos_constancia(proyecto, informe, firmante):
+    """Valores que reemplazan los corchetes de la plantilla oficial de la constancia."""
+    docente = proyecto.docente_responsable
+    ods = sorted(proyecto.ods.values_list('numero', flat=True))
+    beneficiarios = (proyecto.benef_otro_detalle or '').strip() or _enumerar(
+        [str(b) for b in proyecto.beneficiarios.all()])
+    aprobada_en = informe.constancia_aprobada_en if informe else None
+    return {
+        'departamento': _nombre_departamento(proyecto.departamento),
+        'numero': proyecto.codigo or '—',
+        'facultad': proyecto.facultad.nombre if proyecto.facultad else '—',
+        'titulo': proyecto.titulo,
+        'docente': f'{docente.nombres} {docente.apellidos}'.strip(),
+        'participantes': _enumerar(proyecto.docentes_participantes or []),
+        'fecha_inicio': _fecha_larga(proyecto.fecha_inicio),
+        'fecha_fin': _fecha_larga(_fecha_fin_real(proyecto)),
+        'ejes': _enumerar(list(proyecto.ejes_rsu.values_list('nombre', flat=True))) or '—',
+        'ods': _enumerar([f'ODS {n}' for n in ods]),
+        'beneficiarios': beneficiarios or '—',
+        'fecha_documento': timezone.localtime(aprobada_en or timezone.now()).date(),
+        'firmante': f'{firmante.nombres} {firmante.apellidos}'.strip() if firmante else '',
+        'firma': firmante.firma_digital if firmante and firmante.firma_digital else None,
+    }
+
+
+def _imagen_firma(firma, alto_max):
+    from reportlab.lib.utils import ImageReader
+    from reportlab.platypus import Image
+    try:
+        firma.open('rb')
+        contenido = io.BytesIO(firma.read())
+        firma.close()
+        ancho, alto = ImageReader(contenido).getSize()
+    except Exception:
+        return None
+    contenido.seek(0)
+    escala = min(alto_max / alto, 180 / ancho)
+    return Image(contenido, width=ancho * escala, height=alto * escala)
+
+
+def exportar_constancia_pdf(proyecto, informe, firmante=None):
+    """Constancia con el formato oficial (Times New Roman, carta, márgenes de 2.54 cm)."""
+    from xml.sax.saxutils import escape
+    from reportlab.lib.pagesizes import letter
+
+    d = {k: escape(v) if isinstance(v, str) else v
+         for k, v in datos_constancia(proyecto, informe, firmante).items()}
+    # Si un nombre largo agrega líneas, se acorta el espacio en blanco para
+    # que la constancia quede siempre en una sola hoja, como la plantilla.
+    for separacion in (30, 24, 18, 12, 6, 0):
+        salida = io.BytesIO()
+        doc = SimpleDocTemplate(salida, pagesize=letter, leftMargin=72, rightMargin=72,
+                                topMargin=72, bottomMargin=72,
+                                title='Constancia de Finalización de Proyecto RSU')
+        doc.build(_elementos_constancia(d, separacion))
+        if doc.page == 1:
+            break
     salida.seek(0)
     return salida
+
+
+def _elementos_constancia(d, separacion):
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
+
+    def estilo(tam, alineacion=TA_LEFT, fuente='Times-Roman', despues=0, color=colors.black):
+        return ParagraphStyle(f'c{tam}{alineacion}{fuente}{despues}', fontName=fuente, fontSize=tam,
+                              leading=tam * 1.15, alignment=alineacion, spaceAfter=despues,
+                              textColor=color)
+
+    cuerpo = estilo(11, TA_JUSTIFY)
+    participantes = (f' con la participación de los docentes: <b>{d["participantes"]}.</b>'
+                     if d['participantes'] else '.')
+    ods = f' y alineado a los <b>{d["ods"]}</b>' if d['ods'] else ''
+    fecha = d['fecha_documento']
+
+    elementos = [
+        Paragraph('UNIVERSIDAD NACIONAL DE SAN AGUSTÍN DE AREQUIPA', estilo(14, TA_CENTER, 'Times-Bold')),
+        Paragraph(f'{d["departamento"].upper()}<br/>COMITÉ DE RESPONSABILIDAD SOCIAL FIPS',
+                  estilo(12, TA_CENTER, 'Times-Bold')),
+        Paragraph('&nbsp;', estilo(10, despues=15)),
+        Paragraph('CONSTANCIA DE FINALIZACIÓN DE PROYECTO RSU', estilo(16, TA_CENTER, 'Times-Bold')),
+        Paragraph(f'N° {d["numero"]} ', estilo(16, TA_CENTER, 'Times-Italic', color=ROJO_PLANTILLA)),
+        Paragraph('&nbsp;', estilo(10, despues=15)),
+        Paragraph(
+            f'El director de <b>{d["departamento"]},</b> de la facultad de <b>{d["facultad"]}</b>,  '
+            'de la Universidad Nacional de San Agustín de Arequipa certifica que el proyecto de '
+            f'responsabilidad social denominado <b>"{d["titulo"]}"</b>, ejecutado bajo la '
+            f'responsabilidad del/de la docente <b>{d["docente"]}</b>{participantes}', cuerpo),
+        Paragraph('&nbsp;', estilo(11)),
+        Paragraph(
+            f'El proyecto se desarrolló durante el periodo comprendido entre el <b>{d["fecha_inicio"]}</b> '
+            f'y el <b>{d["fecha_fin"]}</b>, en el marco del eje RSU <b>{d["ejes"]}</b>{ods}, logrando '
+            f'beneficiar a <b>{d["beneficiarios"]}</b>.', cuerpo),
+        Paragraph('&nbsp;', estilo(11)),
+        Paragraph(
+            'Asimismo, se deja constancia de que la iniciativa alcanzó el <b>100% de ejecución de sus '
+            'actividades y presupuesto asignado</b>, habiendo cumplido con la entrega de todas las '
+            'evidencias documentales y fotográficas requeridas. Tras la evaluación técnica de cierre '
+            'realizada por la Dirección del Departamento Académico, el proyecto ha sido clasificado como '
+            '<b>FINALIZADO</b> y registrado en el Repositorio Institucional de RSU.', cuerpo),
+        Paragraph('&nbsp;', estilo(10)),
+        Paragraph('Se expide la presente constancia a solicitud del docente responsable para los fines '
+                  'que considere pertinentes.', estilo(11)),
+        Paragraph('&nbsp;', estilo(11)),
+        Paragraph('&nbsp;', estilo(11, TA_CENTER, despues=separacion)),
+        Paragraph('&nbsp;', estilo(11, TA_CENTER, despues=separacion)),
+        Paragraph('&nbsp;', estilo(11, TA_CENTER, despues=separacion)),
+        Paragraph(f'Arequipa, {fecha.day} de {MESES[fecha.month - 1]} de {fecha.year}',
+                  estilo(11, TA_CENTER, despues=separacion)),
+    ]
+
+    # La firma ocupa el espacio del párrafo vacío (11 pt + 30 pt) previo a la línea.
+    espacio_firma = 11 * 1.15 + separacion
+    imagen = _imagen_firma(d['firma'], 50) if d['firma'] else None
+    filas = []
+    if imagen:
+        filas.append([imagen])
+        elementos.append(Spacer(1, max(espacio_firma - imagen.drawHeight, 0)))
+    else:
+        elementos.append(Paragraph('&nbsp;', estilo(11, TA_CENTER, despues=separacion)))
+    filas += [
+        [Paragraph('_______________________________', estilo(11, TA_CENTER))],
+        [Paragraph(d['firmante'] or '&nbsp;', estilo(10, TA_CENTER))],
+        [Paragraph('Departamento Académico', estilo(10, TA_CENTER, 'Times-Bold'))],
+    ]
+    tabla = Table(filas, colWidths=[234], hAlign='LEFT')
+    tabla.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0.5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0.5),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elementos.append(tabla)
+    return elementos

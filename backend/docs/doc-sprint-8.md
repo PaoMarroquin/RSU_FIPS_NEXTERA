@@ -314,7 +314,7 @@ python manage.py migrate
 
 ## 5. Notas para el despliegue
 
-- El PDF de constancia es **formato provisional**; el cliente definirá el oficial.
+- El PDF de constancia sigue el formato oficial del cliente (Times New Roman, carta). Lo firma, con su nombre y su firma digital, el usuario de Departamento que aprueba la constancia. El periodo usa las fechas planificadas; si la última actividad se completó después de la fecha de término, se muestra esa fecha.
 - Backend y frontend deben subir juntos: con backend nuevo y frontend actual, el docente no podría enviar a revisión ni completar actividades.
 - Ejecutar `migrate` antes de arrancar el servidor.
 - Pruebas: los tests del backend pasan en SQLite y en PostgreSQL (Docker).

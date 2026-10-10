@@ -1687,6 +1687,51 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response['Content-Type'], 'application/pdf')
 
+    def _datos_constancia(self, firmante=None):
+        from apps.proyectos.exports_finalizacion import datos_constancia
+        return datos_constancia(self.proyecto, None, firmante)
+
+    def test_constancia_usa_fecha_planificada_si_se_termino_a_tiempo(self):
+        import datetime
+        self.proyecto.fecha_termino = datetime.date(2099, 12, 31)
+        self.proyecto.save(update_fields=['fecha_termino'])
+        AvanceActividad.objects.create(
+            proyecto=self.proyecto, actividad=self.proyecto.actividades.first(),
+            descripcion='ok', estado_actividad='completada', autor=self.docente)
+        self.assertEqual(self._datos_constancia()['fecha_fin'], '31 de diciembre de 2099')
+
+    def test_constancia_usa_ultima_actividad_si_se_retraso(self):
+        import datetime
+        self.proyecto.fecha_termino = datetime.date(2000, 1, 1)
+        self.proyecto.save(update_fields=['fecha_termino'])
+        AvanceActividad.objects.create(
+            proyecto=self.proyecto, actividad=self.proyecto.actividades.first(),
+            descripcion='ok', estado_actividad='completada', autor=self.docente)
+        hoy = timezone.localtime(timezone.now()).date()
+        from apps.proyectos.exports_finalizacion import _fecha_larga
+        self.assertEqual(self._datos_constancia()['fecha_fin'], _fecha_larga(hoy))
+
+    def test_constancia_sin_participantes_omite_la_frase(self):
+        from apps.proyectos.exports_finalizacion import exportar_constancia_pdf
+        self.proyecto.docentes_participantes = []
+        self.proyecto.save(update_fields=['docentes_participantes'])
+        self.assertEqual(self._datos_constancia()['participantes'], '')
+        pdf = exportar_constancia_pdf(self.proyecto, None, self.depto).getvalue()
+        self.assertTrue(pdf.startswith(b'%PDF'))
+
+    def test_constancia_firma_quien_la_aprueba(self):
+        datos = self._datos_constancia(self.depto)
+        self.assertEqual(datos['firmante'], f'{self.depto.nombres} {self.depto.apellidos}'.strip())
+
+    def test_constancia_no_repite_departamento_en_el_nombre(self):
+        from apps.proyectos.exports_finalizacion import _nombre_departamento
+
+        class Depto:
+            nombre = 'Departamento Académico de Sistemas'
+        self.assertEqual(_nombre_departamento(Depto), 'Departamento Académico de Sistemas')
+        Depto.nombre = 'Ingeniería Industrial'
+        self.assertEqual(_nombre_departamento(Depto), 'Departamento Académico de Ingeniería Industrial')
+
     def test_constancia_la_aprueba_el_departamento_y_luego_la_descarga_el_docente(self):
         self._enviar()
         self.client.force_authenticate(user=self.depto)

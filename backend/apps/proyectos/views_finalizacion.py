@@ -350,7 +350,10 @@ class ConstanciaPDFView(APIView):
         es_docente_dueno = proyecto.docente_responsable_id == user.id
         if not (_es_admin(user) or es_departamento or (es_docente_dueno and informe.constancia_aprobada)):
             raise PermissionDenied('La constancia todavía no está disponible.')
-        return _pdf(exportar_constancia_pdf(proyecto, informe),
+        # Firma quien aprueba la constancia (Departamento); antes de aprobarla, el
+        # Departamento que la revisa la previsualiza con su propio nombre.
+        firmante = informe.constancia_aprobada_por or (user if es_departamento else None)
+        return _pdf(exportar_constancia_pdf(proyecto, informe, firmante),
                     f'constancia-{proyecto.codigo or proyecto.id}.pdf')
 
 

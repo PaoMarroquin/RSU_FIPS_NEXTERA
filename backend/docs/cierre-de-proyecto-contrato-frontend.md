@@ -139,7 +139,7 @@ finalizar" debe quitarse del rol Jefatura RSU en `navConfig.js`.
 | `GET /proyectos/<id>/constancia/pdf/` | Departamento y Admin siempre; el docente solo cuando está aprobada | Descarga el PDF |
 | `POST /proyectos/<id>/constancia/aprobar/` | Departamento, Admin | Botón "Aprobar constancia". Una sola vez (la segunda da 400) |
 
-El formato del PDF es **provisional** hasta que el cliente entregue el oficial.
+El PDF sigue el formato oficial entregado por el cliente y lleva el nombre y la firma digital del usuario de Departamento que aprobó la constancia.
 
 ## 5. Errores
 
