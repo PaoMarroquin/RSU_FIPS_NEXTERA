@@ -800,4 +800,6 @@ export const proyectoApi = {
 
       return response;
     },
-};
+
+
+  };

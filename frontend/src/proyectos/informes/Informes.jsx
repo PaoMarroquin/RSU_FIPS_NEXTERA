@@ -41,6 +41,7 @@ const Informes = () => {
 
 const proyectoAprobado = [
   "aprobado",
+  "en_ejecucion",
   "finalizado",
 ].includes(
   matrizSeleccionada?.estado?.toLowerCase()
