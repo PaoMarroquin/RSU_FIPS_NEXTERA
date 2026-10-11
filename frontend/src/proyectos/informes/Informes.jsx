@@ -11,16 +11,18 @@ import {
   FiAward
 } from "react-icons/fi";
 
+import { useToast } from "../../shared/context/ToastContext";
 import { useInformes } from "./hooks/useInformes";
 import {
   obtenerInformeFinalizacion,
   descargarConstancia,
+  descargarInformeFinalizacionPDF
 } from "./hooks/informefinalizado";
 
-// Importamos la UI corregida
 import { DocumentoCard, ModalDocumento } from "./components/ExpedienteUI";
 
 const Informes = () => {
+  const { showToast } = useToast();
   const {
     searchTerm,
     setSearchTerm,
@@ -75,48 +77,50 @@ const Informes = () => {
   const constanciaAprobada = informeFinalizacion?.constancia_aprobada === true;
   const constanciaDisponible = informeFinalizacionAprobado && constanciaAprobada;
 
-  const abrirDocumento = (tipo) => {
-    if (tipo === "planificacion") { setDocumentoModal("planificacion"); return; }
-    if (tipo === "finalizacion" && informeFinalizacionAprobado) { setDocumentoModal("finalizacion"); return; }
-    if (tipo === "constancia" && constanciaDisponible) { setDocumentoModal("constancia"); return; }
-  };
-
   const cerrarModal = () => {
     setDocumentoModal(null);
     setErrorConstancia(null);
   };
 
-  const abrirConstancia = async () => {
+  const abrirDocumentoPlanificacion = () => {
+    setDocumentoModal({ tipo: "planificacion" });
+  };
+
+  const handleVerFinalizacionPDF = async () => {
+    if (!matrizSeleccionada?.id || !informeFinalizacionAprobado) return;
+    try {
+      setLoadingFinalizacion(true);
+      const response = await descargarInformeFinalizacionPDF(matrizSeleccionada.id);
+      
+      const blob = response.data || response;
+      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      
+      setDocumentoModal({ tipo: "finalizacion", url });
+    } catch (err) {
+      console.error(err);
+      showToast("error", "No se pudo cargar el PDF del informe de finalización.");
+    } finally {
+      setLoadingFinalizacion(false);
+    }
+  };
+
+  const handleVerConstanciaPDF = async () => {
     if (!matrizSeleccionada?.id || !constanciaDisponible) return;
     try {
       setLoadingConstancia(true);
       setErrorConstancia(null);
       const response = await descargarConstancia(matrizSeleccionada.id);
-      if (response instanceof Blob) {
-        setDocumentoModal({ tipo: "constancia", url: window.URL.createObjectURL(response) });
-        return;
-      }
-      if (typeof response === "string") {
-        setDocumentoModal({ tipo: "constancia", url: response });
-        return;
-      }
-      if (response?.url) {
-        setDocumentoModal({ tipo: "constancia", url: response.url });
-        return;
-      }
-      setErrorConstancia("No se pudo obtener el documento de la constancia.");
+      
+      const blob = response.data || response;
+      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      
+      setDocumentoModal({ tipo: "constancia", url });
     } catch (err) {
       console.error("Error cargando constancia:", err);
-      setErrorConstancia("No se pudo cargar la constancia.");
+      showToast("error", "No se pudo cargar el PDF de la constancia.");
     } finally {
       setLoadingConstancia(false);
     }
-  };
-
-  const handleVerConstancia = async () => {
-    if (!constanciaDisponible) return;
-    setDocumentoModal("constancia");
-    await abrirConstancia();
   };
 
   const codigo = matrizSeleccionada?.codigo || `PRY-${matrizSeleccionada?.id || ""}`;
@@ -127,7 +131,6 @@ const Informes = () => {
     <Layout>
       <div className="p-4 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)] overflow-x-hidden">
 
-        {/* ENCABEZADO */}
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 m-0">Informes Completos de Ejecución</h2>
@@ -135,10 +138,8 @@ const Informes = () => {
           </div>
         </div>
 
-        {/* CONTENIDO PRINCIPAL CON LOGICA RESPONSIVA MAESTRO-DETALLE */}
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 
-          {/* PANEL IZQUIERDO: LISTA (Se oculta en movil si hay un proyecto seleccionado) */}
           <div className={`${matrizSeleccionada ? 'hidden xl:flex' : 'flex'} xl:col-span-4 flex-col gap-4 w-full`}>
             <div className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -205,10 +206,7 @@ const Informes = () => {
             </div>
           </div>
 
-          {/* PANEL DERECHO: DETALLES (Se oculta en movil si NO hay proyecto seleccionado) */}
           <div className={`${!matrizSeleccionada ? 'hidden xl:block' : 'block'} xl:col-span-8 w-full`}>
-
-            {/* BOTON VOLVER PARA PANTALLAS PEQUENAS */}
             {matrizSeleccionada && (
               <button
                 onClick={() => setMatrizSeleccionada(null)}
@@ -244,13 +242,13 @@ const Informes = () => {
 
                 <div className="p-4 sm:p-5 bg-slate-50">
                   <DocumentoCard
-                    icon={<FiFileText className="text-xl" />} titulo="Informe de planificación" descripcion="Proyecto RSU aprobado" estado="Aprobado" disponible={true} onView={() => abrirDocumento("planificacion")}
+                    icon={<FiFileText className="text-xl" />} titulo="Informe de planificación" descripcion="Proyecto RSU aprobado" estado="Aprobado" disponible={true} onView={abrirDocumentoPlanificacion}
                   />
                   <DocumentoCard
-                    icon={<FiFileText className="text-xl" />} titulo="Informe de finalización" descripcion={loadingFinalizacion ? "Cargando información..." : "Informe de ejecución y cierre del proyecto"} estado={loadingFinalizacion ? "Cargando" : informeFinalizacionAprobado ? "Aprobado" : informeFinalizacionEnviado ? "En revisión" : informeFinalizacionObservado ? "Observado" : "Pendiente"} disponible={informeFinalizacionAprobado} loading={loadingFinalizacion} onView={() => abrirDocumento("finalizacion")}
+                    icon={<FiFileText className="text-xl" />} titulo="Informe de finalización" descripcion={loadingFinalizacion ? "Cargando información..." : "Informe de ejecución y cierre del proyecto"} estado={loadingFinalizacion ? "Cargando" : informeFinalizacionAprobado ? "Aprobado" : informeFinalizacionEnviado ? "En revisión" : informeFinalizacionObservado ? "Observado" : "Pendiente"} disponible={informeFinalizacionAprobado} loading={loadingFinalizacion} onView={handleVerFinalizacionPDF}
                   />
                   <DocumentoCard
-                    icon={<FiAward className="text-xl" />} titulo="Constancia de ejecución" descripcion="Emitida después de aprobar el informe de finalización" estado={constanciaDisponible ? "Disponible" : "Pendiente"} disponible={constanciaDisponible} loading={loadingConstancia} onView={handleVerConstancia}
+                    icon={<FiAward className="text-xl" />} titulo="Constancia de ejecución" descripcion="Emitida después de aprobar el informe de finalización" estado={constanciaDisponible ? "Disponible" : "Pendiente"} disponible={constanciaDisponible} loading={loadingConstancia} onView={handleVerConstanciaPDF} ultimo
                   />
                 </div>
               </div>
@@ -259,14 +257,10 @@ const Informes = () => {
         </div>
       </div>
 
-      {/* MODAL */}
       {documentoModal && (
         <ModalDocumento
           tipo={documentoModal}
           proyecto={matrizSeleccionada}
-          informeFinalizacion={informeFinalizacion}
-          loadingConstancia={loadingConstancia}
-          errorConstancia={errorConstancia}
           cerrar={cerrarModal}
         />
       )}

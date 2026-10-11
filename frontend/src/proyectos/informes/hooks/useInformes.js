@@ -63,12 +63,7 @@ export const useInformes = () => {
 
       setDataMatrices(proyectosArray);
 
-      // Seleccionar automáticamente el primer proyecto
-      if (proyectosArray.length > 0) {
-        setMatrizSeleccionada(proyectosArray[0]);
-      } else {
-        setMatrizSeleccionada(null);
-      }
+      setMatrizSeleccionada(null);
     } catch (err) {
       console.error(
         "Error al traer los proyectos del docente:",
