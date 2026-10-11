@@ -91,23 +91,18 @@ export default function InformeFinalizacion() {
     }
   };
 
-  // Enviar informe a revisión
-  const handleFinalizarYEnviar = async () => {
-    if (!proyectoSeleccionado?.id) return;
+// Enviar informe a revisión
+const handleFinalizarYEnviar = async () => {
+  if (!proyectoSeleccionado?.id) return;
 
-    const confirmar = window.confirm(
-      "¿Deseas enviar este informe al Departamento? Ya no podrás editarlo."
-    );
+  const exito = await enviarRevision(proyectoSeleccionado.id);
 
-    if (!confirmar) return;
+  if (exito) {
+    showToast("success", "Informe enviado correctamente.");
+    setProyectoSeleccionado(null);
+  }
+};
 
-    const exito = await enviarRevision(proyectoSeleccionado.id);
-
-    if (exito) {
-      showToast("success", "Informe enviado correctamente.");
-      setProyectoSeleccionado(null);
-    }
-  };
 
   const estadoInforme = informeData?.finalizacion?.estado || "borrador";
 

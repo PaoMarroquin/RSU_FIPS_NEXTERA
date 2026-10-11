@@ -1,63 +1,120 @@
-import React from 'react';
-import { FiRefreshCw, FiSave, FiSend, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
-export default function FormFooterFinalizacion({ 
-  step, 
+import React, { useState } from "react";
+import {
+  FiRefreshCw,
+  FiSave,
+  FiSend,
+  FiChevronLeft,
+  FiChevronRight,
+} from "react-icons/fi";
+
+export default function FormFooterFinalizacion({
+  step,
   totalSteps,
-  nextStep, 
-  prevStep, 
-  guardarBorrador, 
-  enviarProyectoBackend, 
+  nextStep,
+  prevStep,
+  guardarBorrador,
+  enviarProyectoBackend,
   isSubmitting,
-  puedeEditar
+  puedeEditar,
 }) {
+  const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+
+  const botonBase =
+    "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+
+  const confirmarEnvio = async () => {
+    await enviarProyectoBackend();
+    setMostrarConfirmacion(false);
+  };
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white border-t border-slate-200 p-4 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-      <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
-        
-        {/* Boton Anterior */}
-        <button
-          onClick={prevStep}
-          disabled={step === 1 || isSubmitting}
-          className="w-full sm:w-auto px-4 py-2 border border-slate-300 rounded-lg text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          <FiChevronLeft /> Anterior
-        </button>
+    <>
+      <footer className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-3 shadow-sm sm:p-4 md:left-64">
+        <div className="mx-auto flex max-w-5xl flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={prevStep}
+            disabled={step === 1 || isSubmitting}
+            className={`${botonBase} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
+          >
+            <FiChevronLeft />
+            Anterior
+          </button>
 
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          {puedeEditar && (
-            <button
-              onClick={guardarBorrador}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? <FiRefreshCw className="animate-spin" /> : <FiSave />} 
-              Guardar Borrador
-            </button>
-          )}
-
-          {step === totalSteps ? (
-            puedeEditar && (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {puedeEditar && (
               <button
-                onClick={enviarProyectoBackend}
+                type="button"
+                onClick={guardarBorrador}
                 disabled={isSubmitting}
-                className="w-full sm:w-auto px-6 py-2 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8a0e21] transition-colors flex items-center justify-center gap-2 shadow-sm"
+                className={`${botonBase} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`}
               >
-                {isSubmitting ? <FiRefreshCw className="animate-spin" /> : <FiSend />} 
-                Finalizar y Enviar
+                {isSubmitting ? (
+                  <FiRefreshCw className="animate-spin" />
+                ) : (
+                  <FiSave />
+                )}
+                Guardar Borrador
               </button>
-            )
-          ) : (
-            <button
-              onClick={nextStep}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto px-6 py-2 bg-slate-800 text-white rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-            >
-              Siguiente <FiChevronRight />
-            </button>
-          )}
+            )}
+
+            {step === totalSteps ? (
+              puedeEditar && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfirmacion(true)}
+                  disabled={isSubmitting}
+                  className={`${botonBase} bg-[#b1122b] text-white hover:bg-[#8a0e21]`}
+                >
+                  <FiSend />
+                  Finalizar y Enviar
+                </button>
+              )
+            ) : (
+              <button
+                type="button"
+                onClick={nextStep}
+                disabled={isSubmitting}
+                className={`${botonBase} bg-slate-800 text-white hover:bg-slate-700`}
+              >
+                Siguiente
+                <FiChevronRight />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </footer>
+
+      {mostrarConfirmacion && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+            <h2 className="text-base font-semibold text-slate-800">
+              ¿Estás seguro de que deseas finalizar y enviar el informe?
+            </h2>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMostrarConfirmacion(false)}
+                disabled={isSubmitting}
+                className={`${botonBase} border border-slate-300 text-slate-700 hover:bg-slate-50`}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmarEnvio}
+                disabled={isSubmitting}
+                className={`${botonBase} bg-[#b1122b] text-white hover:bg-[#8a0e21]`}
+              >
+                {isSubmitting ? "Enviando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
