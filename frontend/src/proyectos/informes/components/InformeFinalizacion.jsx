@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from "react";
 import Layout from "../../../shared/layout/Layout";
-import { FiRefreshCw, FiSave, FiDownload, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
+import { FiRefreshCw, FiSave, FiDownload, FiAlertCircle, FiCheckCircle, FiArrowLeft } from "react-icons/fi";
 
 import { obtenerInformeFinalizacion, guardarInformeFinalizacion, enviarInformeFinalizacion } from "../hooks/informefinalizado";
 import { useProyectosListado } from "../../listar/hooks/useProyectosListado";
 
-// Importaciones al mismo nivel
 import { BuscadorProyectos } from "./BuscadorProyectos";
 import { SidebarNavegacion } from "./SidebarNavegacion";
 import { 
@@ -23,7 +22,6 @@ const InformeFinalizacion = () => {
   } = useProyectosListado({ estado: "finalizado" }); 
 
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
-  const [mostrarProyectos, setMostrarProyectos] = useState(false);
   const [busquedaProyecto, setBusquedaProyecto] = useState(searchTerm || "");
 
   const [informe, setInforme] = useState(null);
@@ -84,7 +82,6 @@ const InformeFinalizacion = () => {
   const seleccionarProyecto = async (proyecto) => {
     if (!proyecto?.id) return;
     setProyectoSeleccionado(proyecto);
-    setMostrarProyectos(false);
     setError("");
     setMensaje("");
     setInforme(null);
@@ -158,31 +155,55 @@ const InformeFinalizacion = () => {
   if (!proyectoSeleccionado) {
     return (
       <Layout>
-        <BuscadorProyectos busquedaProyecto={busquedaProyecto} setBusquedaProyecto={setBusquedaProyecto} setSearchTerm={setSearchTerm} mostrarProyectos={mostrarProyectos} setMostrarProyectos={setMostrarProyectos} loading={loading} proyectos={projectsDb} seleccionarProyecto={seleccionarProyecto} />
+        <div className="p-4 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)] overflow-x-hidden">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-slate-800">Informe de Finalización</h2>
+            <p className="text-sm text-slate-500 mt-1">Selecciona un proyecto finalizado para generar su informe.</p>
+          </div>
+          <BuscadorProyectos 
+            busquedaProyecto={busquedaProyecto} 
+            setBusquedaProyecto={setBusquedaProyecto} 
+            setSearchTerm={setSearchTerm} 
+            loading={loading} 
+            proyectos={projectsDb} 
+            seleccionarProyecto={seleccionarProyecto} 
+          />
+        </div>
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
-        <div className="mb-6 flex justify-between items-start">
+      <div className="p-4 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)] overflow-x-hidden w-full">
+        
+        {/* BOTON DE RETROCESO PARA MOVIL/PC */}
+        <div className="mb-4">
+          <button
+            onClick={() => setProyectoSeleccionado(null)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 transition-colors w-fit"
+          >
+            <FiArrowLeft className="text-[#b1122b]" /> Volver a proyectos
+          </button>
+        </div>
+
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Informe de Finalización</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-800">Informe de Finalización</h2>
             <p className="text-sm text-slate-500 mt-1">Proyecto: {proyectoSeleccionado.codigo}</p>
           </div>
-          <div className="flex gap-2">
-             {puedeEditar && <button onClick={guardar} disabled={guardando} className="px-4 py-2 border rounded-lg bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">{guardando ? <FiRefreshCw className="animate-spin" /> : <FiSave />} Guardar</button>}
-             {(estadoInforme === "enviado" || estadoInforme === "aprobado") && <button className="px-4 py-2 border rounded-lg bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"><FiDownload /> PDF</button>}
+          <div className="flex gap-2 w-full sm:w-auto">
+             {puedeEditar && <button onClick={guardar} disabled={guardando} className="flex-1 sm:flex-none justify-center px-4 py-2 border rounded-lg bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">{guardando ? <FiRefreshCw className="animate-spin" /> : <FiSave />} Guardar</button>}
+             {(estadoInforme === "enviado" || estadoInforme === "aprobado") && <button className="flex-1 sm:flex-none justify-center px-4 py-2 border rounded-lg bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"><FiDownload /> PDF</button>}
           </div>
         </div>
 
-        {error && <div className="mb-4 bg-red-50 p-3 rounded-lg text-xs text-red-600 border border-red-100 flex items-center gap-2"><FiAlertCircle /> {error}</div>}
-        {mensaje && <div className="mb-4 bg-green-50 p-3 rounded-lg text-xs text-green-700 border border-green-100 flex items-center gap-2"><FiCheckCircle /> {mensaje}</div>}
+        {error && <div className="mb-4 bg-red-50 p-3 rounded-lg text-xs text-red-600 border border-red-100 flex items-center gap-2"><FiAlertCircle className="shrink-0" /> {error}</div>}
+        {mensaje && <div className="mb-4 bg-green-50 p-3 rounded-lg text-xs text-green-700 border border-green-100 flex items-center gap-2"><FiCheckCircle className="shrink-0" /> {mensaje}</div>}
 
         <div className="flex flex-col md:flex-row gap-5 flex-1">
           <SidebarNavegacion seccionActiva={seccionActiva} setSeccionActiva={setSeccionActiva} />
-          <main className="flex-1 min-w-0">
+          <main className="flex-1 min-w-0 w-full">
              {loadingInforme ? <div className="py-20 text-center text-slate-400"><FiRefreshCw className="animate-spin text-2xl text-[#b1122b] mx-auto mb-3" /> Cargando...</div> : renderSeccionActiva()}
           </main>
         </div>

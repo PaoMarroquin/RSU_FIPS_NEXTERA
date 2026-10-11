@@ -1,6 +1,5 @@
 import React from "react";
 import { FiUsers, FiActivity, FiCheckCircle, FiTarget, FiSend, FiAlertCircle, FiClock, FiRefreshCw, FiSave } from "react-icons/fi";
-// Importación al mismo nivel
 import { SectionCard, CampoLectura, CampoTexto, Indicador } from "./ComponentesUI";
 
 export const SeccionDatosGenerales = ({ informe, docentes }) => (
@@ -19,7 +18,7 @@ export const SeccionDatosGenerales = ({ informe, docentes }) => (
     <div className="flex flex-wrap gap-2">
       {docentes.map((doc, idx) => (
         <span key={idx} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
-          <FiUsers className="text-[#b1122b]" /> {doc}
+          <FiUsers className="text-[#b1122b] shrink-0" /> {doc}
         </span>
       ))}
     </div>
@@ -36,7 +35,7 @@ export const SeccionFortalezas = () => (
 
 export const SeccionResultados = ({ porcentaje, completadas, total, metas }) => (
   <SectionCard numero="III" titulo="Resultados" descripcion="Progreso actual de ejecución.">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       <Indicador icon={<FiActivity />} titulo="Avance de ejecución" valor={`${porcentaje}%`} />
       <Indicador icon={<FiCheckCircle />} titulo="Completadas" valor={`${completadas}/${total}`} />
       <Indicador icon={<FiTarget />} titulo="Metas" valor={metas} />
@@ -73,8 +72,8 @@ export const SeccionCronologia = ({ actividades }) => (
 
 export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
   <SectionCard numero="VIII" titulo="Metas e indicadores" descripcion="Valores de metas alcanzados.">
-    <div className="overflow-x-auto border border-slate-200 rounded-lg">
-      <table className="w-full text-left">
+    <div className="overflow-x-auto border border-slate-200 rounded-lg w-full">
+      <table className="w-full text-left min-w-[600px]">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
             <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase">Descripción</th>
@@ -103,8 +102,8 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
 
 export const SeccionPresupuesto = ({ partidas, cambiarPartida, puedeEditar }) => (
   <SectionCard numero="IX" titulo="Ejecución presupuestal" descripcion="Partidas de presupuesto ejecutadas.">
-    <div className="overflow-x-auto border border-slate-200 rounded-lg">
-      <table className="w-full text-left">
+    <div className="overflow-x-auto border border-slate-200 rounded-lg w-full">
+      <table className="w-full text-left min-w-[500px]">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
             <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase">Partida</th>
@@ -140,7 +139,7 @@ export const SeccionEvidencias = () => (
 export const SeccionEnvio = ({ estado, revisiones, puedeEditar, guardar, enviar, guardando, enviando }) => (
   <SectionCard numero="XI" titulo="Envío y revisión" descripcion="Estado actual del informe.">
     <div className="p-5 border border-slate-200 bg-slate-50 rounded-xl flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl bg-white border ${estado === 'aprobado' ? 'text-green-600 border-green-200' : 'text-[#b1122b] border-slate-200'}`}>
+      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-xl bg-white border ${estado === 'aprobado' ? 'text-green-600 border-green-200' : 'text-[#b1122b] border-slate-200'}`}>
         {estado === 'aprobado' ? <FiCheckCircle /> : estado === 'enviado' ? <FiSend /> : estado === 'observado' ? <FiAlertCircle /> : <FiClock />}
       </div>
       <div>
@@ -160,8 +159,8 @@ export const SeccionEnvio = ({ estado, revisiones, puedeEditar, guardar, enviar,
     )}
 
     <div className="mt-5 flex flex-wrap gap-3">
-      {puedeEditar && <button onClick={guardar} disabled={guardando} className="px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">{guardando ? <FiRefreshCw className="animate-spin"/> : <FiSave />} Guardar Borrador</button>}
-      {puedeEditar && <button onClick={enviar} disabled={enviando} className="px-4 py-2.5 bg-[#b1122b] text-white rounded-lg text-xs font-bold hover:bg-[#8a0e21] flex items-center gap-2">{enviando ? <FiRefreshCw className="animate-spin"/> : <FiSend />} Enviar a Revisión</button>}
+      {puedeEditar && <button onClick={guardar} disabled={guardando} className="flex-1 sm:flex-none justify-center px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">{guardando ? <FiRefreshCw className="animate-spin"/> : <FiSave />} Guardar Borrador</button>}
+      {puedeEditar && <button onClick={enviar} disabled={enviando} className="flex-1 sm:flex-none justify-center px-4 py-2.5 bg-[#b1122b] text-white rounded-lg text-xs font-bold hover:bg-[#8a0e21] flex items-center gap-2">{enviando ? <FiRefreshCw className="animate-spin"/> : <FiSend />} Enviar a Revisión</button>}
     </div>
   </SectionCard>
 );
