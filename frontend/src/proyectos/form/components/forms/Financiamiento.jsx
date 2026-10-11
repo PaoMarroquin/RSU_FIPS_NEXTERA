@@ -1,31 +1,32 @@
+
 import React, { useState, useEffect } from "react";
 
 export default function Financiamiento({ data, updateData }) {
   const fuentesGuardadas = data.fuentes_financiamiento || [];
 
-  const [listaFuentes, setListaFuentes] = useState(() => {
-    return fuentesGuardadas.length > 0
-      ? fuentesGuardadas
-      : [
-        {
-          id: null,
-          fuente_financiamiento: "",
-          monto_financiamiento: "",
-          descripcion_fuente: "",
-          partidas: [
-            {
-              id: null,
-              categoria: "",
-              tipo_recurso: "material",
-              descripcion: "",
-              unidad: "Unidad",
-              cantidad: 1,
-              costo_unitario: ""
-            }
-          ]
-        }
-      ];
+  const crearPartidaVacia = () => ({
+    id: null,
+    categoria: "",
+    tipo_recurso: "material",
+    descripcion: "",
+    unidad: "Unidad",
+    cantidad: 1,
+    costo_unitario: "",
   });
+
+  const crearFuenteVacia = () => ({
+    id: null,
+    fuente_financiamiento: "",
+    monto_financiamiento: "",
+    descripcion_fuente: "",
+    partidas: [crearPartidaVacia()],
+  });
+
+  const [listaFuentes, setListaFuentes] = useState(() =>
+    fuentesGuardadas.length > 0
+      ? fuentesGuardadas
+      : [crearFuenteVacia()]
+  );
 
   useEffect(() => {
     updateData("fuentes_financiamiento", listaFuentes);
@@ -33,316 +34,533 @@ export default function Financiamiento({ data, updateData }) {
   }, [listaFuentes]);
 
   const agregarFuente = () => {
-    setListaFuentes([
-      ...listaFuentes,
-      {
-        id: null,
-        fuente_financiamiento: "",
-        monto_financiamiento: "",
-        descripcion_fuente: "",
-        partidas: [{ id: null, categoria: "", tipo_recurso: "material", descripcion: "", unidad: "Unidad", cantidad: 1, costo_unitario: "" }]
-      }
-    ]);
+    setListaFuentes((prev) => [...prev, crearFuenteVacia()]);
   };
 
   const eliminarFuente = (fIndex) => {
-    if (listaFuentes.length === 1) {
-      setListaFuentes([
-        {
-          id: null,
-          fuente_financiamiento: "",
-          monto_financiamiento: "",
-          descripcion_fuente: "",
-          partidas: [{ id: null, categoria: "", tipo_recurso: "material", descripcion: "", unidad: "Unidad", cantidad: 1, costo_unitario: "" }]
-        }
-      ]);
-    } else {
-      setListaFuentes(listaFuentes.filter((_, i) => i !== fIndex));
-    }
+    setListaFuentes((prev) =>
+      prev.length === 1
+        ? [crearFuenteVacia()]
+        : prev.filter((_, i) => i !== fIndex)
+    );
   };
 
   const handleFuenteChange = (fIndex, field, value) => {
-    const nuevasFuentes = [...listaFuentes];
     if (field === "monto_financiamiento") {
       const regex = /^\d{0,10}(?:\.\d{0,2})?$/;
       if (value !== "" && !regex.test(value)) return;
     }
-    nuevasFuentes[fIndex][field] = value;
-    setListaFuentes(nuevasFuentes);
+
+    setListaFuentes((prev) =>
+      prev.map((fuente, i) =>
+        i === fIndex ? { ...fuente, [field]: value } : fuente
+      )
+    );
   };
 
   const agregarPartida = (fIndex) => {
-    const nuevasFuentes = [...listaFuentes];
-    nuevasFuentes[fIndex].partidas.push({
-      id: null,
-      categoria: "",
-      tipo_recurso: "material",
-      descripcion: "",
-      unidad: "Unidad",
-      cantidad: 1,
-      costo_unitario: ""
-    });
-    setListaFuentes(nuevasFuentes);
+    setListaFuentes((prev) =>
+      prev.map((fuente, i) =>
+        i === fIndex
+          ? {
+              ...fuente,
+              partidas: [...fuente.partidas, crearPartidaVacia()],
+            }
+          : fuente
+      )
+    );
   };
 
   const eliminarPartida = (fIndex, pIndex) => {
-    const nuevasFuentes = [...listaFuentes];
-    const partidas = nuevasFuentes[fIndex].partidas;
+    setListaFuentes((prev) =>
+      prev.map((fuente, i) => {
+        if (i !== fIndex) return fuente;
 
-    if (partidas.length === 1) {
-      partidas[0] = { id: null, categoria: "", tipo_recurso: "material", descripcion: "", unidad: "Unidad", cantidad: 1, costo_unitario: "" };
-    } else {
-      nuevasFuentes[fIndex].partidas = partidas.filter((_, i) => i !== pIndex);
-    }
-    setListaFuentes(nuevasFuentes);
+        const partidas =
+          fuente.partidas.length === 1
+            ? [crearPartidaVacia()]
+            : fuente.partidas.filter((_, j) => j !== pIndex);
+
+        return { ...fuente, partidas };
+      })
+    );
   };
 
   const handlePartidaChange = (fIndex, pIndex, field, value) => {
-    const nuevasFuentes = [...listaFuentes];
-    const partida = nuevasFuentes[fIndex].partidas[pIndex];
-
     if (field === "costo_unitario") {
       const regex = /^\d{0,10}(?:\.\d{0,2})?$/;
       if (value !== "" && !regex.test(value)) return;
     }
 
-    if (field === "cantidad") {
-      const parsed = parseInt(value, 10);
-      partida[field] = isNaN(parsed) ? "" : parsed;
-    } else {
-      partida[field] = value;
+    if (field === "cantidad" && value !== "" && !/^\d*$/.test(value)) {
+      return;
     }
 
-    setListaFuentes(nuevasFuentes);
+    setListaFuentes((prev) =>
+      prev.map((fuente, i) => {
+        if (i !== fIndex) return fuente;
+
+        return {
+          ...fuente,
+          partidas: fuente.partidas.map((partida, j) =>
+            j === pIndex
+              ? {
+                  ...partida,
+                  [field]:
+                    field === "cantidad" && value !== ""
+                      ? parseInt(value, 10)
+                      : value,
+                }
+              : partida
+          ),
+        };
+      })
+    );
   };
 
+  const inputClass =
+    "h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-[#b1122b] focus:ring-2 focus:ring-[#b1122b]/10";
+
+  const selectClass =
+    "h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-colors focus:border-[#b1122b] focus:ring-2 focus:ring-[#b1122b]/10";
+
+  const partidaInputClass =
+    "h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-[#b1122b] focus:ring-2 focus:ring-[#b1122b]/10";
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4">
-      {/* SECCIÓN CABECERA */}
+    <div className="space-y-6">
+      {/* ENCABEZADO DE SECCIÓN */}
       <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-        <span className="text-2xl font-bold text-[#b1122b]">IX.</span>
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800 m-0">Financiamiento y Presupuesto</h2>
-          <span className="text-xs text-slate-500 block mt-0.5">
-            Maneje de manera dinámica el presupuesto asignado. Cada partida de gasto debe estar amarrada a una fuente de origen específica.
-          </span>
+        <span className="shrink-0 text-2xl font-bold text-[#b1122b]">
+          IX.
+        </span>
+
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-slate-800 md:text-2xl">
+            Financiamiento y presupuesto
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Sección 9 de 9 · Define las fuentes de financiamiento y registra
+            las partidas de gasto asociadas a cada una.
+          </p>
         </div>
       </div>
 
-      {/* CONTROL PRINCIPAL */}
-      <div className="flex justify-between items-center">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fuentes de Financiamiento</span>
+      {/* ENCABEZADO DE FUENTES */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm font-bold text-slate-800">
+            Fuentes de financiamiento
+          </h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Registra una o más fuentes para el presupuesto del proyecto.
+          </p>
+        </div>
+
         <button
           type="button"
           onClick={agregarFuente}
-          className="bg-[#b1122b] text-white text-xs font-semibold px-4 py-2 rounded-md hover:bg-[#8f0e22] transition-colors shadow-sm"
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#b1122b] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#8f0e22]"
         >
-          + Añadir Fuente de Financiamiento
+          + Añadir fuente
         </button>
       </div>
 
-      {/* ITERACIÓN DE FUENTES (PADRE) */}
+      {/* LISTADO DE FUENTES */}
       {listaFuentes.map((fuente, fIndex) => {
-        const totalPartidasFuente = fuente.partidas.reduce(
-          (sum, p) => sum + Number(p.cantidad || 0) * Number(p.costo_unitario || 0),
+        const partidas = fuente.partidas || [];
+
+        const totalPartidasFuente = partidas.reduce(
+          (sum, partida) =>
+            sum +
+            Number(partida.cantidad || 0) *
+              Number(partida.costo_unitario || 0),
           0
         );
 
-        return (
-          <div key={fIndex} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden border-l-4 border-l-[#b1122b]">
+        const montoAsignado = Number(fuente.monto_financiamiento || 0);
 
-            {/* PANEL SUPERIOR: CONFIGURACIÓN DE LA FUENTE */}
-            <div className="bg-slate-50/70 p-4 border-b border-slate-200 flex flex-col gap-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-[#b1122b] bg-[#b1122b]/10 px-2 py-0.5 rounded">
-                  Origen de Fondo #{fIndex + 1}
+        const existeDiferencia =
+          fuente.monto_financiamiento !== "" &&
+          montoAsignado !== totalPartidasFuente;
+
+        return (
+          <section
+            key={fIndex}
+            className="w-full overflow-hidden rounded-xl border border-slate-200 border-l-4 border-l-[#b1122b] bg-white shadow-sm"
+          >
+            {/* DATOS DE LA FUENTE */}
+            <div className="space-y-4 border-b border-slate-200 bg-slate-50/70 p-4 md:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="w-fit rounded-full border border-[#b1122b]/10 bg-[#b1122b]/5 px-3 py-1 text-xs font-bold text-[#b1122b]">
+                  Fuente de financiamiento #{fIndex + 1}
                 </span>
+
                 <button
                   type="button"
                   onClick={() => eliminarFuente(fIndex)}
-                  className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                  className="w-fit text-xs font-semibold text-red-600 transition-colors hover:text-red-800"
                 >
-                  ✕ Eliminar esta Fuente
+                  Eliminar fuente
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1 uppercase">Tipo de Fuente</label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label
+                    htmlFor={`fuente-tipo-${fIndex}`}
+                    className="text-xs font-semibold text-slate-600"
+                  >
+                    Tipo de fuente
+                  </label>
+
                   <select
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white text-slate-700 outline-none focus:ring-1 focus:ring-[#b1122b] focus:border-[#b1122b]"
+                    id={`fuente-tipo-${fIndex}`}
+                    className={selectClass}
                     value={fuente.fuente_financiamiento}
-                    onChange={(e) => handleFuenteChange(fIndex, "fuente_financiamiento", e.target.value)}
+                    onChange={(e) =>
+                      handleFuenteChange(
+                        fIndex,
+                        "fuente_financiamiento",
+                        e.target.value
+                      )
+                    }
                   >
                     <option value="">Seleccione una opción</option>
-                    <option value="recursos_propios_unsa">Recursos Propios UNSA</option>
-                    <option value="cooperacion_externa">Cooperación Externa</option>
-                    <option value="aporte_facultad">Aporte de la Facultad</option>
+                    <option value="recursos_propios_unsa">
+                      Recursos Propios UNSA
+                    </option>
+                    <option value="cooperacion_externa">
+                      Cooperación Externa
+                    </option>
+                    <option value="aporte_facultad">
+                      Aporte de la Facultad
+                    </option>
                     <option value="autofinanciado">Autofinanciado</option>
                   </select>
                 </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1 uppercase">Monto Asignado Teórico (S/)</label>
+
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label
+                    htmlFor={`fuente-monto-${fIndex}`}
+                    className="text-xs font-semibold text-slate-600"
+                  >
+                    Monto asignado teórico (S/)
+                  </label>
+
                   <input
+                    id={`fuente-monto-${fIndex}`}
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:ring-1 focus:ring-[#b1122b] focus:border-[#b1122b]"
-                    value={fuente.monto_financiamiento}
-                    onChange={(e) => handleFuenteChange(fIndex, "monto_financiamiento", e.target.value)}
+                    className={inputClass}
+                    value={fuente.monto_financiamiento ?? ""}
+                    onChange={(e) =>
+                      handleFuenteChange(
+                        fIndex,
+                        "monto_financiamiento",
+                        e.target.value
+                      )
+                    }
                   />
                 </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-1 uppercase">Descripción / Observaciones</label>
+
+                <div className="flex min-w-0 flex-col gap-1.5 md:col-span-2 xl:col-span-1">
+                  <label
+                    htmlFor={`fuente-descripcion-${fIndex}`}
+                    className="text-xs font-semibold text-slate-600"
+                  >
+                    Descripción / observaciones
+                  </label>
+
                   <input
+                    id={`fuente-descripcion-${fIndex}`}
                     type="text"
                     placeholder="Detalles sobre este desembolso..."
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none focus:ring-1 focus:ring-[#b1122b] focus:border-[#b1122b]"
-                    value={fuente.descripcion_fuente}
-                    onChange={(e) => handleFuenteChange(fIndex, "descripcion_fuente", e.target.value)}
+                    className={inputClass}
+                    value={fuente.descripcion_fuente || ""}
+                    onChange={(e) =>
+                      handleFuenteChange(
+                        fIndex,
+                        "descripcion_fuente",
+                        e.target.value
+                      )
+                    }
                   />
                 </div>
               </div>
             </div>
 
-            {/* PANEL INFERIOR: CONTROL DE PARTIDAS VINCULADAS (HIJO) */}
-            <div className="p-4 bg-slate-50/20 space-y-3">
-              <div className="flex justify-between items-center">
-                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Partidas Presupuestarias del Gasto
-                </h4>
+            {/* PARTIDAS PRESUPUESTARIAS */}
+            <div className="space-y-4 p-4 md:p-6">
+              <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800">
+                    Partidas presupuestarias
+                  </h4>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Registra los gastos vinculados a esta fuente.
+                  </p>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => agregarPartida(fIndex)}
-                  className="text-[#b1122b] hover:text-[#8f0e22] text-xs font-semibold flex items-center gap-1 transition-colors"
+                  className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[#b1122b]/20 bg-white px-3 text-xs font-semibold text-[#b1122b] transition-colors hover:bg-[#b1122b]/5"
                 >
-                  + Vincular Partida de Gasto
+                  + Añadir partida
                 </button>
               </div>
 
-              {/* LISTADO DE PARTIDAS */}
-              <div className="space-y-2">
-                {fuente.partidas.map((partida, pIndex) => (
-                  <div key={pIndex} className="bg-white p-3 rounded-md border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+              <div className="space-y-4">
+                {partidas.map((partida, pIndex) => (
+                  <div
+                    key={pIndex}
+                    className="rounded-xl border border-slate-200 bg-slate-50/50 p-4"
+                  >
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <span className="text-xs font-bold text-slate-500">
+                        Partida #{pIndex + 1}
+                      </span>
 
-                    {/* Categoría */}
-                    <div className="md:col-span-3">
-                      <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Categoría</label>
-                      <select
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 bg-white text-slate-600 focus:border-[#b1122b] outline-none"
-                        value={partida.categoria}
-                        onChange={(e) => handlePartidaChange(fIndex, pIndex, "categoria", e.target.value)}
-                      >
-                        <option value="">Seleccione Categoría</option>
-                        <option value="material_escritorio">Material de escritorio</option>
-                        <option value="refrigerio">Refrigerio</option>
-                        <option value="transporte">Transporte</option>
-                        <option value="otros">Otros</option>
-                      </select>
-                    </div>
-
-                    {/* Tipo Recurso */}
-                    <div className="md:col-span-2">
-                      <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Tipo Recurso</label>
-                      <select
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 bg-white text-slate-600 focus:border-[#b1122b] outline-none"
-                        value={partida.tipo_recurso}
-                        onChange={(e) => handlePartidaChange(fIndex, pIndex, "tipo_recurso", e.target.value)}
-                      >
-                        <option value="material">Material</option>
-                        <option value="humano">Humano</option>
-                        <option value="financiero">Financiero</option>
-                      </select>
-                    </div>
-
-                    {/* Descripción */}
-                    <div className="md:col-span-3">
-                      <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Descripción</label>
-                      <input
-                        type="text"
-                        placeholder="Nombre / Descripción del gasto..."
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 focus:border-[#b1122b] outline-none"
-                        value={partida.descripcion}
-                        onChange={(e) => handlePartidaChange(fIndex, pIndex, "descripcion", e.target.value)}
-                      />
-                    </div>
-
-                    {/* Unidad de Medida */}
-                    <div className="md:col-span-1">
-                      <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">U.M.</label>
-                      <input
-                        type="text"
-                        placeholder="Unidad"
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 focus:border-[#b1122b] outline-none text-center"
-                        value={partida.unidad}
-                        onChange={(e) => handlePartidaChange(fIndex, pIndex, "unidad", e.target.value)}
-                      />
-                    </div>
-
-                    {/* Cantidad */}
-                    <div className="md:col-span-1">
-                      <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Cant.</label>
-                      <input
-                        type="number" min="1" step="1" placeholder="21"
-                        onKeyDown={(e) => {
-                          if (["-", "+", ".", ",", "e", "E"].includes(e.key)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 focus:border-[#b1122b] outline-none text-center"
-                        value={partida.cantidad}
-                        onChange={(e) => {
-                          if (/^\d*$/.test(e.target.value)) {
-                            handlePartidaChange(fIndex, pIndex, "cantidad", e.target.value);
-                          }
-                        }}
-                      />
-                    </div>
-
-                    {/* Costo Unitario */}
-                    <div className="md:col-span-1.5">
-                      <label className="text-[10px] text-slate-400 block md:hidden mb-0.5">Costo Unitario</label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="S/ 0.00"
-                        className="w-full text-xs rounded border border-slate-300 px-2 py-2 focus:border-[#b1122b] outline-none text-right font-mono"
-                        value={partida.costo_unitario}
-                        onChange={(e) => handlePartidaChange(fIndex, pIndex, "costo_unitario", e.target.value)}
-                      />
-                    </div>
-
-                    {/* Eliminar Fila Partida */}
-                    <div className="md:col-span-0.5 text-center">
                       <button
                         type="button"
                         onClick={() => eliminarPartida(fIndex, pIndex)}
-                        className="text-slate-400 hover:text-red-500 font-bold text-sm transition-colors p-1"
-                        title="Remover Partida"
+                        className="rounded-md px-2 py-1 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 hover:text-red-800"
+                        title="Eliminar partida"
+                        aria-label={`Eliminar partida ${pIndex + 1}`}
                       >
-                        ✕
+                        Eliminar
                       </button>
                     </div>
 
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-12">
+                      {/* CATEGORÍA */}
+                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
+                        <label
+                          htmlFor={`categoria-${fIndex}-${pIndex}`}
+                          className="text-xs font-semibold text-slate-600"
+                        >
+                          Categoría
+                        </label>
+
+                        <select
+                          id={`categoria-${fIndex}-${pIndex}`}
+                          className={selectClass}
+                          value={partida.categoria || ""}
+                          onChange={(e) =>
+                            handlePartidaChange(
+                              fIndex,
+                              pIndex,
+                              "categoria",
+                              e.target.value
+                            )
+                          }
+                        >
+                          <option value="">Seleccione categoría</option>
+                          <option value="material_escritorio">
+                            Material de escritorio
+                          </option>
+                          <option value="refrigerio">Refrigerio</option>
+                          <option value="transporte">Transporte</option>
+                          <option value="otros">Otros</option>
+                        </select>
+                      </div>
+
+                      {/* TIPO DE RECURSO */}
+                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 xl:col-span-2">
+                        <label
+                          htmlFor={`tipo-recurso-${fIndex}-${pIndex}`}
+                          className="text-xs font-semibold text-slate-600"
+                        >
+                          Tipo de recurso
+                        </label>
+
+                        <select
+                          id={`tipo-recurso-${fIndex}-${pIndex}`}
+                          className={selectClass}
+                          value={partida.tipo_recurso || "material"}
+                          onChange={(e) =>
+                            handlePartidaChange(
+                              fIndex,
+                              pIndex,
+                              "tipo_recurso",
+                              e.target.value
+                            )
+                          }
+                        >
+                          <option value="material">Material</option>
+                          <option value="humano">Humano</option>
+                          <option value="financiero">Financiero</option>
+                        </select>
+                      </div>
+
+                      {/* DESCRIPCIÓN */}
+                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-3">
+                        <label
+                          htmlFor={`descripcion-${fIndex}-${pIndex}`}
+                          className="text-xs font-semibold text-slate-600"
+                        >
+                          Descripción del gasto
+                        </label>
+
+                        <input
+                          id={`descripcion-${fIndex}-${pIndex}`}
+                          type="text"
+                          placeholder="Nombre del gasto..."
+                          className={partidaInputClass}
+                          value={partida.descripcion || ""}
+                          onChange={(e) =>
+                            handlePartidaChange(
+                              fIndex,
+                              pIndex,
+                              "descripcion",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      {/* UNIDAD */}
+                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 xl:col-span-1">
+                        <label
+                          htmlFor={`unidad-${fIndex}-${pIndex}`}
+                          className="text-xs font-semibold text-slate-600"
+                        >
+                          Unidad
+                        </label>
+
+                        <input
+                          id={`unidad-${fIndex}-${pIndex}`}
+                          type="text"
+                          placeholder="Unidad"
+                          className={partidaInputClass}
+                          value={partida.unidad || ""}
+                          onChange={(e) =>
+                            handlePartidaChange(
+                              fIndex,
+                              pIndex,
+                              "unidad",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      {/* CANTIDAD */}
+                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 xl:col-span-1">
+                        <label
+                          htmlFor={`cantidad-${fIndex}-${pIndex}`}
+                          className="text-xs font-semibold text-slate-600"
+                        >
+                          Cantidad
+                        </label>
+
+                        <input
+                          id={`cantidad-${fIndex}-${pIndex}`}
+                          type="number"
+                          min="1"
+                          step="1"
+                          inputMode="numeric"
+                          className={partidaInputClass}
+                          value={partida.cantidad ?? ""}
+                          onKeyDown={(e) => {
+                            if (
+                              ["-", "+", ".", ",", "e", "E"].includes(e.key)
+                            ) {
+                              e.preventDefault();
+                            }
+                          }}
+                          onChange={(e) => {
+                            if (/^\d*$/.test(e.target.value)) {
+                              handlePartidaChange(
+                                fIndex,
+                                pIndex,
+                                "cantidad",
+                                e.target.value
+                              );
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* COSTO UNITARIO */}
+                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 xl:col-span-1">
+                        <label
+                          htmlFor={`costo-${fIndex}-${pIndex}`}
+                          className="text-xs font-semibold text-slate-600"
+                        >
+                          Costo unitario (S/)
+                        </label>
+
+                        <input
+                          id={`costo-${fIndex}-${pIndex}`}
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          className={`${partidaInputClass} text-right font-mono`}
+                          value={partida.costo_unitario ?? ""}
+                          onChange={(e) =>
+                            handlePartidaChange(
+                              fIndex,
+                              pIndex,
+                              "costo_unitario",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-1 border-t border-slate-200 pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+                      <span className="text-slate-500">
+                        Subtotal de la partida
+                      </span>
+
+                      <span className="font-mono font-bold text-slate-800">
+                        S/{" "}
+                        {(
+                          Number(partida.cantidad || 0) *
+                          Number(partida.costo_unitario || 0)
+                        ).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* BARRA DE TOTALES INFERIOR */}
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-[11px] font-medium px-1 pt-2 border-t border-slate-100 mt-2">
-                <span className="text-slate-700 bg-slate-200 px-2 py-1 rounded">
-                  Monto Ejecutado en Partidas: <strong className="font-mono text-xs">S/ {totalPartidasFuente.toFixed(2)}</strong>
-                </span>
-
-                {fuente.monto_financiamiento && Number(fuente.monto_financiamiento) !== totalPartidasFuente && (
-                  <span className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 font-normal animate-pulse">
-                    Alerta: El total de partidas difiere del monto asignado teórico (S/ {Number(fuente.monto_financiamiento).toFixed(2)})
+              {/* TOTALES DE LA FUENTE */}
+              <div className="space-y-3 border-t border-slate-200 pt-4">
+                <div className="flex flex-col gap-2 rounded-lg bg-slate-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-xs font-medium text-slate-600">
+                    Total de partidas de esta fuente
                   </span>
+
+                  <span className="font-mono text-base font-bold text-slate-800">
+                    S/ {totalPartidasFuente.toFixed(2)}
+                  </span>
+                </div>
+
+                {existeDiferencia && (
+                  <div
+                    className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+                    role="status"
+                  >
+                    <p className="font-semibold">
+                      Diferencia entre el monto asignado y las partidas
+                    </p>
+
+                    <p className="mt-1">
+                      Monto asignado: S/ {montoAsignado.toFixed(2)}. Total de
+                      partidas: S/ {totalPartidasFuente.toFixed(2)}.
+                    </p>
+                  </div>
                 )}
               </div>
-
             </div>
-          </div>
+          </section>
         );
       })}
     </div>

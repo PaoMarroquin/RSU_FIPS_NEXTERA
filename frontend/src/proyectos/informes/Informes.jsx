@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import Layout from "../../shared/layout/Layout";
 
@@ -39,14 +38,6 @@ const Informes = () => {
     filteredMatrices,
   } = useInformes();
 
-const proyectoAprobado = [
-  "aprobado",
-  "en_ejecucion",
-  "finalizado",
-].includes(
-  matrizSeleccionada?.estado?.toLowerCase()
-);
-
   const [documentoModal, setDocumentoModal] = useState(null);
 
   const [informeFinalizacion, setInformeFinalizacion] =
@@ -65,6 +56,22 @@ const proyectoAprobado = [
     useState(null);
 
   // =====================================================
+  // ESTADO DE PLANIFICACIÓN
+  // =====================================================
+
+  const estadoProyecto = String(
+    matrizSeleccionada?.estado || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const proyectoAprobado = [
+    "aprobado",
+    "en_ejecucion",
+    "finalizado",
+  ].includes(estadoProyecto);
+
+  // =====================================================
   // CARGAR INFORME DE FINALIZACIÓN DEL PROYECTO
   // =====================================================
 
@@ -77,6 +84,7 @@ const proyectoAprobado = [
         setErrorFinalizacion(null);
         setDocumentoModal(null);
         setErrorConstancia(null);
+        setLoadingFinalizacion(false);
         return;
       }
 
@@ -132,13 +140,25 @@ const proyectoAprobado = [
   // ESTADOS DEL INFORME Y CONSTANCIA
   // =====================================================
 
-  const estadoInforme =
+  const estadoInforme = String(
     informeFinalizacion?.finalizacion?.estado ||
-    informeFinalizacion?.estado ||
-    "";
+      informeFinalizacion?.estado ||
+      matrizSeleccionada?.informe_finalizacion_estado ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
+  // El proyecto solo está finalizado si su propio estado
+  // en la base de datos es "finalizado".
+  const proyectoFinalizado =
+    estadoProyecto === "finalizado";
+
+  // Se exige que coincidan ambos estados para mostrar
+  // el informe como aprobado.
   const informeFinalizacionAprobado =
-    estadoInforme === "aprobado";
+    estadoInforme === "aprobado" &&
+    proyectoFinalizado;
 
   const informeFinalizacionEnviado =
     estadoInforme === "enviado";
@@ -146,12 +166,8 @@ const proyectoAprobado = [
   const informeFinalizacionObservado =
     estadoInforme === "observado";
 
-  // La disponibilidad para descargar la constancia depende
-  // del estado finalizado del proyecto.
-  // El backend valida los permisos según el rol autenticado.
-  const proyectoFinalizado =
-    matrizSeleccionada?.estado === "finalizado";
-
+  // La constancia se habilita cuando el proyecto finaliza.
+  // El backend determina si el usuario tiene permiso para verla.
   const constanciaDisponible = proyectoFinalizado;
 
   // =====================================================
@@ -184,7 +200,8 @@ const proyectoAprobado = [
   const handleVerFinalizacionPDF = async () => {
     if (
       !matrizSeleccionada?.id ||
-      !informeFinalizacionAprobado
+      !informeFinalizacionAprobado ||
+      loadingFinalizacion
     ) {
       return;
     }
@@ -493,21 +510,21 @@ const proyectoAprobado = [
                 {/* DOCUMENTOS */}
                 <div className="p-4 sm:p-5 bg-slate-50">
 
-
+                  {/* INFORME DE PLANIFICACIÓN */}
                   <DocumentoCard
                     icon={<FiFileText className="text-xl" />}
                     titulo="Informe de planificación"
                     descripcion={
                       proyectoAprobado
                         ? "Proyecto RSU aprobado"
-                        : matrizSeleccionada.estado === "en_revision"
+                        : estadoProyecto === "en_revision"
                         ? "Proyecto pendiente de revisión y aprobación"
                         : "Proyecto aún no aprobado"
                     }
                     estado={
                       proyectoAprobado
                         ? "Aprobado"
-                        : matrizSeleccionada.estado === "en_revision"
+                        : estadoProyecto === "en_revision"
                         ? "En revisión"
                         : "Pendiente"
                     }
@@ -515,7 +532,7 @@ const proyectoAprobado = [
                     onView={abrirDocumentoPlanificacion}
                   />
 
-
+                  {/* INFORME DE FINALIZACIÓN */}
                   <DocumentoCard
                     icon={<FiFileText className="text-xl" />}
                     titulo="Informe de finalización"
@@ -523,7 +540,10 @@ const proyectoAprobado = [
                       loadingFinalizacion
                         ? "Cargando información..."
                         : errorFinalizacion ||
-                          "Informe de ejecución y cierre del proyecto"
+                          (!proyectoFinalizado &&
+                          estadoInforme === "aprobado"
+                            ? "El informe figura aprobado, pero el proyecto aún no está finalizado."
+                            : "Informe de ejecución y cierre del proyecto")
                     }
                     estado={
                       loadingFinalizacion
@@ -541,6 +561,7 @@ const proyectoAprobado = [
                     onView={handleVerFinalizacionPDF}
                   />
 
+                  {/* CONSTANCIA DE EJECUCIÓN */}
                   <DocumentoCard
                     icon={<FiAward className="text-xl" />}
                     titulo="Constancia de ejecución"

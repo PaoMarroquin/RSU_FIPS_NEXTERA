@@ -343,27 +343,7 @@ export default function MiPerfil() {
                       />
                     </div>
 
-                    <div>
-                      <FieldLabel>Escuela profesional</FieldLabel>
-                      <input
-                        type="text"
-                        readOnly
-                        disabled
-                        className={readOnlyClass}
-                        value={extraUserData.escuelaNombre || "—"}
-                      />
-                    </div>
-
-                    <div>
-                      <FieldLabel>Departamento académico</FieldLabel>
-                      <input
-                        type="text"
-                        readOnly
-                        disabled
-                        className={readOnlyClass}
-                        value={extraUserData.departamentoNombre || "—"}
-                      />
-                    </div>
+                  
 
                   </div>
                 </section>
