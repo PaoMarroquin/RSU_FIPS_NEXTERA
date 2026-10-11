@@ -59,7 +59,7 @@ export default function ListaProyectos({
 
     let prioridad = "Sin prioridad";
     let prioridadClase = "bg-slate-100 text-slate-500";
-    let prioridadIcono = <FiClock className="text-slate-400 text-sm" />;
+    let prioridadIcono = <FiClock className="text-slate-400 text-xs" />;
 
     if (proximaActividad) {
       const fechaActividad = new Date(proximaActividad.fecha);
@@ -72,11 +72,15 @@ export default function ListaProyectos({
       if (diferencia < 0) {
         prioridad = "Urgente";
         prioridadClase = "bg-red-100 text-red-700";
-        prioridadIcono = <FiAlertCircle className="text-red-500 text-sm" />;
+        prioridadIcono = (
+          <FiAlertCircle className="text-red-500 text-xs" />
+        );
       } else if (diferencia <= 3) {
         prioridad = "Alta";
         prioridadClase = "bg-red-100 text-red-600";
-        prioridadIcono = <FiAlertCircle className="text-red-500 text-sm" />;
+        prioridadIcono = (
+          <FiAlertCircle className="text-red-500 text-xs" />
+        );
       } else if (diferencia <= 7) {
         prioridad = "Media";
         prioridadClase = "bg-amber-100 text-amber-600";
@@ -174,43 +178,47 @@ export default function ListaProyectos({
     }
   };
 
+  const filtros = [
+    { id: "todos", label: "Todos" },
+    { id: "en_avance", label: "En avance" },
+    { id: "pendientes", label: "Pendientes" },
+    { id: "completados", label: "Completados" },
+    { id: "urgentes", label: "Prioridad alta" },
+  ];
+
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="mb-6 shrink-0">
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+    <div className="flex flex-1 flex-col min-w-0">
+      <div className="mb-4 shrink-0">
+        <h2 className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-slate-800">
           Actividades Proyectos Aprobados
         </h2>
 
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="mt-1 text-xs sm:text-sm text-slate-500">
           Selecciona un proyecto para registrar el cumplimiento de
           indicadores y subir evidencias.
         </p>
       </div>
 
       {!loading && listaProyectos.length > 0 && (
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-4">
+        <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex flex-wrap gap-2">
-            {[
-              { id: "todos", label: "Todos" },
-              { id: "en_avance", label: "En avance" },
-              { id: "pendientes", label: "Pendientes" },
-              { id: "completados", label: "Completados" },
-              { id: "urgentes", label: "Prioridad alta" },
-            ].map((opcion) => (
+            {filtros.map((opcion) => (
               <button
                 key={opcion.id}
                 type="button"
                 onClick={() => setFiltro(opcion.id)}
-                className={`px-4 h-9 rounded-lg text-xs font-semibold transition-colors ${
+                className={`h-8 rounded-lg px-3 text-[11px] font-semibold transition-colors sm:text-xs ${
                   filtro === opcion.id
                     ? "bg-[#b1122b] text-white"
-                    : "bg-white text-slate-600 border border-slate-300 hover:bg-slate-50"
+                    : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 {opcion.label}
                 <span
-                  className={`ml-1.5 ${
-                    filtro === opcion.id ? "text-white/80" : "text-slate-400"
+                  className={`ml-1 ${
+                    filtro === opcion.id
+                      ? "text-white/80"
+                      : "text-slate-400"
                   }`}
                 >
                   ({cantidadFiltro(opcion.id)})
@@ -222,39 +230,39 @@ export default function ListaProyectos({
       )}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center flex-1 py-12">
-          <FiLoader className="animate-spin text-[#b1122b] text-4xl mb-4" />
-          <span className="text-slate-500 font-medium">
+        <div className="flex flex-1 flex-col items-center justify-center py-10">
+          <FiLoader className="mb-3 animate-spin text-3xl text-[#b1122b]" />
+          <span className="text-sm font-medium text-slate-500">
             Consultando proyectos...
           </span>
         </div>
       ) : listaProyectos.length === 0 ? (
-        <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
-          <FiInbox className="w-10 h-10 text-slate-300 mb-2" />
-          <span className="text-slate-500 text-sm font-semibold">
+        <div className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
+          <FiInbox className="mb-2 h-9 w-9 text-slate-300" />
+          <span className="text-sm font-semibold text-slate-500">
             No registras proyectos en ejecución
           </span>
-          <span className="text-slate-400 text-xs mt-1 max-w-xs">
+          <span className="mt-1 max-w-xs text-xs text-slate-400">
             Actualmente no cuentas con planes de trabajo en estado
             "Aprobado" o "En Ejecución".
           </span>
         </div>
       ) : proyectosFiltrados.length === 0 ? (
-        <div className="w-full min-h-[300px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white text-center p-8">
-          <FiFilter className="w-10 h-10 text-slate-300 mb-2" />
-          <span className="text-slate-500 text-sm font-semibold">
+        <div className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
+          <FiFilter className="mb-2 h-9 w-9 text-slate-300" />
+          <span className="text-sm font-semibold text-slate-500">
             No hay proyectos con este filtro
           </span>
           <button
             type="button"
             onClick={() => setFiltro("todos")}
-            className="mt-3 text-xs font-semibold text-[#b1122b] hover:text-[#941020] transition-colors"
+            className="mt-3 text-xs font-semibold text-[#b1122b] transition-colors hover:text-[#941020]"
           >
             Ver todos los proyectos
           </button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-2.5">
           {proyectosFiltrados.map((proy) => {
             const {
               completadas,
@@ -278,103 +286,114 @@ export default function ListaProyectos({
                     onSelect?.(proy);
                   }
                 }}
-                className="bg-white p-5 rounded-xl border border-slate-200 hover:border-[#b1122b] shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-[#b1122b] hover:shadow-md sm:p-4"
               >
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1 min-w-0">
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 rounded text-slate-600">
+                <div className="flex min-w-0 items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <span className="inline-block max-w-full truncate rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
                       {proy.codigo || `ID #${proy.id}`}
                     </span>
 
-                    <h3 className="text-sm font-bold text-slate-800 group-hover:text-[#b1122b] transition-colors">
+                    <h3 className="break-words text-sm font-bold text-slate-800 transition-colors group-hover:text-[#b1122b]">
                       {proy.titulo}
                     </h3>
 
-                    <p className="text-xs text-slate-400 font-medium">
-                      {proy.escuela_nombre} —{" "}
-                      <span className="text-slate-500">
-                        {proy.periodo_nombre}
-                      </span>
+                    <p className="break-words text-[11px] font-medium text-slate-400">
+                      {proy.escuela_nombre}
+                      {proy.periodo_nombre && (
+                        <>
+                          {" "}
+                          <span className="text-slate-300">·</span>{" "}
+                          <span className="text-slate-500">
+                            {proy.periodo_nombre}
+                          </span>
+                        </>
+                      )}
                     </p>
                   </div>
 
-                  <FiChevronRight className="flex-shrink-0 text-slate-400 group-hover:translate-x-1 transition-all" />
+                  <FiChevronRight className="mt-1 shrink-0 text-slate-400 transition-all group-hover:translate-x-1 group-hover:text-[#b1122b]" />
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <FiCheckCircle className="text-[#b1122b]" />
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <FiCheckCircle className="shrink-0 text-sm text-[#b1122b]" />
                       <span className="text-[11px] font-semibold text-slate-600">
-                        Avance de actividades
+                        Avance
                       </span>
                     </div>
 
-                    <span className="text-xs font-bold text-slate-700">
+                    <span className="shrink-0 text-xs font-bold text-slate-700">
                       {avance}%
                     </span>
                   </div>
 
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full bg-[#b1122b] rounded-full transition-all"
+                      className="h-full rounded-full bg-[#b1122b] transition-all"
                       style={{
                         width: `${Math.min(100, Math.max(0, avance))}%`,
                       }}
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-3 mt-2 text-[10px]">
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
                     <span className="text-slate-400">
                       {completadas} completadas
                     </span>
                     <span className="text-blue-500">
-                      {enEjecucion} en avance
+                      {enEjecucion} en ejecución
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <FiCalendar className="text-slate-500 text-sm" />
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Próxima actividad
+                <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
+                  {proximaActividad && (
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <FiCalendar className="shrink-0 text-xs text-slate-400" />
+
+                      <span className="shrink-0 text-[10px] text-slate-500">
+                        Próxima:
+                      </span>
+
+                      <span
+                        title={proximaActividad.nombre}
+                        className="min-w-0 truncate text-[11px] font-semibold text-slate-700"
+                      >
+                        {proximaActividad.nombre}
+                      </span>
+
+                      <span className="shrink-0 text-[10px] text-slate-400">
+                        {new Date(
+                          proximaActividad.fecha
+                        ).toLocaleDateString("es-PE", {
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
                       </span>
                     </div>
+                  )}
 
-                    {proximaActividad ? (
-                      <>
-                        <p className="text-xs font-semibold text-slate-700 truncate">
-                          {proximaActividad.nombre}
-                        </p>
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          {new Date(proximaActividad.fecha).toLocaleDateString(
-                            "es-PE"
-                          )}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-slate-400">
-                        No hay actividades pendientes
-                      </p>
-                    )}
-                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {prioridadIcono}
 
-                  <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      {prioridadIcono}
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                        Prioridad
-                      </span>
-                    </div>
+                    <span className="text-[10px] text-slate-500">
+                      Prioridad:
+                    </span>
 
                     <span
-                      className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold ${prioridadClase}`}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${prioridadClase}`}
                     >
                       {prioridad}
                     </span>
                   </div>
+
+                  {!proximaActividad && (
+                    <span className="text-[10px] text-slate-400">
+                      Sin actividades pendientes
+                    </span>
+                  )}
                 </div>
               </div>
             );
