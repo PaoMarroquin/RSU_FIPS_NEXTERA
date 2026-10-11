@@ -13,23 +13,23 @@ export const NAV_BY_ROLE = {
     { to: "/proyectos", icon: FiFolder, label: "Proyectos Departamento" },
     { to: "/evaluacion", icon: FiCheckSquare, label: "Evaluar Proyectos" },
     { to: "/FinalizarProyectos", icon: FiCheckCircle, label: "Proyectos por finalizar" },
-    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes FIPS" },
+    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
 
   ],
   autoridad: [
     { to: "/proyectos", icon: FiFolder, label: "Todo RSU" },
-    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes FIPS" },
+    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
   ],
   "jefatura rsu": [
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos-jefatura", icon: FiFolder, label: "Proyectos RSU" },
     { to: "/matriz-operativa", icon: FiMap, label: "Matriz Operativa" },
-    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes FIPS" },
+    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
 
   ],
   administrador :[
     { to: "/usuarios", icon: FiUsers, label: "Usuarios" },
-    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes FIPS" },
+    { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
 
   ],
 };

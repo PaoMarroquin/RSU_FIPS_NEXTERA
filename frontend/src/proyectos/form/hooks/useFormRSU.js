@@ -439,15 +439,193 @@ const construirPayload = (formData) => {
   };
 };
 
+
 const obtenerMensajeError = (error) => {
   const data = error?.response?.data;
 
-  if (!data) return error?.message || 'Error desconocido';
+  if (!data) {
+    return error?.message || 'Error desconocido.';
+  }
 
-  if (typeof data === 'string') return data;
+  // Si el backend devuelve un texto, intentamos interpretarlo como JSON.
+  if (typeof data === 'string') {
+    try {
+      return obtenerMensajeError({
+        response: { data: JSON.parse(data) },
+      });
+    } catch {
+      return data;
+    }
+  }
 
-  return JSON.stringify(data);
+  // Organizar los campos según las secciones del formulario.
+  const secciones = {
+    1: {
+      nombre: 'I. Datos generales',
+      campos: [
+        'facultad', 'escuela', 'departamento', 'periodo',
+        'asignaturas', 'titulo', 'beneficiarios',
+        'nro_docentes', 'numDocentes', 'numEstudiantes',
+        'ejes_rsu', 'ejes_subitems', 'metas_indicadores',
+        'fecha_inicio', 'fecha_termino',
+      ],
+    },
+    2: {
+      nombre: 'II. Fundamentación',
+      campos: [
+        'fund_por_que_grupo',
+        'fund_para_que_proyecto',
+        'fund_mecanismo_ensenanza',
+      ],
+    },
+    3: {
+      nombre: 'III. Diagnóstico',
+      campos: [
+        'diag_estado_grupo',
+        'diag_problemas_detectados',
+        'diag_aportes_formacion',
+        'diag_justificacion_intervencion',
+      ],
+    },
+    4: {
+      nombre: 'IV. Objetivos y ODS',
+      campos: [
+        'obj_logro_intervencion',
+        'obj_mejora_curricular',
+        'ods',
+      ],
+    },
+    5: {
+      nombre: 'V. Resultados esperados',
+      campos: [
+        'resultado_en_beneficiarios',
+        'resultado_en_curriculo',
+      ],
+    },
+    6: {
+      nombre: 'VI. Actividades',
+      campos: ['actividades'],
+    },
+    7: {
+      nombre: 'VII. Cronograma',
+      campos: ['cronogramas', 'acciones'],
+    },
+    8: {
+      nombre: 'VIII. Recursos',
+      campos: ['recursos_humanos', 'recursos'],
+    },
+    9: {
+      nombre: 'IX. Financiamiento y presupuesto',
+      campos: [
+        'fuentes_financiamiento',
+        'presupuesto',
+        'partidas_presupuestarias',
+      ],
+    },
+  };
+
+  const errores = data.errors || data;
+  const grupos = {};
+  const otrosErrores = [];
+
+  const buscarSeccion = (campo) => {
+    for (const [numero, seccion] of Object.entries(secciones)) {
+      if (
+        seccion.campos.some(
+          (nombre) =>
+            campo === nombre ||
+            campo.startsWith(`${nombre}.`) ||
+            campo.startsWith(`${nombre}[`)
+        )
+      ) {
+        return { numero, nombre: seccion.nombre };
+      }
+    }
+
+    return null;
+  };
+
+  const agregarError = (campo, mensaje) => {
+    const texto = Array.isArray(mensaje)
+      ? mensaje.map(String).join(', ')
+      : typeof mensaje === 'string'
+        ? mensaje
+        : JSON.stringify(mensaje);
+
+    const seccion = buscarSeccion(campo);
+
+    if (seccion) {
+      if (!grupos[seccion.numero]) {
+        grupos[seccion.numero] = {
+          nombre: seccion.nombre,
+          errores: [],
+        };
+      }
+
+      grupos[seccion.numero].errores.push({
+        campo,
+        mensaje: texto,
+      });
+    } else {
+      otrosErrores.push({ campo, mensaje: texto });
+    }
+  };
+
+  if (typeof errores === 'object' && errores !== null) {
+    Object.entries(errores).forEach(([campo, mensaje]) => {
+      if (
+        campo === 'detail' ||
+        campo === 'message' ||
+        campo === 'non_field_errors'
+      ) {
+        const mensajes = Array.isArray(mensaje)
+          ? mensaje
+          : [mensaje];
+
+        mensajes.forEach((texto) =>
+          otrosErrores.push({
+            campo: campo === 'non_field_errors'
+              ? 'Error general'
+              : 'Mensaje del servidor',
+            mensaje: String(texto),
+          })
+        );
+        return;
+      }
+
+      agregarError(campo, mensaje);
+    });
+  } else {
+    return String(errores);
+  }
+
+  const lineas = [
+    'No se pudo completar la operación.',
+    '',
+    'DETALLE DE LOS ERRORES',
+  ];
+
+  Object.values(grupos).forEach((grupo) => {
+    lineas.push('', grupo.nombre);
+
+    grupo.errores.forEach(({ campo, mensaje }) => {
+      lineas.push(`  • ${campo}: ${mensaje}`);
+    });
+  });
+
+  if (otrosErrores.length > 0) {
+    lineas.push('', 'OTROS ERRORES');
+
+    otrosErrores.forEach(({ campo, mensaje }) => {
+      lineas.push(`  • ${campo}: ${mensaje}`);
+    });
+  }
+
+  return lineas.join('\n');
 };
+
+
+
 
 export const useFormRSU = () => {
   const [step, setStep] = useState(1);
@@ -539,6 +717,29 @@ export const useFormRSU = () => {
       return false;
     }
   };
+
+const obtenerSeccionesPendientes = () => {
+  const nombresSecciones = {
+    1: "Datos generales del proyecto",
+    2: "Fundamentación del grupo",
+    3: "Diagnóstico del proyecto",
+    4: "Objetivos y ODS",
+    5: "Resultados esperados",
+    6: "Actividades",
+    7: "Cronograma y responsables",
+    8: "Recursos del proyecto",
+    9: "Fuentes de financiamiento",
+  };
+
+  return Object.keys(VALIDACIONES)
+    .map(Number)
+    .filter((numeroPaso) => !isStepValid(numeroPaso))
+    .map((numeroPaso) => ({
+      paso: numeroPaso,
+      nombre: nombresSecciones[numeroPaso],
+    }));
+};
+
 
   const pasosCompletados = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(
     (numeroPaso) => isStepValid(numeroPaso)
@@ -835,5 +1036,7 @@ export const useFormRSU = () => {
     handleCancelar,
     enviarProyectoBackend,
     enviarARevision,
+    obtenerSeccionesPendientes,
+
   };
 };

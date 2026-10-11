@@ -423,31 +423,7 @@ export default function Financiamiento({ data, updateData }) {
                         />
                       </div>
 
-                      {/* UNIDAD */}
-                      <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 xl:col-span-1">
-                        <label
-                          htmlFor={`unidad-${fIndex}-${pIndex}`}
-                          className="text-xs font-semibold text-slate-600"
-                        >
-                          Unidad
-                        </label>
-
-                        <input
-                          id={`unidad-${fIndex}-${pIndex}`}
-                          type="text"
-                          placeholder="Unidad"
-                          className={partidaInputClass}
-                          value={partida.unidad || ""}
-                          onChange={(e) =>
-                            handlePartidaChange(
-                              fIndex,
-                              pIndex,
-                              "unidad",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
+                  
 
                       {/* CANTIDAD */}
                       <div className="flex min-w-0 flex-col gap-1.5 sm:col-span-1 xl:col-span-1">
