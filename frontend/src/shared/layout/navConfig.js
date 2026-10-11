@@ -1,11 +1,11 @@
-import { FiGrid, FiFolder, FiCalendar, FiBell, FiCheckSquare, FiUsers, FiFileText, FiMap, FiBook, FiSettings, FiCheckCircle, } from "react-icons/fi";
+import { FiGrid, FiFolder, FiCalendar, FiBell, FiCheckSquare, FiUsers, FiFileText, FiMap, FiBook, FiSettings, FiCheckCircle,FiClipboard, FiBarChart2 } from "react-icons/fi";
 export const NAV_BY_ROLE = {
   docente: [
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos", icon: FiFolder, label: "Mis Proyectos" },
-    { to: "/actividades", icon: FiCalendar, label: "Mis Actividades" },
-    { to: "/informes", icon: FiCalendar, label: "Informe Ejecución" },
-    { to: "/informesFinalizacion", icon: FiCalendar, label: "Informe Finalizacion" },
+    { to: "/actividades", icon: FiClipboard, label: "Mis Actividades" },
+    { to: "/informesFinalizacion", icon: FiFileText, label: "Informe de Finalización" },
+    { to: "/informes", icon: FiBarChart2, label: "Mis informes" },
     { to: "/notificaciones", icon: FiBell, label: "Notificaciones" },
   ],
   departamento: [

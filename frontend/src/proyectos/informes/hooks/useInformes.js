@@ -251,17 +251,21 @@ export const useInformes = () => {
   const documentosProyecto = matrizSeleccionada
     ? [
         {
-          id: "planificacion",
-          tipo: "planificacion",
-          titulo: "Informe de planificación",
-          descripcion:
-            "Documento oficial de planificación del proyecto.",
-          estado: "disponible",
-          fecha:
-            matrizSeleccionada.fecha_aprobacion ||
-            matrizSeleccionada.fecha_creacion ||
-            null,
-        },
+  id: "planificacion",
+  tipo: "planificacion",
+  titulo: "Informe de planificación",
+  descripcion: "Documento oficial de planificación del proyecto.",
+  estado:
+    matrizSeleccionada.estado === "aprobado"
+      ? "Aprobado"
+      : matrizSeleccionada.estado === "en_revision"
+      ? "En revisión"
+      : "Pendiente",
+  fecha:
+    matrizSeleccionada.fecha_aprobacion ||
+    matrizSeleccionada.fecha_creacion ||
+    null,
+},
         {
           id: "finalizacion",
           tipo: "finalizacion",
@@ -276,20 +280,19 @@ export const useInformes = () => {
             informeFinalizacion?.fecha_envio ||
             null,
         },
-        {
-          id: "constancia",
-          tipo: "constancia",
-          titulo: "Constancia de ejecución",
-          descripcion:
-            "Constancia emitida después de aprobar el informe de finalización.",
-          estado:
-            informeFinalizacion?.constancia_aprobada === true
-              ? "disponible"
-              : "pendiente",
-          fecha:
-            informeFinalizacion?.fecha_aprobacion ||
-            null,
-        },
+         {
+        id: "constancia",
+        tipo: "constancia",
+        titulo: "Constancia de ejecución",
+        descripcion:
+          "PDF descargable según el estado del proyecto y los permisos del usuario.",
+        estado:
+          matrizSeleccionada.estado === "finalizado"
+            ? "disponible"
+            : "pendiente",
+        fecha: matrizSeleccionada.fecha_finalizacion || null,
+        endpoint: `/api/v1/proyectos/${matrizSeleccionada.id}/constancia/pdf/`,
+      },
       ]
     : [];
 

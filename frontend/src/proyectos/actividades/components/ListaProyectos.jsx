@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from "react";
 import {
   FiInbox,
@@ -59,7 +60,9 @@ export default function ListaProyectos({
 
     let prioridad = "Sin prioridad";
     let prioridadClase = "bg-slate-100 text-slate-500";
-    let prioridadIcono = <FiClock className="text-slate-400 text-xs" />;
+    let prioridadIcono = (
+      <FiClock className="text-xs text-slate-400" />
+    );
 
     if (proximaActividad) {
       const fechaActividad = new Date(proximaActividad.fecha);
@@ -73,13 +76,13 @@ export default function ListaProyectos({
         prioridad = "Urgente";
         prioridadClase = "bg-red-100 text-red-700";
         prioridadIcono = (
-          <FiAlertCircle className="text-red-500 text-xs" />
+          <FiAlertCircle className="text-xs text-red-500" />
         );
       } else if (diferencia <= 3) {
         prioridad = "Alta";
         prioridadClase = "bg-red-100 text-red-600";
         prioridadIcono = (
-          <FiAlertCircle className="text-red-500 text-xs" />
+          <FiAlertCircle className="text-xs text-red-500" />
         );
       } else if (diferencia <= 7) {
         prioridad = "Media";
@@ -109,7 +112,7 @@ export default function ListaProyectos({
         ...proy,
         informacion: calcularInformacion(proy),
       })),
-    [proyectos]
+    [listaProyectos]
   );
 
   const proyectosFiltrados = useMemo(() => {
@@ -186,40 +189,63 @@ export default function ListaProyectos({
     { id: "urgentes", label: "Prioridad alta" },
   ];
 
+  const seleccionarProyectoConTeclado = (e, proyecto) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelect?.(proyecto);
+    }
+  };
+
   return (
-    <div className="flex flex-1 flex-col min-w-0">
-      <div className="mb-4 shrink-0">
-        <h2 className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-slate-800">
-          Actividades Proyectos Aprobados
+    <div className="flex min-w-0 flex-1 flex-col">
+      {/* Encabezado */}
+      <div className="mb-5 flex shrink-0 flex-col gap-1">
+        <h2 className="m-0 flex items-center gap-2 text-xl font-bold tracking-tight text-slate-800 md:text-2xl">
+          Actividades de proyectos aprobados
         </h2>
 
-        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+        <p className="m-0 text-sm leading-relaxed text-slate-500">
           Selecciona un proyecto para registrar el cumplimiento de
           indicadores y subir evidencias.
         </p>
       </div>
 
+      {/* Filtros */}
       {!loading && listaProyectos.length > 0 && (
-        <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <FiFilter className="text-sm text-slate-400" />
+
+            <span className="text-xs font-semibold text-slate-700">
+              Filtrar proyectos
+            </span>
+
+            <span className="ml-auto text-xs text-slate-400">
+              {proyectosFiltrados.length} de {listaProyectos.length}
+            </span>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {filtros.map((opcion) => (
               <button
                 key={opcion.id}
                 type="button"
                 onClick={() => setFiltro(opcion.id)}
-                className={`h-8 rounded-lg px-3 text-[11px] font-semibold transition-colors sm:text-xs ${
+                aria-pressed={filtro === opcion.id}
+                className={`flex min-h-8 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                   filtro === opcion.id
-                    ? "bg-[#b1122b] text-white"
-                    : "border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                    ? "border-[#b1122b] bg-[#b1122b] text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
                 {opcion.label}
+
                 <span
-                  className={`ml-1 ${
+                  className={
                     filtro === opcion.id
                       ? "text-white/80"
                       : "text-slate-400"
-                  }`}
+                  }
                 >
                   ({cantidadFiltro(opcion.id)})
                 </span>
@@ -229,44 +255,67 @@ export default function ListaProyectos({
         </div>
       )}
 
+      {/* Cargando */}
       {loading ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-10">
-          <FiLoader className="mb-3 animate-spin text-3xl text-[#b1122b]" />
-          <span className="text-sm font-medium text-slate-500">
+        <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-8 text-center">
+          <FiLoader className="mb-3 animate-spin text-2xl text-[#b1122b]" />
+
+          <p className="m-0 text-sm font-medium text-slate-600">
             Consultando proyectos...
-          </span>
+          </p>
+
+          <p className="m-0 mt-1 text-xs text-slate-400">
+            Estamos obteniendo la información disponible.
+          </p>
         </div>
       ) : listaProyectos.length === 0 ? (
-        <div className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
-          <FiInbox className="mb-2 h-9 w-9 text-slate-300" />
-          <span className="text-sm font-semibold text-slate-500">
+        /* Sin proyectos */
+        <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center md:p-10">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-50">
+            <FiInbox className="text-2xl text-slate-400" />
+          </div>
+
+          <p className="m-0 text-sm font-semibold text-slate-700">
             No registras proyectos en ejecución
-          </span>
-          <span className="mt-1 max-w-xs text-xs text-slate-400">
+          </p>
+
+          <p className="m-0 mt-1 max-w-sm text-xs leading-relaxed text-slate-400">
             Actualmente no cuentas con planes de trabajo en estado
-            "Aprobado" o "En Ejecución".
-          </span>
+            aprobado o en ejecución.
+          </p>
         </div>
       ) : proyectosFiltrados.length === 0 ? (
-        <div className="flex min-h-[220px] w-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
-          <FiFilter className="mb-2 h-9 w-9 text-slate-300" />
-          <span className="text-sm font-semibold text-slate-500">
+        /* Sin resultados para el filtro */
+        <div className="flex min-h-[260px] flex-1 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center md:p-10">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-50">
+            <FiFilter className="text-xl text-slate-400" />
+          </div>
+
+          <p className="m-0 text-sm font-semibold text-slate-700">
             No hay proyectos con este filtro
-          </span>
+          </p>
+
+          <p className="m-0 mt-1 text-xs text-slate-400">
+            Prueba con otra categoría para consultar los proyectos.
+          </p>
+
           <button
             type="button"
             onClick={() => setFiltro("todos")}
-            className="mt-3 text-xs font-semibold text-[#b1122b] transition-colors hover:text-[#941020]"
+            className="mt-4 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#b1122b] transition-colors hover:bg-slate-50"
           >
             Ver todos los proyectos
           </button>
         </div>
       ) : (
-        <div className="flex min-w-0 flex-col gap-2.5">
+        /* Lista de proyectos */
+        <div className="flex min-w-0 flex-col gap-3">
           {proyectosFiltrados.map((proy) => {
             const {
+              total,
               completadas,
               enEjecucion,
+              pendientes,
               avance,
               proximaActividad,
               prioridad,
@@ -274,36 +323,42 @@ export default function ListaProyectos({
               prioridadIcono,
             } = proy.informacion;
 
+            const avanceSeguro = Number.isFinite(avance)
+              ? Math.min(100, Math.max(0, avance))
+              : 0;
+
             return (
               <div
                 key={proy.id}
                 onClick={() => onSelect?.(proy)}
+                onKeyDown={(e) =>
+                  seleccionarProyectoConTeclado(e, proy)
+                }
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onSelect?.(proy);
-                  }
-                }}
-                className="group cursor-pointer rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-[#b1122b] hover:shadow-md sm:p-4"
+                aria-label={`Abrir proyecto ${proy.titulo || proy.codigo || proy.id}`}
+                className="group min-w-0 cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-[#b1122b]/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 sm:p-5"
               >
-                <div className="flex min-w-0 items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <span className="inline-block max-w-full truncate rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                {/* Información principal */}
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <span className="mb-2 inline-block max-w-full truncate rounded-md bg-slate-100 px-2 py-1 font-mono text-[10px] font-semibold text-slate-500">
                       {proy.codigo || `ID #${proy.id}`}
                     </span>
 
-                    <h3 className="break-words text-sm font-bold text-slate-800 transition-colors group-hover:text-[#b1122b]">
-                      {proy.titulo}
+                    <h3 className="m-0 break-words text-sm font-semibold leading-snug text-slate-800 transition-colors group-hover:text-[#b1122b] md:text-base">
+                      {proy.titulo || "Proyecto sin título"}
                     </h3>
 
-                    <p className="break-words text-[11px] font-medium text-slate-400">
-                      {proy.escuela_nombre}
+                    <p className="m-0 mt-1.5 break-words text-xs text-slate-500">
+                      {proy.escuela_nombre || "Escuela no especificada"}
+
                       {proy.periodo_nombre && (
                         <>
-                          {" "}
-                          <span className="text-slate-300">·</span>{" "}
+                          <span className="mx-1.5 text-slate-300">
+                            ·
+                          </span>
+
                           <span className="text-slate-500">
                             {proy.periodo_nombre}
                           </span>
@@ -312,88 +367,114 @@ export default function ListaProyectos({
                     </p>
                   </div>
 
-                  <FiChevronRight className="mt-1 shrink-0 text-slate-400 transition-all group-hover:translate-x-1 group-hover:text-[#b1122b]" />
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 transition-colors group-hover:bg-[#b1122b]/5">
+                    <FiChevronRight className="text-base text-slate-400 transition-all group-hover:translate-x-0.5 group-hover:text-[#b1122b]" />
+                  </div>
                 </div>
 
-                <div className="mt-3 border-t border-slate-100 pt-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
+                {/* Progreso */}
+                <div className="mt-4 border-t border-slate-100 pt-4">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
                       <FiCheckCircle className="shrink-0 text-sm text-[#b1122b]" />
-                      <span className="text-[11px] font-semibold text-slate-600">
-                        Avance
+
+                      <span className="text-xs font-semibold text-slate-600">
+                        Avance del proyecto
                       </span>
                     </div>
 
-                    <span className="shrink-0 text-xs font-bold text-slate-700">
-                      {avance}%
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-slate-800">
+                      {avanceSeguro}%
                     </span>
                   </div>
 
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-2 w-full overflow-hidden rounded-full bg-slate-100"
+                    role="progressbar"
+                    aria-valuenow={avanceSeguro}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Porcentaje de avance del proyecto"
+                  >
                     <div
-                      className="h-full rounded-full bg-[#b1122b] transition-all"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, avance))}%`,
-                      }}
+                      className="h-full rounded-full bg-[#b1122b] transition-all duration-300"
+                      style={{ width: `${avanceSeguro}%` }}
                     />
                   </div>
 
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px]">
-                    <span className="text-slate-400">
+                  {/* Resumen de actividades */}
+                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <FiCheckCircle className="text-emerald-600" />
                       {completadas} completadas
                     </span>
-                    <span className="text-blue-500">
+
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <FiClock className="text-blue-500" />
                       {enEjecucion} en ejecución
+                    </span>
+
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <FiInbox className="text-slate-400" />
+                      {pendientes} pendientes
+                    </span>
+
+                    <span className="ml-auto text-xs text-slate-400">
+                      {total} actividad{total !== 1 ? "es" : ""}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-3">
-                  {proximaActividad && (
-                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <FiCalendar className="shrink-0 text-xs text-slate-400" />
+                {/* Próxima actividad y prioridad */}
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  {proximaActividad ? (
+                    <div className="flex min-w-0 items-start gap-2">
+                      <FiCalendar className="mt-0.5 shrink-0 text-sm text-slate-400" />
 
-                      <span className="shrink-0 text-[10px] text-slate-500">
-                        Próxima:
-                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-[10px] text-slate-400">
+                          Próxima actividad
+                        </span>
 
-                      <span
-                        title={proximaActividad.nombre}
-                        className="min-w-0 truncate text-[11px] font-semibold text-slate-700"
-                      >
-                        {proximaActividad.nombre}
-                      </span>
+                        <p
+                          title={proximaActividad.nombre}
+                          className="m-0 mt-0.5 break-words text-xs font-medium text-slate-700"
+                        >
+                          {proximaActividad.nombre ||
+                            "Actividad sin nombre"}
+                        </p>
 
-                      <span className="shrink-0 text-[10px] text-slate-400">
-                        {new Date(
-                          proximaActividad.fecha
-                        ).toLocaleDateString("es-PE", {
-                          day: "2-digit",
-                          month: "2-digit",
-                        })}
-                      </span>
+                        <span className="mt-1 block text-[11px] text-slate-400">
+                          {new Date(
+                            proximaActividad.fecha
+                          ).toLocaleDateString("es-PE", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <FiCalendar className="shrink-0" />
+                      <span>Sin actividades pendientes con fecha</span>
                     </div>
                   )}
 
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-2 self-start sm:self-center">
                     {prioridadIcono}
 
-                    <span className="text-[10px] text-slate-500">
-                      Prioridad:
+                    <span className="text-xs text-slate-500">
+                      Prioridad
                     </span>
 
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${prioridadClase}`}
+                      className={`rounded-md px-2 py-1 text-[10px] font-semibold ${prioridadClase}`}
                     >
                       {prioridad}
                     </span>
                   </div>
-
-                  {!proximaActividad && (
-                    <span className="text-[10px] text-slate-400">
-                      Sin actividades pendientes
-                    </span>
-                  )}
                 </div>
               </div>
             );

@@ -481,13 +481,7 @@ const Repositorio = () => {
                         <span className="text-xs font-bold text-slate-700 truncate block" title={proyectoSeleccionado.datos_generales.lugar_ejecucion}>{proyectoSeleccionado.datos_generales.lugar_ejecucion || 'N/A'}</span>
                       </div>
                     </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-                      <FiDollarSign className="text-amber-600 w-5 h-5 shrink-0" />
-                      <div className="min-w-0">
-                        <span className="text-[10px] text-slate-400 block truncate">Financiamiento</span>
-                        <span className="text-xs font-bold text-slate-700 truncate block">S/. {proyectoSeleccionado.financiamiento.monto_total || '0.00'}</span>
-                      </div>
-                    </div>
+                    
                   </div>
 
                   {/* ESTRUCTURA */}

@@ -189,7 +189,6 @@ const InformeConsolidado = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <Indicador icon={<FiFileText />} titulo="Total proyectos" valor={resumen.total_proyectos ?? 0} descripcion={`${resumen.aprobados ?? 0} aprobados · ${resumen.finalizados ?? 0} finalizados`} />
               <Indicador icon={<FiUsers />} titulo="Docentes responsables" valor={resumen.docentes_responsables ?? 0} descripcion={`${resumen.total_docentes_declarados ?? 0} docentes declarados`} />
-              <Indicador icon={<FiUsers />} titulo="Estudiantes" valor={resumen.total_estudiantes_declarados ?? 0} descripcion="Estudiantes declarados" />
               <Indicador icon={<FiActivity />} titulo="Avance promedio" valor={`${resumen.avance_promedio ?? 0}%`} descripcion={`${resumen.actividades_completadas ?? 0} de ${resumen.actividades_total ?? 0} actividades completadas`} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
