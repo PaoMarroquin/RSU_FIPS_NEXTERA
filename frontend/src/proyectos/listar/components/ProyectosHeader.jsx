@@ -9,7 +9,7 @@ export default function ProyectosHeader({ canCreate, onNuevoProyecto }) {
       </div>
       {canCreate && (
         <button
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8e0e22] transition-colors shadow-sm"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#b1122b] text-white rounded-lg text-sm font-semibold hover:bg-[#8e0e22] transition-s shadow-sm"
           onClick={onNuevoProyecto}
         >
           <FiPlus className="w-4 h-4" />
