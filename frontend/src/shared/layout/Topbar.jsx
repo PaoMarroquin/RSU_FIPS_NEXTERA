@@ -209,11 +209,10 @@ export default function Topbar({ onMenuClick }) {
             aria-label="Notificaciones"
             aria-expanded={isNotifOpen}
             onClick={toggleNotifications}
-            className={`relative rounded-full p-2 transition-colors ${
-              isNotifOpen
+            className={`relative rounded-full p-2 transition-colors ${isNotifOpen
                 ? "bg-red-50 text-[#b1122b]"
                 : "text-slate-400 hover:bg-slate-100 hover:text-[#b1122b]"
-            }`}
+              }`}
           >
             <FiBell className="text-xl" />
 
@@ -225,7 +224,7 @@ export default function Topbar({ onMenuClick }) {
           </button>
 
           {isNotifOpen && (
-            <div className="animate-in fade-in slide-in-from-top-2 absolute right-0 z-50 mt-3 flex max-h-[min(420px,calc(100dvh-90px))] w-[min(320px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl duration-150">
+            <div className="animate-in fade-in slide-in-from-top-2 fixed left-3 right-3 top-[80px] z-50 flex max-h-[calc(100dvh-92px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-xl duration-150 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3 sm:max-h-[min(420px,calc(100dvh-90px))] sm:w-[min(360px,calc(100vw-24px))] sm:origin-top-right">
               <div className="sticky top-0 flex items-center justify-between gap-2 border-b border-slate-100 bg-white px-3 py-2 sm:px-4">
                 <span className="text-sm font-bold text-slate-800">
                   Notificaciones
@@ -236,7 +235,7 @@ export default function Topbar({ onMenuClick }) {
                     <button
                       type="button"
                       onClick={marcarTodasComoLeidas}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-[#b1122b] transition-colors hover:text-[#8a0e21] sm:text-[11px]"
+                      className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-[#b1122b] transition-colors hover:text-[#8a0e21] sm:text-[11px]"
                     >
                       <FiCheckSquare className="shrink-0 text-sm" />
                       <span>Marcar todas</span>
@@ -263,9 +262,8 @@ export default function Topbar({ onMenuClick }) {
                       return (
                         <div
                           key={notif.id}
-                          className={`cursor-pointer border-b border-slate-50 p-3 transition-colors hover:bg-slate-50 sm:p-4 ${
-                            !notif.leida ? "bg-red-50/30" : ""
-                          }`}
+                          className={`cursor-pointer border-b border-slate-50 p-3 transition-colors hover:bg-slate-50 sm:p-4 ${!notif.leida ? "bg-red-50/30" : ""
+                            }`}
                           onClick={() => {
                             if (!notif.leida) {
                               marcarComoLeida(notif.id);
@@ -283,11 +281,10 @@ export default function Topbar({ onMenuClick }) {
 
                             <div className="min-w-0 flex-1">
                               <strong
-                                className={`block break-words text-sm leading-snug ${
-                                  !notif.leida
+                                className={`block break-words text-sm leading-snug ${!notif.leida
                                     ? "text-slate-800"
                                     : "text-slate-600"
-                                }`}
+                                  }`}
                               >
                                 {notif.titulo}
                               </strong>
@@ -352,9 +349,8 @@ export default function Topbar({ onMenuClick }) {
             </div>
 
             <FiChevronDown
-              className={`shrink-0 text-slate-400 transition-transform duration-200 ${
-                isMenuOpen ? "rotate-180" : ""
-              }`}
+              className={`shrink-0 text-slate-400 transition-transform duration-200 ${isMenuOpen ? "rotate-180" : ""
+                }`}
             />
           </button>
 
