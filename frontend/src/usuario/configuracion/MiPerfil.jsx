@@ -8,10 +8,86 @@ import {
   FiBriefcase,
   FiCheckCircle,
   FiLoader,
+  FiMail,
+  FiLock,
+  FiEye,
+  FiEyeOff,
+  FiShield,
 } from "react-icons/fi";
+
 import { usuarioApi } from "../../shared/api/usuario/usuarioApi";
 import Layout from "../../shared/layout/Layout";
 import { useToast } from "../../shared/context/ToastContext";
+
+const inputClass =
+  "w-full h-10 px-3 text-sm text-slate-800 bg-white border border-slate-300 rounded-lg outline-none transition-all focus:border-[#b1122b] focus:ring-2 focus:ring-[#b1122b]/10 placeholder:text-slate-400";
+
+const readOnlyClass =
+  "w-full h-10 px-3 text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-not-allowed";
+
+function SectionTitle({ title, description }) {
+  return (
+    <div className="mb-3">
+      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+        {title}
+      </h4>
+
+      {description && (
+        <p className="text-xs text-slate-500 mt-1">{description}</p>
+      )}
+    </div>
+  );
+}
+
+function FieldLabel({ children, required = false }) {
+  return (
+    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
+      {children}
+      {required && <span className="text-[#b1122b] ml-1">*</span>}
+    </label>
+  );
+}
+
+function PasswordField({
+  label,
+  name,
+  value,
+  onChange,
+  visible,
+  onToggle,
+  placeholder,
+  autoComplete,
+}) {
+  return (
+    <div>
+      <FieldLabel required>{label}</FieldLabel>
+
+      <div className="relative">
+        <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+
+        <input
+          type={visible ? "text" : "password"}
+          name={name}
+          value={value}
+          onChange={onChange}
+          required
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          className={`${inputClass} pl-9 pr-11`}
+        />
+
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#b1122b]"
+        >
+          {visible ? <FiEyeOff /> : <FiEye />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function MiPerfil() {
   const [formData, setFormData] = useState({
@@ -33,8 +109,22 @@ export default function MiPerfil() {
     departamentoNombre: "",
   });
 
+  const [passwordData, setPasswordData] = useState({
+    password_actual: "",
+    password_nueva: "",
+    confirmar_password: "",
+  });
+
+  const [visiblePasswords, setVisiblePasswords] = useState({
+    actual: false,
+    nueva: false,
+    confirmar: false,
+  });
+
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -82,13 +172,33 @@ export default function MiPerfil() {
     }));
   };
 
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+
+    setPasswordData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setVisiblePasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
 
     if (!file) return;
 
     if (!["image/jpeg", "image/png"].includes(file.type)) {
-      showToast("error", "La firma debe ser una imagen válida en formato JPG o PNG.");
+      showToast(
+        "error",
+        "La firma debe ser una imagen válida en formato JPG o PNG."
+      );
+      e.target.value = "";
       return;
     }
 
@@ -125,88 +235,132 @@ export default function MiPerfil() {
       }
     } catch (error) {
       console.error("Error al guardar perfil:", error);
-      showToast("error", "Hubo un problema al guardar los cambios.");
+
+      const mensaje =
+        error.response?.data?.detail ||
+        error.response?.data?.mensaje ||
+        "Hubo un problema al guardar los cambios.";
+
+      showToast("error", mensaje);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // =========================================================
-  // HELPERS DE ESTILO (mismos tokens que Repositorio.jsx)
-  // =========================================================
+  const handleCambiarPassword = async (e) => {
+    e.preventDefault();
 
-  const SectionTitle = ({ title, description }) => (
-    <div className="mb-3">
-      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-        {title}
-      </h4>
+    const actual = passwordData.password_actual;
+    const nueva = passwordData.password_nueva;
+    const confirmar = passwordData.confirmar_password;
 
-      {description && (
-        <p className="text-xs text-slate-500 mt-1">
-          {description}
-        </p>
-      )}
-    </div>
-  );
+    if (!actual || !nueva || !confirmar) {
+      showToast("error", "Completa todos los campos de contraseña.");
+      return;
+    }
 
-  const FieldLabel = ({ children, required = false }) => (
-    <label className="text-xs font-semibold text-slate-600 mb-1.5 block">
-      {children}
-      {required && <span className="text-[#b1122b] ml-1">*</span>}
-    </label>
-  );
+    if (nueva.length < 8) {
+      showToast(
+        "error",
+        "La nueva contraseña debe tener al menos 8 caracteres."
+      );
+      return;
+    }
 
-  const inputClass =
-    "w-full h-10 px-3 text-sm text-slate-800 bg-white border border-slate-300 rounded-lg outline-none transition-all focus:border-[#b1122b] focus:ring-2 focus:ring-[#b1122b]/10 placeholder:text-slate-400";
+    if (actual === nueva) {
+      showToast(
+        "error",
+        "La nueva contraseña debe ser diferente de la actual."
+      );
+      return;
+    }
 
-  const readOnlyClass =
-    "w-full h-10 px-3 text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-not-allowed";
+    if (nueva !== confirmar) {
+      showToast("error", "Las contraseñas nuevas no coinciden.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      const resultado = await usuarioApi.cambiarMiPassword({
+        password_actual: actual,
+        password_nueva: nueva,
+      });
+
+      showToast(
+        "success",
+        resultado?.detail ||
+          resultado?.mensaje ||
+          "Tu contraseña se actualizó correctamente."
+      );
+
+      setPasswordData({
+        password_actual: "",
+        password_nueva: "",
+        confirmar_password: "",
+      });
+
+      setVisiblePasswords({
+        actual: false,
+        nueva: false,
+        confirmar: false,
+      });
+    } catch (error) {
+      console.error("Error al cambiar contraseña:", error);
+
+      const errores = error.response?.data;
+      let mensaje = "No se pudo cambiar la contraseña.";
+
+      if (typeof errores?.detail === "string") {
+        mensaje = errores.detail;
+      } else if (typeof errores?.mensaje === "string") {
+        mensaje = errores.mensaje;
+      } else if (typeof errores?.password_actual === "string") {
+        mensaje = errores.password_actual;
+      } else if (Array.isArray(errores?.password_actual)) {
+        mensaje = errores.password_actual[0];
+      } else if (typeof errores?.password_nueva === "string") {
+        mensaje = errores.password_nueva;
+      } else if (Array.isArray(errores?.password_nueva)) {
+        mensaje = errores.password_nueva[0];
+      } else if (typeof errores === "string") {
+        mensaje = errores;
+      }
+
+      showToast("error", mensaje);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   return (
     <Layout>
       <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
-
-        {/* =====================================================
-            HEADER (mismo patrón que Repositorio)
-        ===================================================== */}
-
+        {/* ENCABEZADO */}
         <div className="mb-6 shrink-0">
-          <h2 className="text-2xl font-bold text-slate-800">
-            Mi Perfil
-          </h2>
+          <h2 className="text-2xl font-bold text-slate-800">Mi Perfil</h2>
 
           <p className="text-sm text-slate-500 mt-1">
-            Información personal, académica y firma digital asociadas
-            a tu cuenta institucional.
+            Información personal, académica y seguridad de tu cuenta
+            institucional.
           </p>
         </div>
 
         {loading ? (
-
           <div className="flex flex-col items-center justify-center flex-1 py-12">
-
             <FiLoader className="animate-spin text-[#b1122b] text-4xl mb-4" />
 
             <span className="text-slate-500 font-medium">
               Cargando información del perfil...
             </span>
-
           </div>
-
         ) : (
-
           <div className="space-y-4">
-
-            {/* =================================================
-                TARJETA DE RESUMEN
-            ================================================= */}
-
+            {/* RESUMEN DE CUENTA */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-
                 <div className="flex items-center gap-4">
-
                   <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-[#b1122b] font-bold text-2xl shrink-0">
                     {formData.nombres
                       ? formData.nombres.charAt(0).toUpperCase()
@@ -223,14 +377,13 @@ export default function MiPerfil() {
                     </h1>
 
                     <p className="text-xs text-slate-500 mt-1">
-                      {extraUserData.correoInstitucional || "Sin correo registrado"}
+                      {extraUserData.correoInstitucional ||
+                        "Sin correo registrado"}
                     </p>
                   </div>
-
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
-
                   <FiAward className="text-[#b1122b] w-5 h-5" />
 
                   <div>
@@ -242,29 +395,21 @@ export default function MiPerfil() {
                       {extraUserData.rolNombre || "Sin rol"}
                     </span>
                   </div>
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* =================================================
-                FORMULARIO
-            ================================================= */}
-
+            {/* FORMULARIO DE PERFIL */}
             <form
               onSubmit={handleSubmit}
               className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
             >
-
               <div className="p-6 md:p-8 space-y-8">
-
                 {/* DATOS PERSONALES */}
                 <section>
-
                   <div className="flex items-center gap-2 pb-4 border-b border-slate-200">
                     <FiUser className="text-[#b1122b] w-4 h-4" />
+
                     <SectionTitle
                       title="Datos personales"
                       description="Información básica asociada a tu cuenta."
@@ -272,9 +417,9 @@ export default function MiPerfil() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-
                     <div>
                       <FieldLabel required>Nombres</FieldLabel>
+
                       <input
                         type="text"
                         name="nombres"
@@ -288,6 +433,7 @@ export default function MiPerfil() {
 
                     <div>
                       <FieldLabel>Apellidos</FieldLabel>
+
                       <input
                         type="text"
                         name="apellidos"
@@ -315,15 +461,14 @@ export default function MiPerfil() {
                         />
                       </div>
                     </div>
-
                   </div>
                 </section>
 
                 {/* INFORMACIÓN ACADÉMICA */}
                 <section className="border-t border-slate-200 pt-6">
-
                   <div className="flex items-center gap-2 mb-4">
                     <FiBriefcase className="text-[#b1122b] w-4 h-4" />
+
                     <SectionTitle
                       title="Información académica"
                       description="Datos institucionales asociados a tu cuenta."
@@ -331,39 +476,54 @@ export default function MiPerfil() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
                     <div>
                       <FieldLabel>Facultad</FieldLabel>
+
                       <input
                         type="text"
                         readOnly
-                        disabled
                         className={readOnlyClass}
                         value={extraUserData.facultadNombre || "—"}
                       />
                     </div>
 
-                  
+                    <div>
+                      <FieldLabel>Escuela profesional</FieldLabel>
 
+                      <input
+                        type="text"
+                        readOnly
+                        className={readOnlyClass}
+                        value={extraUserData.escuelaNombre || "—"}
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel>Departamento</FieldLabel>
+
+                      <input
+                        type="text"
+                        readOnly
+                        className={readOnlyClass}
+                        value={extraUserData.departamentoNombre || "—"}
+                      />
+                    </div>
                   </div>
                 </section>
 
                 {/* FIRMA DIGITAL */}
                 <section className="border-t border-slate-200 pt-6">
-
                   <div className="flex items-center gap-2 mb-4">
                     <FiFileText className="text-[#b1122b] w-4 h-4" />
+
                     <SectionTitle
                       title="Firma digital"
-                      description="Imagen utilizada para la autenticación y documentación institucional."
+                      description="Imagen utilizada en la documentación institucional."
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                    {/* CARGA */}
                     <label className="group relative flex flex-col items-center justify-center min-h-[150px] border border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100 hover:border-[#b1122b]/50 transition-colors cursor-pointer">
-
                       <input
                         type="file"
                         accept=".jpg,.jpeg,.png"
@@ -384,9 +544,7 @@ export default function MiPerfil() {
                       </p>
                     </label>
 
-                    {/* PREVISUALIZACIÓN */}
                     <div className="min-h-[150px] border border-slate-200 rounded-xl bg-slate-50 flex flex-col items-center justify-center p-4">
-
                       <span className="text-[10px] text-slate-400 font-semibold mb-3">
                         Firma registrada
                       </span>
@@ -433,17 +591,13 @@ export default function MiPerfil() {
                           </p>
                         </>
                       )}
-
                     </div>
-
                   </div>
                 </section>
-
               </div>
 
-              {/* ACCIONES */}
+              {/* ACCIONES DEL PERFIL */}
               <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-
                 <p className="text-xs text-slate-400">
                   Los cambios se guardarán en tu perfil institucional.
                 </p>
@@ -465,14 +619,110 @@ export default function MiPerfil() {
                     </>
                   )}
                 </button>
-
               </div>
             </form>
 
+            {/* CUENTA Y SEGURIDAD */}
+            <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 md:p-8">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-4 mb-6">
+                  <FiShield className="text-[#b1122b] w-4 h-4" />
+
+                  <SectionTitle
+                    title="Cuenta y seguridad"
+                    description="Consulta tu correo institucional y actualiza tu contraseña."
+                  />
+                </div>
+
+                {/* CORREO INSTITUCIONAL */}
+                <div className="mb-6">
+                  <FieldLabel>Correo institucional</FieldLabel>
+
+                  <div className="relative">
+                    <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+
+                    <input
+                      type="email"
+                      readOnly
+                      className={`${readOnlyClass} pl-9`}
+                      value={extraUserData.correoInstitucional}
+                      placeholder="Sin correo registrado"
+                    />
+                  </div>
+
+                  <p className="text-xs text-slate-400 mt-2">
+                    El correo institucional es administrado por el sistema.
+                  </p>
+                </div>
+
+                {/* CAMBIAR CONTRASEÑA */}
+                <form onSubmit={handleCambiarPassword} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <PasswordField
+                      label="Contraseña actual"
+                      name="password_actual"
+                      value={passwordData.password_actual}
+                      onChange={handlePasswordInputChange}
+                      visible={visiblePasswords.actual}
+                      onToggle={() => togglePasswordVisibility("actual")}
+                      placeholder="Ingresa tu contraseña actual"
+                      autoComplete="current-password"
+                    />
+
+                    <PasswordField
+                      label="Nueva contraseña"
+                      name="password_nueva"
+                      value={passwordData.password_nueva}
+                      onChange={handlePasswordInputChange}
+                      visible={visiblePasswords.nueva}
+                      onToggle={() => togglePasswordVisibility("nueva")}
+                      placeholder="Mínimo 8 caracteres"
+                      autoComplete="new-password"
+                    />
+
+                    <PasswordField
+                      label="Confirmar nueva contraseña"
+                      name="confirmar_password"
+                      value={passwordData.confirmar_password}
+                      onChange={handlePasswordInputChange}
+                      visible={visiblePasswords.confirmar}
+                      onToggle={() => togglePasswordVisibility("confirmar")}
+                      placeholder="Repite la nueva contraseña"
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-800">
+                      Por seguridad, necesitarás tu contraseña actual para
+                      establecer una nueva. Usa al menos 8 caracteres.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={isChangingPassword}
+                      className="h-10 px-5 bg-[#b1122b] hover:bg-[#941020] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <FiLoader className="animate-spin" />
+                          Actualizando contraseña...
+                        </>
+                      ) : (
+                        <>
+                          <FiLock />
+                          Cambiar contraseña
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </section>
           </div>
-
         )}
-
       </div>
     </Layout>
   );

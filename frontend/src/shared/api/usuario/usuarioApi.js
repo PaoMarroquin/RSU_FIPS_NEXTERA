@@ -1,18 +1,38 @@
 import api from '../axiosConfig';
 
 export const usuarioApi = {
-  // --- PERFIL PROPIO ('/me/') ---
+  // --- PERFIL PROPIO ---
   obtenerMiPerfil: async () => {
     const response = await api.get('/api/v1/usuarios/me/');
     return response.data;
   },
 
-  // Edición del perfil actual (si incluye 'firma_digital' como archivo, se recomienda usar FormData)
   actualizarMiPerfil: async (datosPerfil) => {
     const isFormData = datosPerfil instanceof FormData;
-    const response = await api.patch('/api/v1/usuarios/me/', datosPerfil, {
-      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
-    });
+
+    const response = await api.patch(
+      '/api/v1/usuarios/me/',
+      datosPerfil,
+      {
+        headers: isFormData
+          ? { 'Content-Type': 'multipart/form-data' }
+          : {},
+      }
+    );
+
+    return response.data;
+  },
+
+  // --- CAMBIAR CONTRASEÑA PROPIA ---
+  cambiarMiPassword: async ({ password_actual, password_nueva }) => {
+    const response = await api.post(
+      '/api/v1/usuarios/me/cambiar-password/',
+      {
+        password_actual,
+        password_nueva,
+      }
+    );
+
     return response.data;
   },
 
@@ -33,7 +53,11 @@ export const usuarioApi = {
   },
 
   actualizarUsuario: async (id, datosUsuario) => {
-    const response = await api.patch(`/api/v1/usuarios/${id}/`, datosUsuario);
+    const response = await api.patch(
+      `/api/v1/usuarios/${id}/`,
+      datosUsuario
+    );
+
     return response.data;
   },
 
@@ -44,15 +68,22 @@ export const usuarioApi = {
 
   // --- ROLES DE USUARIO ---
   asignarRol: async (usuarioId, { rol_id, motivo = '' }) => {
-    const response = await api.post(`/api/v1/usuarios/${usuarioId}/asignar-rol/`, {
-      rol_id,
-      motivo,
-    });
+    const response = await api.post(
+      `/api/v1/usuarios/${usuarioId}/asignar-rol/`,
+      {
+        rol_id,
+        motivo,
+      }
+    );
+
     return response.data;
   },
 
   obtenerHistorialRoles: async (usuarioId) => {
-    const response = await api.get(`/api/v1/usuarios/${usuarioId}/historial-roles/`);
+    const response = await api.get(
+      `/api/v1/usuarios/${usuarioId}/historial-roles/`
+    );
+
     return response.data;
   },
 };
