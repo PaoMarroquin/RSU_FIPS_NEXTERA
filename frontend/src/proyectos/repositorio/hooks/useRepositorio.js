@@ -4,6 +4,29 @@ import { periodoApi } from '../../../shared/api/planificacion/periodoApi';
 
 export const useRepositorio = () => {
   // =========================
+  // ROL DE USUARIO
+  // =========================
+  const [esDocente, setEsDocente] = useState(false);
+
+  useEffect(() => {
+    // Validamos el rol desde el local storage para restringir el botón de continuar
+    const checkRole = () => {
+      const roleStr = localStorage.getItem('rol') || localStorage.getItem('role') || localStorage.getItem('rol_activo') || '';
+      if (roleStr.toLowerCase().includes('docente')) {
+        setEsDocente(true);
+        return;
+      }
+      try {
+        const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+        if (userObj?.rol?.toLowerCase().includes('docente') || userObj?.role?.toLowerCase().includes('docente')) {
+          setEsDocente(true);
+        }
+      } catch(e) {}
+    };
+    checkRole();
+  }, []);
+
+  // =========================
   // UI
   // =========================
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,10 +112,7 @@ export const useRepositorio = () => {
           ordenamientos: response?.ordenamientos || [],
         });
       } catch (err) {
-        console.error(
-          'Error cargando filtros del repositorio:',
-          err
-        );
+        console.error('Error cargando filtros del repositorio:', err);
       }
     };
 
@@ -114,16 +134,10 @@ export const useRepositorio = () => {
           ordering: filtros.ordering || '-fecha_cierre',
         };
 
-        // -------------------------
-        // Búsqueda
-        // -------------------------
         if (debouncedSearch) {
           params.q = debouncedSearch;
         }
 
-        // -------------------------
-        // Filtros
-        // -------------------------
         Object.entries(filtros).forEach(([key, value]) => {
           if (
             key !== 'ordering' &&
@@ -135,26 +149,15 @@ export const useRepositorio = () => {
           }
         });
 
-        const response =
-          await proyectoApi.obtenerProyectosRepositorio(params);
+        const response = await proyectoApi.obtenerProyectosRepositorio(params);
 
         setProyectosRepositorio(response?.results || []);
-
-        setFiltrosAplicados(
-          response?.filtros_aplicados || {}
-        );
+        setFiltrosAplicados(response?.filtros_aplicados || {});
 
         const total = response?.count || 0;
-
-        setTotalPages(
-          Math.max(1, Math.ceil(total / pageSize))
-        );
+        setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
       } catch (err) {
-        console.error(
-          'Error cargando el repositorio:',
-          err
-        );
-
+        console.error('Error cargando el repositorio:', err);
         setError(err);
         setProyectosRepositorio([]);
         setFiltrosAplicados({});
@@ -165,11 +168,7 @@ export const useRepositorio = () => {
     };
 
     cargarProyectos();
-  }, [
-    page,
-    debouncedSearch,
-    filtros,
-  ]);
+  }, [page, debouncedSearch, filtros]);
 
   // =========================
   // ACTUALIZAR FILTRO
@@ -179,7 +178,6 @@ export const useRepositorio = () => {
       ...prev,
       [nombre]: valor,
     }));
-
     setPage(1);
   };
 
@@ -213,19 +211,11 @@ export const useRepositorio = () => {
     try {
       setLoading(true);
       setError(null);
-
-      const response =
-        await proyectoApi.obtenerProyectoRepositorio(id);
-
+      const response = await proyectoApi.obtenerProyectoRepositorio(id);
       setProyectoSeleccionado(response);
-
       return response;
     } catch (err) {
-      console.error(
-        'Error cargando detalle del proyecto:',
-        err
-      );
-
+      console.error('Error cargando detalle del proyecto:', err);
       setError(err);
       return null;
     } finally {
@@ -246,17 +236,10 @@ export const useRepositorio = () => {
   const obtenerInformeFinal = async (id) => {
     try {
       setError(null);
-
-      const response =
-        await proyectoApi.obtenerInformeFinalRepositorio(id);
-
+      const response = await proyectoApi.obtenerInformeFinalRepositorio(id);
       return response;
     } catch (err) {
-      console.error(
-        'Error cargando informe final:',
-        err
-      );
-
+      console.error('Error cargando informe final:', err);
       setError(err);
       return null;
     }
@@ -265,117 +248,80 @@ export const useRepositorio = () => {
   // =========================
   // LECCIONES APRENDIDAS
   // =========================
-  const obtenerLeccionesAprendidas = async (
-    params = {}
-  ) => {
+  const obtenerLeccionesAprendidas = async (params = {}) => {
     try {
       setError(null);
-
-      const response =
-        await proyectoApi.obtenerLeccionesAprendidas(params);
-
+      const response = await proyectoApi.obtenerLeccionesAprendidas(params);
       return response;
     } catch (err) {
-      console.error(
-        'Error cargando lecciones aprendidas:',
-        err
-      );
-
+      console.error('Error cargando lecciones aprendidas:', err);
       setError(err);
       return null;
     }
   };
 
   const continuarProyecto = async (id, periodoId) => {
-  try {
-    setError(null);
+    try {
+      setError(null);
+      const response = await proyectoApi.continuarProyecto(id, {
+        periodo: Number(periodoId),
+        docentes_adicionales: [],
+      });
+      return response;
+    } catch (err) {
+      console.error('Error continuando proyecto:', err.response?.data || err);
+      const data = err.response?.data;
 
-    const response = await proyectoApi.continuarProyecto(id, {
-      periodo: Number(periodoId),
-      docentes_adicionales: [],
-    });
-
-    return response;
-  } catch (err) {
-    console.error(
-      'Error continuando proyecto:',
-      err.response?.data || err
-    );
-
-    const data = err.response?.data;
-
-    if (
-      data?.detail?.toLowerCase().includes('continuación') ||
-      data?.detail?.toLowerCase().includes('ya existe') ||
-      data?.detail?.toLowerCase().includes('existe')
-    ) {
-      throw new Error(
-        'Ya existe un proyecto creado usando esta plantilla para el periodo seleccionado.'
-      );
+      if (
+        data?.detail?.toLowerCase().includes('continuación') ||
+        data?.detail?.toLowerCase().includes('ya existe') ||
+        data?.detail?.toLowerCase().includes('existe')
+      ) {
+        throw new Error('Ya existe un proyecto creado usando esta plantilla para el periodo seleccionado.');
+      }
+      throw new Error(data?.detail || 'No fue posible crear la continuación del proyecto.');
     }
+  };
 
-    throw new Error(
-      data?.detail ||
-      'No fue posible crear la continuación del proyecto.'
-    );
-  }
-};
-
-const cargarPeriodosAcademicos = async () => {
-  try {
-    const response = await periodoApi.obtenerPeriodos({
-      ordering: '-fecha_inicio',
-    });
-
-    setPeriodosAcademicos(response?.results || response || []);
-  } catch (err) {
-    console.error('Error cargando periodos académicos:', err);
-    setPeriodosAcademicos([]);
-  }
-};
-
+  const cargarPeriodosAcademicos = async () => {
+    try {
+      const response = await periodoApi.obtenerPeriodos({
+        ordering: '-fecha_inicio',
+      });
+      setPeriodosAcademicos(response?.results || response || []);
+    } catch (err) {
+      console.error('Error cargando periodos académicos:', err);
+      setPeriodosAcademicos([]);
+    }
+  };
 
   return {
-    // UI
+    esDocente, // Nueva variable
     searchTerm,
     setSearchTerm,
     viewMode,
     setViewMode,
-
-    // Proyecto seleccionado
     proyectoSeleccionado,
     setProyectoSeleccionado,
     cerrarDetalleProyecto,
-
-    // Proyectos
     proyectosRepositorio,
     loading,
     error,
-
-    // Paginación
     page,
     setPage,
     pageSize,
     totalPages,
-
-    // Filtros
     filtros,
     setFiltros,
     opcionesFiltros,
     filtrosAplicados,
     actualizarFiltro,
     limpiarFiltros,
-
-    // Detalle
     obtenerDetalleProyecto,
-
-    // Informe final
     obtenerInformeFinal,
-
-    // Lecciones aprendidas
     obtenerLeccionesAprendidas,
-     continuarProyecto,
-       periodosAcademicos,
-  cargarPeriodosAcademicos,
+    continuarProyecto,
+    periodosAcademicos,
+    cargarPeriodosAcademicos,
   };
 };
