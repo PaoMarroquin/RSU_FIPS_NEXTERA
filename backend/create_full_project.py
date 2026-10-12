@@ -84,7 +84,6 @@ def run():
         proyecto=proyecto,
         nombre='Taller de inicio',
         descripcion='Taller para empezar el proyecto',
-        fecha=date(2026, 3, 10),
         estado='completada',
         orden=1
     )
@@ -92,7 +91,6 @@ def run():
         proyecto=proyecto,
         nombre='Trabajo de campo',
         descripcion='Recoleccion de datos',
-        fecha=date(2026, 4, 15),
         estado='en_ejecucion',
         orden=2
     )
@@ -100,7 +98,6 @@ def run():
         proyecto=proyecto,
         nombre='Redacción de informe',
         descripcion='Redacción del informe final',
-        fecha=date(2026, 7, 10),
         estado='pendiente',
         orden=3
     )

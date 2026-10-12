@@ -79,9 +79,12 @@ def run():
         cantidad=20, costo_unitario=25.00
     )
     
-    ActividadProyecto.objects.create(
-        proyecto=proyecto, nombre='Actividad 1 Borrador', responsable='Docente 1',
-        evidencia_esperada='Fotos', url_evidencia=''
+    actividad = ActividadProyecto.objects.create(
+        proyecto=proyecto, nombre='Actividad 1 Borrador', descripcion='Actividad de prueba'
+    )
+    CronogramaAccion.objects.create(
+        proyecto=proyecto, actividad=actividad, descripcion='Acción 1',
+        responsable='Docente 1', evidencia_esperada='Fotos'
     )
     
     print("¡Proyecto borrador PRY-FULL-003 creado!")
