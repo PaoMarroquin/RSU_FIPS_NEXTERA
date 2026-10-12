@@ -1,9 +1,33 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { matrizOperativaApi } from '../../../shared/api/planificacion/matrizOperativaApi';
+
+// Función auxiliar para extraer el rol
+const obtenerRolUsuario = () => {
+  const rolDirecto = localStorage.getItem('user_role');
+  if (rolDirecto) return rolDirecto.trim();
+
+  const userJson = localStorage.getItem('user');
+  if (userJson) {
+    try {
+      const parsedUser = JSON.parse(userJson);
+      return (parsedUser.rol || '').trim();
+    } catch (error) {
+      console.error('Error al parsear el usuario de localStorage:', error);
+    }
+  }
+
+  return '';
+};
 
 export function useMatrizOperativa() {
   const [matrices, setMatrices] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Memorizar si el usuario puede crear basado en el rol "Jefatura"
+  const puedeCrear = useMemo(() => {
+    const rol = obtenerRolUsuario();
+    return rol.toLowerCase().includes('jefatura');
+  }, []);
 
   const fetchMatrices = useCallback(async (search = '') => {
     setLoading(true);
@@ -26,6 +50,7 @@ export function useMatrizOperativa() {
     matrices,
     loading,
     fetchMatrices,
-    handleCreated
+    handleCreated,
+    puedeCrear
   };
 }

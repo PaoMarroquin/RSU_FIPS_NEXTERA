@@ -1,4 +1,4 @@
-import { FiGrid, FiFolder, FiCalendar, FiBell, FiCheckSquare, FiUsers, FiFileText, FiMap, FiBook, FiSettings, FiCheckCircle,FiClipboard, FiBarChart2 } from "react-icons/fi";
+import { FiGrid, FiFolder, FiBookOpen, FiBell, FiCheckSquare, FiUsers, FiFileText, FiMap, FiBook, FiSettings, FiCheckCircle,FiClipboard, FiBarChart2 } from "react-icons/fi";
 export const NAV_BY_ROLE = {
   docente: [
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
@@ -25,19 +25,18 @@ export const NAV_BY_ROLE = {
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos-jefatura", icon: FiFolder, label: "Proyectos RSU" },
     { to: "/matriz-operativa", icon: FiMap, label: "Matriz Operativa" },
-        { to: "/informes", icon: FiBarChart2, label: "Informes" },
-
+    { to: "/informes", icon: FiBarChart2, label: "Informes" },
     { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
 
   ],
   administrador :[
     { to: "/usuarios", icon: FiUsers, label: "Usuarios" },
     { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
-
   ],
 };
 
 export const NAV_COMUN = [
   { to: "/repositorio", icon: FiBook, label: "Repositorio" },
+  { to: "/documentos", icon: FiBookOpen, label: "Docs Guia" },
   { to: "/configuracion", icon: FiSettings, label: "Configuración" },
 ];

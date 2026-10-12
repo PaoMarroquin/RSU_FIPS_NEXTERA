@@ -45,7 +45,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={["departamento"]} />}>
             <Route path="/evaluacion" element={<RevisionProyectos />} />
             {/*<Route path="/informes" element={<InformesEjecucion />} />*/}
-            <Route path="/FinalizarProyectos" element={<FinalizarProyectos />}/>
+            <Route path="/FinalizarProyectos" element={<FinalizarProyectos />} />
           </Route>
 
           {/* Exclusivas Jefatura RSU */}
@@ -75,24 +75,25 @@ function App() {
           {/* General Autenticado */}
           <Route element={<ProtectedRoute />}>
             <Route path="/repositorio" element={<Repositorio />} />
+            <Route path="/documentos" element={<MatrizOperativa />} /> {/* Apunta a la misma pantalla */}
             <Route path="/notificaciones" element={<Notificaciones />} />
             <Route path="/configuracion" element={<Configuracion />} />
           </Route>
 
 
-{/* Informes de ejecución compartidos */}
-<Route
-  element={
-    <ProtectedRoute
-      allowedRoles={["docente", "departamento", "jefatura rsu"]}
-    />
-  }
->
-  <Route
-    path="/informes"
-    element={<InformesEjecucion />}
-  />
-</Route>
+          {/* Informes de ejecución compartidos */}
+          <Route
+            element={
+              <ProtectedRoute
+                allowedRoles={["docente", "departamento", "jefatura rsu"]}
+              />
+            }
+          >
+            <Route
+              path="/informes"
+              element={<InformesEjecucion />}
+            />
+          </Route>
 
           {/* Redireccion por defecto a rutas inexistentes */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
