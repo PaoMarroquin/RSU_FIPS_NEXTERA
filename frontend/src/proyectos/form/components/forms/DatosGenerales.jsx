@@ -1,29 +1,46 @@
+
 import React, { useState, useEffect } from 'react';
 import { FiTrash2, FiPlus } from "react-icons/fi";
-// Ajustamos las rutas hacia la carpeta shared
+
 import PaginatedSelect from '../../../../shared/components/forms/PaginatedSelect';
 import BeneficiariosSelector from '../../../../shared/components/forms/BeneficiariosSelector';
 import EjeRSUSelector from '../../../../shared/components/forms/EjeRSUSelector';
-// Importamos el API correcto
 import { catalogoApi } from '../../../../shared/api/usuario/catalogoApi';
 import { periodoApi } from '../../../../shared/api/planificacion/periodoApi';
+import { useToast } from '../../../../shared/context/ToastContext';
 
 export default function DatosGenerales({ data, updateData }) {
+  const { showToast } = useToast();
 
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
+
     if (type === 'date' && value) {
-      if (name === 'fechaTermino' && data.fechaInicio && value < data.fechaInicio) {
-        alert('La fecha de término no puede ser anterior a la fecha de inicio.');
+      if (
+        name === 'fechaTermino' &&
+        data.fechaInicio &&
+        value < data.fechaInicio
+      ) {
+        showToast(
+          'error',
+          'La fecha de término no puede ser anterior a la fecha de inicio.'
+        );
         return;
       }
-      if (name === 'fechaInicio' && data.fechaTermino && value > data.fechaTermino) {
-        alert('La fecha de inicio no puede ser posterior a la fecha de término.');
+
+      if (
+        name === 'fechaInicio' &&
+        data.fechaTermino &&
+        value > data.fechaTermino
+      ) {
+        showToast(
+          'error',
+          'La fecha de inicio no puede ser posterior a la fecha de término.'
+        );
         return;
       }
     }
 
-    // Si pasa la validación o es otro tipo de input, actualiza en el Hook
     updateData(name, type === 'checkbox' ? checked : value);
   };
 
@@ -36,7 +53,9 @@ export default function DatosGenerales({ data, updateData }) {
         onChange={handleChange}
         className="mt-0.5 rounded border-slate-300 text-[#b1122b] focus:ring-[#b1122b] w-4 h-4"
       />
-      <span className="text-xs font-medium text-slate-600 leading-tight">{label}</span>
+      <span className="text-xs font-medium text-slate-600 leading-tight">
+        {label}
+      </span>
     </label>
   );
 
@@ -46,17 +65,16 @@ export default function DatosGenerales({ data, updateData }) {
     metasGuardadas.length > 0
       ? metasGuardadas
       : [
-        {
-          id: null,
-          meta_descripcion: "",
-          indicador_nombre: "",
-          linea_base: "",
-          valor_meta: "",
-        },
-      ]
+          {
+            id: null,
+            meta_descripcion: "",
+            indicador_nombre: "",
+            linea_base: "",
+            valor_meta: "",
+          },
+        ]
   );
 
-  // Sincronizamos el estado local de metas con el hook global
   useEffect(() => {
     updateData("metas_indicadores", listaMetas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,11 +118,21 @@ export default function DatosGenerales({ data, updateData }) {
     setListaMetas(nuevas);
   };
 
-  // funciones para agregar docentes
+  // Docentes participantes
   const [modalDocentes, setModalDocentes] = useState(false);
   const [listaDocentes, setListaDocentes] = useState([]);
+
   const abrirModalDocentes = () => {
-    const cantidad = Math.max(0, parseInt(data.numDocentes, 10) || 0);
+    const cantidad = Number.parseInt(data.numDocentes, 10) || 0;
+
+    if (cantidad < 1) {
+      showToast(
+        'error',
+        'Ingrese primero la cantidad de docentes participantes.'
+      );
+      return;
+    }
+
     const docentes = Array.isArray(data.docentesParticipantes)
       ? [...data.docentesParticipantes]
       : [];
@@ -118,7 +146,7 @@ export default function DatosGenerales({ data, updateData }) {
   };
 
   const cambiarDocente = (index, valor) => {
-    setListaDocentes(prev => {
+    setListaDocentes((prev) => {
       const nuevos = [...prev];
       nuevos[index] = valor;
       return nuevos;
@@ -126,15 +154,21 @@ export default function DatosGenerales({ data, updateData }) {
   };
 
   const guardarDocentes = () => {
-    const docentes = listaDocentes.map(nombre => nombre.trim());
+    const docentes = listaDocentes.map((nombre) =>
+      String(nombre ?? '').trim()
+    );
 
-    if (docentes.some(nombre => !nombre)) {
-      alert('Debe registrar el nombre de todos los docentes participantes.');
+    if (docentes.length === 0 || docentes.some((nombre) => !nombre)) {
+      showToast(
+        'error',
+        'Debe registrar el nombre de todos los docentes participantes.'
+      );
       return;
     }
 
     updateData('docentesParticipantes', docentes);
     setModalDocentes(false);
+    showToast('success', 'Docentes participantes registrados correctamente.');
   };
 
   return (
@@ -143,8 +177,12 @@ export default function DatosGenerales({ data, updateData }) {
       <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
         <span className="text-2xl font-bold text-[#b1122b]">I.</span>
         <div>
-          <h2 className="text-xl font-semibold text-slate-800 m-0">Datos Generales</h2>
-          <span className="text-xs text-slate-500 block mt-0.5">Sección 1 de 9</span>
+          <h2 className="text-xl font-semibold text-slate-800 m-0">
+            Datos Generales
+          </h2>
+          <span className="text-xs text-slate-500 block mt-0.5">
+            Sección 1 de 9
+          </span>
         </div>
       </div>
 
@@ -153,13 +191,13 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Información Institucional
         </h3>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <PaginatedSelect
             label="Facultad"
             name="facultad"
             value={data.facultad}
             selectedName={data.facultad_nombre}
-            // Envolvemos la llamada para estandarizar la respuesta para PaginatedSelect
             fetchFn={async () => {
               const res = await catalogoApi.obtenerFacultades();
               return res.results ? res : { results: res, next: null };
@@ -168,7 +206,6 @@ export default function DatosGenerales({ data, updateData }) {
             onChange={(e, nombre) => {
               handleChange(e);
               updateData('facultad_nombre', nombre);
-              // Limpiamos cascada de hijos de forma limpia
               updateData('escuela', null);
               updateData('escuela_nombre', '');
               updateData('departamento', null);
@@ -181,7 +218,6 @@ export default function DatosGenerales({ data, updateData }) {
             name="escuela"
             value={data.escuela}
             selectedName={data.escuela_nombre}
-            // Mapeamos el parámetro 'dep' (dependencia) que envía PaginatedSelect hacia el backend
             fetchFn={async (page, dep) => {
               const res = await catalogoApi.obtenerEscuelas(dep);
               return res.results ? res : { results: res, next: null };
@@ -200,7 +236,6 @@ export default function DatosGenerales({ data, updateData }) {
             name="departamento"
             value={data.departamento}
             selectedName={data.departamento_nombre}
-            // Mapeamos el parámetro 'dep'
             fetchFn={async (page, dep) => {
               const res = await catalogoApi.obtenerDepartamentos(dep);
               return res.results ? res : { results: res, next: null };
@@ -213,17 +248,21 @@ export default function DatosGenerales({ data, updateData }) {
               updateData('departamento_nombre', nombre);
             }}
           />
+
           <PaginatedSelect
             label="Semestre Académico"
             name="periodo"
             value={data.periodo}
             selectedName={data.periodo_nombre}
-            fetchFn={async (page) => {
+            fetchFn={async () => {
               const res = await periodoApi.obtenerPeriodos();
               const resultados = res.results ?? res;
+
               return {
                 ...res,
-                results: resultados.filter((periodo) => periodo.activo === true),
+                results: resultados.filter(
+                  (periodo) => periodo.activo === true
+                ),
               };
             }}
             placeholder="Seleccione periodo..."
@@ -262,15 +301,32 @@ export default function DatosGenerales({ data, updateData }) {
           )}
 
           <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="text-xs font-semibold text-slate-600">Asignatura(s) participante(s) <span className="text-red-500">*</span></label>
-            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="asignaturas" placeholder="Ej. Desarrollo Web, Bases de Datos" value={data.asignaturas} onChange={handleChange} />
+            <label className="text-xs font-semibold text-slate-600">
+              Asignatura(s) participante(s) <span className="text-red-500">*</span>
+            </label>
+            <input
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400"
+              name="asignaturas"
+              placeholder="Ej. Desarrollo Web, Bases de Datos"
+              value={data.asignaturas || ''}
+              onChange={handleChange}
+            />
           </div>
 
           <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="text-xs font-semibold text-slate-600">Título del Proyecto <span className="text-red-500">*</span></label>
-            <textarea className="min-h-[60px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400 resize-vertical" name="titulo" placeholder="Ingrese el título completo..." value={data.titulo} onChange={handleChange} />
+            <label className="text-xs font-semibold text-slate-600">
+              Título del Proyecto <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              className="min-h-[60px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400 resize-vertical"
+              name="titulo"
+              placeholder="Ingrese el título completo..."
+              value={data.titulo || ''}
+              onChange={handleChange}
+            />
           </div>
 
+          {/* DOCENTES */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">
               N° Docentes Participantes <span className="text-red-500">*</span>
@@ -280,18 +336,20 @@ export default function DatosGenerales({ data, updateData }) {
               <input
                 type="number"
                 min="0"
-                onKeyDown={(e) => ["-", ".", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+                onKeyDown={(e) =>
+                  ['-', '.', '+', 'e', 'E'].includes(e.key) &&
+                  e.preventDefault()
+                }
                 className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
                 name="numDocentes"
-                value={data.numDocentes === null ? '' : data.numDocentes}
+                value={data.numDocentes ?? ''}
                 onChange={handleChange}
               />
 
               <button
                 type="button"
                 onClick={abrirModalDocentes}
-                disabled={!data.numDocentes || data.numDocentes < 1}
-                className="h-10 shrink-0 rounded-md border border-[#b1122b] px-3 text-xs font-semibold text-[#b1122b] transition-all hover:bg-[#b1122b] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-10 shrink-0 rounded-md border border-[#b1122b] px-3 text-xs font-semibold text-[#b1122b] transition-all hover:bg-[#b1122b] hover:text-white"
               >
                 <FiPlus className="inline mr-1" />
                 Docentes
@@ -305,6 +363,7 @@ export default function DatosGenerales({ data, updateData }) {
             )}
           </div>
 
+          {/* ESTUDIANTES */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-slate-600">
               N° Estudiantes Participantes <span className="text-red-500">*</span>
@@ -312,17 +371,28 @@ export default function DatosGenerales({ data, updateData }) {
             <input
               type="number"
               min="0"
-              onKeyDown={(e) => ["-", ".", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+              onKeyDown={(e) =>
+                ['-', '.', '+', 'e', 'E'].includes(e.key) &&
+                e.preventDefault()
+              }
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
               name="numEstudiantes"
-              value={data.numEstudiantes === null ? '' : data.numEstudiantes}
+              value={data.numEstudiantes ?? ''}
               onChange={handleChange}
             />
           </div>
 
           <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="text-xs font-semibold text-slate-600">Lugar de Ejecución</label>
-            <input className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400" name="lugar" placeholder="Ej. Distrito de Cayma, Arequipa" value={data.lugar} onChange={handleChange} />
+            <label className="text-xs font-semibold text-slate-600">
+              Lugar de Ejecución
+            </label>
+            <input
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all placeholder:text-slate-400"
+              name="lugar"
+              placeholder="Ej. Distrito de Cayma, Arequipa"
+              value={data.lugar || ''}
+              onChange={handleChange}
+            />
           </div>
         </div>
       </div>
@@ -345,33 +415,35 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Tipo de Eje RSU
         </h3>
-        <EjeRSUSelector
-          data={data}
-          updateData={updateData}
-        />
+        <EjeRSUSelector data={data} updateData={updateData} />
       </div>
 
       {/* 4. TIPO DE ACTIVIDAD */}
       <div>
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
-          Tipo de Actividad <span className="text-red-500 font-normal text-xs">(puede seleccionar varias)</span>
+          Tipo de Actividad{' '}
+          <span className="text-red-500 font-normal text-xs">
+            (puede seleccionar varias)
+          </span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[
-            { label: "Programas formativos", value: "programas_formativos" },
-            { label: "Acompañamiento a sectores identificados", value: "acompanamiento" },
-            { label: "Asesoría", value: "asesoria" },
-            { label: "Iniciativas de acercamiento a la comunidad", value: "acercamiento_comunidad" },
+            { label: 'Programas formativos', value: 'programas_formativos' },
+            { label: 'Acompañamiento a sectores identificados', value: 'acompanamiento' },
+            { label: 'Asesoría', value: 'asesoria' },
+            { label: 'Iniciativas de acercamiento a la comunidad', value: 'acercamiento_comunidad' },
           ].map(({ label, value }) => {
             const isSelected = (data.tiposActividad || []).includes(value);
+
             return (
               <label
                 key={value}
-                className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isSelected
-                  ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
-                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
-                  }`}
+                className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                  isSelected
+                    ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
+                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                }`}
               >
                 <input
                   type="checkbox"
@@ -379,10 +451,14 @@ export default function DatosGenerales({ data, updateData }) {
                   checked={isSelected}
                   onChange={(e) => {
                     const current = data.tiposActividad || [];
+
                     if (e.target.checked) {
-                      updateData("tiposActividad", [...current, value]);
+                      updateData('tiposActividad', [...current, value]);
                     } else {
-                      updateData("tiposActividad", current.filter(v => v !== value));
+                      updateData(
+                        'tiposActividad',
+                        current.filter((v) => v !== value)
+                      );
                     }
                   }}
                   className="mt-0.5 w-4 h-4 text-[#b1122b] focus:ring-[#b1122b] border-slate-300 rounded"
@@ -392,15 +468,16 @@ export default function DatosGenerales({ data, updateData }) {
             );
           })}
 
-          {/* OPCIÓN "OTROS" */}
           {(() => {
-            const isOtrosChecked = (data.tiposActividad || []).includes("otro");
+            const isOtrosChecked = (data.tiposActividad || []).includes('otro');
+
             return (
               <label
-                className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${isOtrosChecked
-                  ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
-                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
-                  }`}
+                className={`flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
+                  isOtrosChecked
+                    ? 'bg-red-50/60 border-[#b1122b] shadow-sm font-semibold text-[#b1122b]'
+                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                }`}
               >
                 <input
                   type="checkbox"
@@ -408,11 +485,15 @@ export default function DatosGenerales({ data, updateData }) {
                   checked={isOtrosChecked}
                   onChange={(e) => {
                     const current = data.tiposActividad || [];
+
                     if (e.target.checked) {
-                      updateData("tiposActividad", [...current, "otro"]);
+                      updateData('tiposActividad', [...current, 'otro']);
                     } else {
-                      updateData("tiposActividad", current.filter(v => v !== "otro"));
-                      updateData("tipoActividadOtro", "");
+                      updateData(
+                        'tiposActividad',
+                        current.filter((v) => v !== 'otro')
+                      );
+                      updateData('tipoActividadOtro', '');
                     }
                   }}
                   className="mt-0.5 w-4 h-4 text-[#b1122b] focus:ring-[#b1122b] border-slate-300 rounded"
@@ -423,18 +504,18 @@ export default function DatosGenerales({ data, updateData }) {
           })()}
         </div>
 
-        {/* INPUT TEXTO SOLO SI "OTROS" ESTÁ MARCADO */}
-        {(data.tiposActividad || []).includes("otro") && (
+        {(data.tiposActividad || []).includes('otro') && (
           <div className="animate-in fade-in slide-in-from-top-2 mt-3 bg-slate-50 p-4 rounded-lg border border-slate-200 w-full md:w-1/2">
             <label className="text-xs font-bold text-slate-700 block mb-2">
-              Especifique el tipo de actividad <span className="text-red-500">*</span>
+              Especifique el tipo de actividad{' '}
+              <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all placeholder:text-slate-400 shadow-inner"
               placeholder="Escriba aquí..."
               value={data.tipoActividadOtro || ''}
-              onChange={(e) => updateData("tipoActividadOtro", e.target.value)}
+              onChange={(e) => updateData('tipoActividadOtro', e.target.value)}
               required
               autoFocus
             />
@@ -444,11 +525,11 @@ export default function DatosGenerales({ data, updateData }) {
 
       {/* 5. META E INDICADOR */}
       <div>
-        {/* CABECERA DE SECCIÓN */}
         <div className="flex items-center justify-between mb-3 pb-1.5 border-b border-slate-100">
           <h3 className="text-sm font-bold text-slate-800">Meta e Indicador</h3>
           <span className="text-xs font-semibold text-slate-500">
-            {listaMetas.length} {listaMetas.length === 1 ? "registro" : "registros"}
+            {listaMetas.length}{' '}
+            {listaMetas.length === 1 ? 'registro' : 'registros'}
           </span>
         </div>
 
@@ -458,7 +539,6 @@ export default function DatosGenerales({ data, updateData }) {
               key={index}
               className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:border-slate-300 transition-all relative"
             >
-              {/* NUMERACIÓN Y BOTÓN ELIMINAR */}
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                   Meta #{index + 1}
@@ -473,9 +553,7 @@ export default function DatosGenerales({ data, updateData }) {
                 </button>
               </div>
 
-              {/* GRILLA DE CAMPOS (12 Columnas) */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* 1. Descripción de la Meta (Textarea - 5 columnas) */}
                 <div className="md:col-span-5 flex flex-col">
                   <label className="text-xs font-semibold text-slate-600 mb-1">
                     Descripción de la meta
@@ -485,13 +563,12 @@ export default function DatosGenerales({ data, updateData }) {
                     placeholder="Describa detalladamente la meta..."
                     value={meta.meta_descripcion}
                     onChange={(e) =>
-                      handleMetaChange(index, "meta_descripcion", e.target.value)
+                      handleMetaChange(index, 'meta_descripcion', e.target.value)
                     }
                     className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] resize-y transition-all"
                   />
                 </div>
 
-                {/* 2. Nombre del Indicador (Textarea - 4 columnas) */}
                 <div className="md:col-span-4 flex flex-col">
                   <label className="text-xs font-semibold text-slate-600 mb-1">
                     Nombre del indicador
@@ -501,13 +578,12 @@ export default function DatosGenerales({ data, updateData }) {
                     placeholder="Nombre o fórmula del indicador..."
                     value={meta.indicador_nombre}
                     onChange={(e) =>
-                      handleMetaChange(index, "indicador_nombre", e.target.value)
+                      handleMetaChange(index, 'indicador_nombre', e.target.value)
                     }
                     className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] resize-y transition-all"
                   />
                 </div>
 
-                {/* 3. Números: Línea Base y Valor Meta (3 columnas) */}
                 <div className="md:col-span-3 grid grid-cols-2 gap-2 content-start">
                   <div className="flex flex-col gap-1">
                     <label
@@ -520,10 +596,15 @@ export default function DatosGenerales({ data, updateData }) {
                       type="number"
                       min="0"
                       placeholder="0"
-                      onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
+                      onKeyDown={(e) =>
+                        ['-', '+', 'e', 'E'].includes(e.key) &&
+                        e.preventDefault()
+                      }
                       className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
-                      value={meta.linea_base === null || meta.linea_base === undefined ? '' : meta.linea_base}
-                      onChange={(e) => handleMetaChange(index, "linea_base", e.target.value)}
+                      value={meta.linea_base ?? ''}
+                      onChange={(e) =>
+                        handleMetaChange(index, 'linea_base', e.target.value)
+                      }
                     />
                   </div>
 
@@ -538,10 +619,13 @@ export default function DatosGenerales({ data, updateData }) {
                       type="number"
                       min="0"
                       placeholder="100"
-                      onKeyDown={(e) => ["-", "+", "e", "E"].includes(e.key) && e.preventDefault()}
-                      value={meta.valor_meta}
+                      onKeyDown={(e) =>
+                        ['-', '+', 'e', 'E'].includes(e.key) &&
+                        e.preventDefault()
+                      }
+                      value={meta.valor_meta ?? ''}
                       onChange={(e) =>
-                        handleMetaChange(index, "valor_meta", e.target.value)
+                        handleMetaChange(index, 'valor_meta', e.target.value)
                       }
                       className="h-10 rounded-md border border-slate-300 px-3 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#b1122b]/20 focus:border-[#b1122b] transition-all"
                     />
@@ -551,7 +635,6 @@ export default function DatosGenerales({ data, updateData }) {
             </div>
           ))}
 
-          {/* BOTÓN AGREGAR */}
           <button
             type="button"
             onClick={agregarMeta}
@@ -568,23 +651,33 @@ export default function DatosGenerales({ data, updateData }) {
         <h3 className="text-sm font-bold text-slate-800 mb-3 pb-1.5 border-b border-slate-100">
           Cronograma General
         </h3>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Fecha de Inicio <span className="text-red-500">*</span></label>
+            <label className="text-xs font-semibold text-slate-600">
+              Fecha de Inicio <span className="text-red-500">*</span>
+            </label>
             <input
               type="date"
-              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${(data.fechaInicio && data.fechaTermino && data.fechaInicio > data.fechaTermino)
-                ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
-                }`}
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${
+                data.fechaInicio &&
+                data.fechaTermino &&
+                data.fechaInicio > data.fechaTermino
+                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+              }`}
               name="fechaInicio"
-              value={data.fechaInicio || ""}
+              value={data.fechaInicio || ''}
               max={data.fechaTermino || undefined}
               onChange={handleChange}
             />
-            {(data.fechaInicio && data.fechaTermino && data.fechaInicio > data.fechaTermino) && (
-              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">Mayor a la fecha de término</span>
-            )}
+            {data.fechaInicio &&
+              data.fechaTermino &&
+              data.fechaInicio > data.fechaTermino && (
+                <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                  Mayor a la fecha de término
+                </span>
+              )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -593,14 +686,15 @@ export default function DatosGenerales({ data, updateData }) {
             </label>
             <input
               type="date"
-              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.fechaEvaluacion &&
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${
+                data.fechaEvaluacion &&
                 ((data.fechaInicio && data.fechaEvaluacion < data.fechaInicio) ||
                   (data.fechaTermino && data.fechaEvaluacion > data.fechaTermino))
-                ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
-                }`}
+                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+              }`}
               name="fechaEvaluacion"
-              value={data.fechaEvaluacion || ""}
+              value={data.fechaEvaluacion || ''}
               min={data.fechaInicio || undefined}
               max={data.fechaTermino || undefined}
               onChange={handleChange}
@@ -615,115 +709,90 @@ export default function DatosGenerales({ data, updateData }) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600">Fecha de Término <span className="text-red-500">*</span></label>
+            <label className="text-xs font-semibold text-slate-600">
+              Fecha de Término <span className="text-red-500">*</span>
+            </label>
             <input
               type="date"
-              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${(data.fechaTermino && data.fechaInicio && data.fechaTermino < data.fechaInicio)
-                ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
-                }`}
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${
+                data.fechaTermino &&
+                data.fechaInicio &&
+                data.fechaTermino < data.fechaInicio
+                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+              }`}
               name="fechaTermino"
-              value={data.fechaTermino || ""}
+              value={data.fechaTermino || ''}
               min={data.fechaInicio || undefined}
               onChange={handleChange}
             />
-            {(data.fechaTermino && data.fechaInicio && data.fechaTermino < data.fechaInicio) && (
-              <span className="text-[10px] text-red-600 block mt-0.5 font-medium">Menor a la fecha de inicio</span>
-            )}
+            {data.fechaTermino &&
+              data.fechaInicio &&
+              data.fechaTermino < data.fechaInicio && (
+                <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                  Menor a la fecha de inicio
+                </span>
+              )}
           </div>
         </div>
 
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mt-4">
-          <label className="text-xs font-bold text-slate-700 block mb-3">Fechas de Aplicación de Encuestas</label>
+          <label className="text-xs font-bold text-slate-700 block mb-3">
+            Fechas de Aplicación de Encuestas
+          </label>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              {
+                label: 'Encuesta a Docentes',
+                name: 'encuestaDocentes',
+              },
+              {
+                label: 'Encuesta a Estudiantes',
+                name: 'encuestaEstudiantes',
+              },
+              {
+                label: 'Encuesta a Grupo Destinatario',
+                name: 'encuestaDestinatarios',
+              },
+            ].map(({ label, name }) => {
+              const fecha = data[name];
+              const fueraDeRango =
+                fecha &&
+                ((data.fechaInicio && fecha < data.fechaInicio) ||
+                  (data.fechaTermino && fecha > data.fechaTermino));
 
-            {/* Encuesta a Docentes */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Encuesta a Docentes
-              </label>
-              <input
-                type="date"
-                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaDocentes &&
-                  ((data.fechaInicio && data.encuestaDocentes < data.fechaInicio) ||
-                    (data.fechaTermino && data.encuestaDocentes > data.fechaTermino))
-                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
-                  }`}
-                name="encuestaDocentes"
-                value={data.encuestaDocentes || ""}
-                min={data.fechaInicio || undefined}
-                max={data.fechaTermino || undefined}
-                onChange={handleChange}
-              />
-              {data.encuestaDocentes &&
-                ((data.fechaInicio && data.encuestaDocentes < data.fechaInicio) ||
-                  (data.fechaTermino && data.encuestaDocentes > data.fechaTermino)) && (
-                  <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
-                    Debe estar entre la fecha de inicio y término
-                  </span>
-                )}
-            </div>
-
-            {/* Encuesta a Estudiantes */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Encuesta a Estudiantes
-              </label>
-              <input
-                type="date"
-                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaEstudiantes &&
-                  ((data.fechaInicio && data.encuestaEstudiantes < data.fechaInicio) ||
-                    (data.fechaTermino && data.encuestaEstudiantes > data.fechaTermino))
-                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
-                  }`}
-                name="encuestaEstudiantes"
-                value={data.encuestaEstudiantes || ""}
-                min={data.fechaInicio || undefined}
-                max={data.fechaTermino || undefined}
-                onChange={handleChange}
-              />
-              {data.encuestaEstudiantes &&
-                ((data.fechaInicio && data.encuestaEstudiantes < data.fechaInicio) ||
-                  (data.fechaTermino && data.encuestaEstudiantes > data.fechaTermino)) && (
-                  <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
-                    Debe estar entre la fecha de inicio y término
-                  </span>
-                )}
-            </div>
-
-            {/* Encuesta a Grupo Destinatario */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Encuesta a Grupo Destinatario
-              </label>
-              <input
-                type="date"
-                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${data.encuestaDestinatarios &&
-                  ((data.fechaInicio && data.encuestaDestinatarios < data.fechaInicio) ||
-                    (data.fechaTermino && data.encuestaDestinatarios > data.fechaTermino))
-                  ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-                  : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
-                  }`}
-                name="encuestaDestinatarios"
-                value={data.encuestaDestinatarios || ""}
-                min={data.fechaInicio || undefined}
-                max={data.fechaTermino || undefined}
-                onChange={handleChange}
-              />
-              {data.encuestaDestinatarios &&
-                ((data.fechaInicio && data.encuestaDestinatarios < data.fechaInicio) ||
-                  (data.fechaTermino && data.encuestaDestinatarios > data.fechaTermino)) && (
-                  <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
-                    Debe estar entre la fecha de inicio y término
-                  </span>
-                )}
-            </div>
-
+              return (
+                <div key={name} className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-slate-500">
+                    {label}
+                  </label>
+                  <input
+                    type="date"
+                    className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none transition-all ${
+                      fueraDeRango
+                        ? 'border-red-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
+                        : 'border-slate-300 focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b]'
+                    }`}
+                    name={name}
+                    value={fecha || ''}
+                    min={data.fechaInicio || undefined}
+                    max={data.fechaTermino || undefined}
+                    onChange={handleChange}
+                  />
+                  {fueraDeRango && (
+                    <span className="text-[10px] text-red-600 block mt-0.5 font-medium">
+                      Debe estar entre la fecha de inicio y término
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* MODAL DE DOCENTES */}
       {modalDocentes && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
@@ -741,6 +810,7 @@ export default function DatosGenerales({ data, updateData }) {
                 type="button"
                 onClick={() => setModalDocentes(false)}
                 className="flex h-8 w-8 items-center justify-center rounded-md text-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Cerrar modal"
               >
                 ×
               </button>
@@ -766,7 +836,8 @@ export default function DatosGenerales({ data, updateData }) {
                       type="button"
                       onClick={() => cambiarDocente(index, '')}
                       className="h-10 w-10 shrink-0 rounded-md border border-slate-300 text-slate-400 transition-all hover:border-red-300 hover:bg-red-50 hover:text-red-500"
-                      title="Quitar docente"
+                      title="Limpiar nombre"
+                      aria-label={`Limpiar docente ${index + 1}`}
                     >
                       <FiTrash2 className="mx-auto text-sm" />
                     </button>

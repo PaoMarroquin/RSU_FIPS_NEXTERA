@@ -54,7 +54,7 @@ export const useRevision = () => {
     // Cierre
     observacion_general: ""
   };
-
+/*
   const fetchProyectos = useCallback(async () => {
     try {
       setLoading(true);
@@ -67,7 +67,33 @@ export const useRevision = () => {
       setLoading(false);
     }
   }, [showToast]);
+/** */
 
+
+const fetchProyectos = useCallback(async () => {
+  try {
+    setLoading(true);
+
+    const response = await proyectoApi.obtenerProyectosParaRevisar();
+    const data = response?.results ?? response;
+
+    setProyectos(Array.isArray(data) ? data : []);
+    console.log("RESPUESTA API:", response);
+console.log("RESULTADOS:", response?.results);
+  } catch (error) {
+    console.error(
+      "Error al obtener proyectos para revisar:",
+      error.response?.data || error
+    );
+
+    showToast("error", "No se pudieron cargar los proyectos en revisión.");
+    setProyectos([]);
+  } finally {
+    setLoading(false);
+  }
+}, [showToast]);
+
+  
   const openModalVisualizacion = async (proyecto) => {
     setProyectoDetalle(null);
     setModalVistaOpen(true);

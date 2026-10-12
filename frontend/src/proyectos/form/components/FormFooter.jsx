@@ -44,7 +44,7 @@ export default function FormFooter({ step, nextStep, prevStep, enviarProyectoBac
             disabled={isSubmitting}
           >
             {isSubmitting ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiCheck className="w-4 h-4" />}
-            {isSubmitting ? 'Enviando...' : 'Finalizar y Guardar'}
+            {isSubmitting ? 'Enviando...' : 'Finalizar y mandar a revision'}
           </button>
         ) : (
           <button 

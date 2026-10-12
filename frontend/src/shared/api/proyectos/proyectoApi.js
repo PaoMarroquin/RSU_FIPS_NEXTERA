@@ -700,11 +700,8 @@ export const proyectoApi = {
     },
 
   enviarInformeFinalizacion:
-    async (id) => {
-      const response = await api.post(
-        `/api/v1/proyectos/${id}/informe-finalizacion/enviar/`
-      );
-
+    async (proyectoId, datos = {}) => {
+      const response = await api.post(`/api/v1/proyectos/${proyectoId}/informe-finalizacion/enviar/`, datos);
       return response.data;
     },
 
@@ -803,4 +800,6 @@ export const proyectoApi = {
 
       return response;
     },
-};
+
+
+  };

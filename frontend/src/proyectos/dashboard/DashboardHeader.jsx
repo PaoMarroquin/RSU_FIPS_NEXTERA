@@ -4,15 +4,19 @@ export default function DashboardHeader({ userRole, loading }) {
   const header = HEADER[userRole] || HEADER.autoridad;
 
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800 m-0">{header.title}</h1>
-        <p className="text-sm text-slate-500 mt-1">{header.subtitle}</p>
+    <div className="flex min-w-0 flex-col items-start justify-between gap-3 sm:gap-4 md:flex-row md:items-center">
+      <div className="min-w-0">
+        <h1 className="m-0 break-words text-xl font-bold text-slate-800 sm:text-2xl">
+          {header.title}
+        </h1>
+        <p className="mt-1 break-words text-sm text-slate-500">
+          {header.subtitle}
+        </p>
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-xs text-slate-400 bg-white border border-slate-200 px-3 py-1.5 rounded-lg">
-          <div className="w-3 h-3 border-2 border-[#7B1E3A]/30 border-t-[#7B1E3A] rounded-full animate-spin" />
+        <div className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-400">
+          <div className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-[#7B1E3A]/30 border-t-[#7B1E3A]" />
           Actualizando…
         </div>
       )}

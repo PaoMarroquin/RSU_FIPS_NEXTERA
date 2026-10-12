@@ -110,12 +110,62 @@ export const useProyectosParaFinalizar = () => {
     [showToast]
   );
 
+// =========================================================
+// OBSERVAR INFORME DE FINALIZACIÓN
+// POST /api/v1/proyectos/{id}/informe-finalizacion/observar/
+// =========================================================
+const observarInforme = useCallback(
+  async (id, comentario) => {
+    try {
+      setError(null);
+
+      if (!id) {
+        throw new Error("Se requiere el ID del proyecto.");
+      }
+
+      if (!comentario || comentario.trim().length < 15) {
+        throw new Error(
+          "El comentario debe tener al menos 15 caracteres."
+        );
+      }
+
+      const response = await proyectoApi.observarInformeFinalizacion(
+        id,
+        comentario.trim()
+      );
+
+      showToast(
+        "success",
+        response?.detail || "Informe observado correctamente."
+      );
+
+      setProyectos((prev) =>
+        prev.filter((proyecto) => proyecto.id !== id)
+      );
+
+      return response;
+    } catch (err) {
+      const mensajeError =
+        err.response?.data?.errors?.comentario ||
+        err.response?.data?.detail ||
+        err.message ||
+        "No se pudo observar el informe.";
+
+      setError(mensajeError);
+      showToast("error", mensajeError);
+      throw err;
+    }
+  },
+  [showToast]
+);
+
+
   return {
     proyectos,
     loading,
     error,
-
     obtenerProyectosParaFinalizar,
     finalizarProyecto,
+  observarInforme,
   };
 };

@@ -17,19 +17,19 @@ export const SidebarNavegacion = ({ seccionActiva, setSeccionActiva }) => {
   ];
 
   return (
-    <aside className="w-full md:w-64 shrink-0">
-      <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+    <aside className="w-full md:w-64 shrink-0 overflow-x-auto">
+      <div className="flex md:flex-col gap-2 bg-white p-3 rounded-xl border border-slate-200 shadow-sm min-w-max md:min-w-0">
         {opciones.map((s, i) => {
           const Icono = s.icon;
           return (
             <button 
               key={i} 
               onClick={() => setSeccionActiva(i)} 
-              className={`w-full text-left p-3 text-sm rounded-lg flex items-center gap-3 transition-colors ${
+              className={`w-auto md:w-full whitespace-nowrap text-left p-3 text-sm rounded-lg flex items-center gap-3 transition-colors ${
                 seccionActiva === i ? 'bg-[#eee7e9] text-[#b1122b] font-bold border border-[#d9c8cc]' : 'hover:bg-slate-50 text-slate-600'
               }`}
             >
-              <Icono className={seccionActiva === i ? "text-[#b1122b]" : "text-slate-400"}/>
+              <Icono className={`shrink-0 ${seccionActiva === i ? "text-[#b1122b]" : "text-slate-400"}`}/>
               <span>{s.nom}</span>
             </button>
           )
