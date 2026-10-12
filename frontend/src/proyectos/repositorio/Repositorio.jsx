@@ -281,14 +281,7 @@ const Repositorio = () => {
                     {opcionesFiltros.ods.map((o) => <option key={o.id} value={o.id}>ODS {o.numero} - {o.nombre}</option>)}
                   </select>
                 </div>
-                {/* Año */}
-                <div>
-                  <label className="text-xs font-semibold text-slate-600">Año</label>
-                  <select value={filtros.anio} onChange={(e) => actualizarFiltro('anio', e.target.value)} className="mt-1 w-full h-9 px-2 border border-slate-300 rounded-lg text-xs outline-none">
-                    <option value="">Todos</option>
-                    {opcionesFiltros.anios.map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
+               
                 {/* Ordenar */}
                 <div>
                   <label className="text-xs font-semibold text-slate-600">Ordenar por</label>
