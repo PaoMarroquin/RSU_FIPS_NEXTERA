@@ -36,7 +36,7 @@ function App() {
             <Route path="/proyectos/nuevo" element={<NuevoProyecto />} />
             <Route path="/proyectos/editar/:id" element={<EditarProyecto />} />
             <Route path="/actividades" element={<Actividades />} />
-            <Route path="/informes" element={<InformesEjecucion />} />
+            {/*<Route path="/informes" element={<InformesEjecucion />} />*/}
             <Route path="/informesFinalizacion" element={<InformeFinalizacion />} />
 
           </Route>
@@ -44,6 +44,7 @@ function App() {
           {/* Exclusivas Departamento */}
           <Route element={<ProtectedRoute allowedRoles={["departamento"]} />}>
             <Route path="/evaluacion" element={<RevisionProyectos />} />
+            {/*<Route path="/informes" element={<InformesEjecucion />} />*/}
             <Route path="/FinalizarProyectos" element={<FinalizarProyectos />}/>
           </Route>
 
@@ -77,6 +78,21 @@ function App() {
             <Route path="/notificaciones" element={<Notificaciones />} />
             <Route path="/configuracion" element={<Configuracion />} />
           </Route>
+
+
+{/* Informes de ejecución compartidos */}
+<Route
+  element={
+    <ProtectedRoute
+      allowedRoles={["docente", "departamento", "jefatura rsu"]}
+    />
+  }
+>
+  <Route
+    path="/informes"
+    element={<InformesEjecucion />}
+  />
+</Route>
 
           {/* Redireccion por defecto a rutas inexistentes */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

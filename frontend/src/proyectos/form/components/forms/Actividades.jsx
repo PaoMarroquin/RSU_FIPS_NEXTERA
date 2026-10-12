@@ -289,9 +289,6 @@ export default function Actividades({ data, updateData }) {
                       }`}
                     />
 
-                    <span className="text-[10px] text-slate-500 block mt-1">
-                      {accionesAsignadas} acción(es) asignada(s)
-                    </span>
                   </td>
 
                   <td className="p-2 text-center">

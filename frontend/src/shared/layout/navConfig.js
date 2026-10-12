@@ -13,6 +13,7 @@ export const NAV_BY_ROLE = {
     { to: "/proyectos", icon: FiFolder, label: "Proyectos Departamento" },
     { to: "/evaluacion", icon: FiCheckSquare, label: "Evaluar Proyectos" },
     { to: "/FinalizarProyectos", icon: FiCheckCircle, label: "Proyectos por finalizar" },
+    { to: "/informes", icon: FiBarChart2, label: "Informes Departamento" },
     { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
 
   ],
@@ -24,6 +25,8 @@ export const NAV_BY_ROLE = {
     { to: "/dashboard", icon: FiGrid, label: "Dashboard" },
     { to: "/proyectos-jefatura", icon: FiFolder, label: "Proyectos RSU" },
     { to: "/matriz-operativa", icon: FiMap, label: "Matriz Operativa" },
+        { to: "/informes", icon: FiBarChart2, label: "Informes" },
+
     { to: "/informes-consolidado", icon: FiFileText, label: "Reportes" },
 
   ],

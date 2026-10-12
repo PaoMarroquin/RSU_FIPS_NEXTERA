@@ -9,10 +9,13 @@ import {
   FiPrinter,
   FiArrowLeft,
   FiAward,
+  FiActivity,
 } from "react-icons/fi";
 
 import { useToast } from "../../shared/context/ToastContext";
 import { useInformes } from "./hooks/useInformes";
+import { useActividades } from "../actividades/hooks/useActividades";
+import { usuarioApi } from "../../shared/api/usuario/usuarioApi";
 
 import {
   obtenerInformeFinalizacion,
@@ -24,6 +27,80 @@ import {
   DocumentoCard,
   ModalDocumento,
 } from "./components/ExpedienteUI";
+
+// Normaliza los nombres de los roles.
+const normalizarRol = (valor) =>
+  String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Obtiene los nombres de los roles sin asumir una única estructura.
+const extraerNombresRol = (valor) => {
+  if (!valor) return [];
+
+  if (typeof valor === "string" || typeof valor === "number") {
+    return [String(valor)];
+  }
+
+  if (Array.isArray(valor)) {
+    return valor.flatMap(extraerNombresRol);
+  }
+
+  if (typeof valor === "object") {
+    const camposNombre = [
+      "nombre",
+      "name",
+      "label",
+      "rol",
+      "role",
+      "nombre_rol",
+      "rol_nombre",
+    ];
+
+    const nombres = camposNombre
+      .filter((campo) => valor[campo] != null)
+      .flatMap((campo) => extraerNombresRol(valor[campo]));
+
+    return nombres;
+  }
+
+  return [];
+};
+
+// Busca los campos habituales que contienen el rol.
+const obtenerRolesPerfil = (perfil) => {
+  if (!perfil || typeof perfil !== "object") return [];
+
+  const camposRol = [
+    "rol",
+    "role",
+    "nombre_rol",
+    "rol_nombre",
+    "tipo_rol",
+    "roles",
+    "role_name",
+    "user_role",
+  ];
+
+  const roles = camposRol.flatMap((campo) =>
+    extraerNombresRol(perfil[campo])
+  );
+
+  // Algunos perfiles incluyen los datos dentro de usuario o user.
+  for (const campo of ["usuario", "user"]) {
+    const cuenta = perfil[campo];
+
+    if (cuenta && typeof cuenta === "object") {
+      roles.push(...obtenerRolesPerfil(cuenta));
+    }
+  }
+
+  return [...new Set(roles.map(normalizarRol).filter(Boolean))];
+};
 
 const Informes = () => {
   const { showToast } = useToast();
@@ -38,30 +115,71 @@ const Informes = () => {
     filteredMatrices,
   } = useInformes();
 
+  const {
+    actividades,
+    avances,
+    evidencias,
+    loadingDetalle,
+    seleccionarProyecto,
+  } = useActividades();
+
   const [documentoModal, setDocumentoModal] = useState(null);
+  const [informeFinalizacion, setInformeFinalizacion] = useState(null);
+  const [loadingFinalizacion, setLoadingFinalizacion] = useState(false);
+  const [errorFinalizacion, setErrorFinalizacion] = useState(null);
+  const [loadingConstancia, setLoadingConstancia] = useState(false);
+  const [errorConstancia, setErrorConstancia] = useState(null);
+  const [loadingDetalleAvance, setLoadingDetalleAvance] = useState(false);
 
-  const [informeFinalizacion, setInformeFinalizacion] =
-    useState(null);
+  // PERFIL Y ROL DEL USUARIO AUTENTICADO
+  const [rolesUsuario, setRolesUsuario] = useState([]);
+  const [cargandoPerfil, setCargandoPerfil] = useState(true);
 
-  const [loadingFinalizacion, setLoadingFinalizacion] =
-    useState(false);
+  useEffect(() => {
+    let cancelado = false;
 
-  const [errorFinalizacion, setErrorFinalizacion] =
-    useState(null);
+    const cargarPerfil = async () => {
+      try {
+        setCargandoPerfil(true);
 
-  const [loadingConstancia, setLoadingConstancia] =
-    useState(false);
+        const perfil = await usuarioApi.obtenerMiPerfil();
 
-  const [errorConstancia, setErrorConstancia] =
-    useState(null);
+        if (!cancelado) {
+          console.log("Perfil autenticado:", perfil);
 
-  // =====================================================
-  // ESTADO DE PLANIFICACIÓN
-  // =====================================================
+          setRolesUsuario(obtenerRolesPerfil(perfil));
+        }
+      } catch (err) {
+        console.error("Error al obtener el perfil del usuario:", err);
 
-  const estadoProyecto = String(
-    matrizSeleccionada?.estado || ""
-  )
+        if (!cancelado) {
+          setRolesUsuario([]);
+        }
+      } finally {
+        if (!cancelado) {
+          setCargandoPerfil(false);
+        }
+      }
+    };
+
+    cargarPerfil();
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // Solo Departamento y Jefatura RSU pueden ver Estado de avance.
+  const puedeVerEstadoAvance = rolesUsuario.some((rol) => {
+    return (
+      rol === "departamento" ||
+      rol.includes("departamento") ||
+      rol === "jefatura rsu" ||
+      rol.includes("jefatura rsu")
+    );
+  });
+
+  const estadoProyecto = String(matrizSeleccionada?.estado || "")
     .trim()
     .toLowerCase();
 
@@ -71,10 +189,7 @@ const Informes = () => {
     "finalizado",
   ].includes(estadoProyecto);
 
-  // =====================================================
-  // CARGAR INFORME DE FINALIZACIÓN DEL PROYECTO
-  // =====================================================
-
+  // CARGAR INFORME DE FINALIZACIÓN
   useEffect(() => {
     let cancelado = false;
 
@@ -82,7 +197,6 @@ const Informes = () => {
       if (!matrizSeleccionada?.id) {
         setInformeFinalizacion(null);
         setErrorFinalizacion(null);
-        setDocumentoModal(null);
         setErrorConstancia(null);
         setLoadingFinalizacion(false);
         return;
@@ -91,7 +205,6 @@ const Informes = () => {
       setInformeFinalizacion(null);
       setErrorFinalizacion(null);
       setErrorConstancia(null);
-      setDocumentoModal(null);
 
       try {
         setLoadingFinalizacion(true);
@@ -106,22 +219,15 @@ const Informes = () => {
       } catch (err) {
         if (cancelado) return;
 
-        console.error(
-          "Error cargando informe de finalización:",
-          err
-        );
+        console.error("Error cargando informe de finalización:", err);
 
         setInformeFinalizacion(null);
 
-        if (err?.response?.status === 404) {
-          setErrorFinalizacion(
-            "Este proyecto todavía no tiene informe de finalización."
-          );
-        } else {
-          setErrorFinalizacion(
-            "No se pudo cargar el informe de finalización."
-          );
-        }
+        setErrorFinalizacion(
+          err?.response?.status === 404
+            ? "Este proyecto todavía no tiene informe de finalización."
+            : "No se pudo cargar el informe de finalización."
+        );
       } finally {
         if (!cancelado) {
           setLoadingFinalizacion(false);
@@ -136,10 +242,7 @@ const Informes = () => {
     };
   }, [matrizSeleccionada?.id]);
 
-  // =====================================================
-  // ESTADOS DEL INFORME Y CONSTANCIA
-  // =====================================================
-
+  // ESTADOS DEL INFORME
   const estadoInforme = String(
     informeFinalizacion?.finalizacion?.estado ||
       informeFinalizacion?.estado ||
@@ -149,31 +252,16 @@ const Informes = () => {
     .trim()
     .toLowerCase();
 
-  // El proyecto solo está finalizado si su propio estado
-  // en la base de datos es "finalizado".
-  const proyectoFinalizado =
-    estadoProyecto === "finalizado";
+  const proyectoFinalizado = estadoProyecto === "finalizado";
 
-  // Se exige que coincidan ambos estados para mostrar
-  // el informe como aprobado.
   const informeFinalizacionAprobado =
-    estadoInforme === "aprobado" &&
-    proyectoFinalizado;
+    estadoInforme === "aprobado" && proyectoFinalizado;
 
-  const informeFinalizacionEnviado =
-    estadoInforme === "enviado";
-
-  const informeFinalizacionObservado =
-    estadoInforme === "observado";
-
-  // La constancia se habilita cuando el proyecto finaliza.
-  // El backend determina si el usuario tiene permiso para verla.
+  const informeFinalizacionEnviado = estadoInforme === "enviado";
+  const informeFinalizacionObservado = estadoInforme === "observado";
   const constanciaDisponible = proyectoFinalizado;
 
-  // =====================================================
   // CERRAR MODAL
-  // =====================================================
-
   const cerrarModal = () => {
     if (documentoModal?.url) {
       window.URL.revokeObjectURL(documentoModal.url);
@@ -183,20 +271,39 @@ const Informes = () => {
     setErrorConstancia(null);
   };
 
-  // =====================================================
-  // VER INFORME DE PLANIFICACIÓN
-  // =====================================================
+  // ESTADO DE AVANCE
+  const abrirEstadoAvance = async () => {
+    if (
+      !puedeVerEstadoAvance ||
+      !matrizSeleccionada?.id ||
+      loadingDetalleAvance
+    ) {
+      return;
+    }
 
-  const abrirDocumentoPlanificacion = () => {
-    setDocumentoModal({
-      tipo: "planificacion",
-    });
+    setDocumentoModal({ tipo: "avance" });
+    setLoadingDetalleAvance(true);
+
+    try {
+      await seleccionarProyecto(matrizSeleccionada);
+    } catch (err) {
+      console.error("Error cargando actividades y evidencias:", err);
+
+      showToast(
+        "error",
+        "No se pudieron cargar las actividades y evidencias."
+      );
+    } finally {
+      setLoadingDetalleAvance(false);
+    }
   };
 
-  // =====================================================
-  // DESCARGAR / VISUALIZAR INFORME DE FINALIZACIÓN
-  // =====================================================
+  // PLANIFICACIÓN
+  const abrirDocumentoPlanificacion = () => {
+    setDocumentoModal({ tipo: "planificacion" });
+  };
 
+  // INFORME DE FINALIZACIÓN
   const handleVerFinalizacionPDF = async () => {
     if (
       !matrizSeleccionada?.id ||
@@ -209,28 +316,18 @@ const Informes = () => {
     try {
       setLoadingFinalizacion(true);
 
-      const response =
-        await descargarInformeFinalizacionPDF(
-          matrizSeleccionada.id
-        );
+      const response = await descargarInformeFinalizacionPDF(
+        matrizSeleccionada.id
+      );
 
       const blob = response?.data ?? response;
-
       const url = window.URL.createObjectURL(
-        new Blob([blob], {
-          type: "application/pdf",
-        })
+        new Blob([blob], { type: "application/pdf" })
       );
 
-      setDocumentoModal({
-        tipo: "finalizacion",
-        url,
-      });
+      setDocumentoModal({ tipo: "finalizacion", url });
     } catch (err) {
-      console.error(
-        "Error cargando PDF del informe de finalización:",
-        err
-      );
+      console.error("Error cargando PDF de finalización:", err);
 
       showToast(
         "error",
@@ -241,11 +338,7 @@ const Informes = () => {
     }
   };
 
-  // =====================================================
-  // DESCARGAR / VISUALIZAR CONSTANCIA DE EJECUCIÓN
-  // GET /api/v1/proyectos/{id}/constancia/pdf/
-  // =====================================================
-
+  // CONSTANCIA
   const handleVerConstanciaPDF = async () => {
     if (
       !matrizSeleccionada?.id ||
@@ -264,35 +357,22 @@ const Informes = () => {
       );
 
       const blob = response?.data ?? response;
-
       const url = window.URL.createObjectURL(
-        new Blob([blob], {
-          type: "application/pdf",
-        })
+        new Blob([blob], { type: "application/pdf" })
       );
 
-      setDocumentoModal({
-        tipo: "constancia",
-        url,
-      });
+      setDocumentoModal({ tipo: "constancia", url });
     } catch (err) {
-      console.error(
-        "Error descargando constancia:",
-        err
-      );
+      console.error("Error descargando constancia:", err);
 
-      let mensaje =
-        "No se pudo descargar la constancia.";
+      let mensaje = "No se pudo descargar la constancia.";
 
       if (err?.response?.status === 403) {
-        mensaje =
-          "No tienes permiso para descargar esta constancia.";
+        mensaje = "No tienes permiso para descargar esta constancia.";
       } else if (err?.response?.status === 404) {
-        mensaje =
-          "La constancia todavía no está disponible.";
+        mensaje = "La constancia todavía no está disponible.";
       } else if (err?.response?.status === 401) {
-        mensaje =
-          "Tu sesión ha expirado. Inicia sesión nuevamente.";
+        mensaje = "Tu sesión ha expirado. Inicia sesión nuevamente.";
       }
 
       setErrorConstancia(mensaje);
@@ -302,16 +382,10 @@ const Informes = () => {
     }
   };
 
-  // =====================================================
-  // DATOS DEL PROYECTO
-  // =====================================================
-
   const codigo =
-    matrizSeleccionada?.codigo ||
-    `PRY-${matrizSeleccionada?.id || ""}`;
+    matrizSeleccionada?.codigo || `PRY-${matrizSeleccionada?.id || ""}`;
 
-  const titulo =
-    matrizSeleccionada?.titulo || "Proyecto";
+  const titulo = matrizSeleccionada?.titulo || "Proyecto";
 
   const periodo =
     matrizSeleccionada?.semestre_academico ||
@@ -319,19 +393,13 @@ const Informes = () => {
     matrizSeleccionada?.periodo ||
     "S/A";
 
-  // =====================================================
-  // RENDERIZADO
-  // =====================================================
-
   return (
     <Layout>
       <div className="p-4 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)] overflow-x-hidden">
-
-        {/* ENCABEZADO */}
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-slate-800 m-0">
-              Mis informes
+              Informes
             </h2>
 
             <p className="text-sm text-slate-500 mt-1">
@@ -342,17 +410,13 @@ const Informes = () => {
         </div>
 
         <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-
-          {/* LISTA DE EXPEDIENTES */}
+          {/* LISTA DE PROYECTOS */}
           <div
             className={`${
-              matrizSeleccionada
-                ? "hidden xl:flex"
-                : "flex"
+              matrizSeleccionada ? "hidden xl:flex" : "flex"
             } xl:col-span-4 flex-col gap-4 w-full`}
           >
             <div className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
                 <FiFilter />
                 Búsqueda de expedientes
@@ -366,9 +430,7 @@ const Informes = () => {
                   placeholder="Buscar por título o código..."
                   className="w-full text-xs outline-none bg-transparent text-slate-700"
                   value={searchTerm}
-                  onChange={(e) =>
-                    setSearchTerm(e.target.value)
-                  }
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
@@ -377,9 +439,7 @@ const Informes = () => {
               {loading ? (
                 <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 text-xs flex flex-col items-center gap-2">
                   <FiRefreshCw className="animate-spin text-lg text-[#b1122b]" />
-                  <span>
-                    Leyendo expedientes en la base de datos...
-                  </span>
+                  <span>Cargando expedientes...</span>
                 </div>
               ) : error ? (
                 <div className="p-6 text-center bg-red-50 rounded-xl border border-red-200 text-red-700 text-xs font-semibold">
@@ -387,16 +447,17 @@ const Informes = () => {
                 </div>
               ) : !Array.isArray(filteredMatrices) ||
                 filteredMatrices.length === 0 ? (
-                <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-400 text-xs flex flex-col items-center gap-2 italic">
+                <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-400 text-xs">
                   No se encontraron expedientes con ese filtro.
                 </div>
               ) : (
                 filteredMatrices.map((matriz) => (
                   <div
                     key={matriz.id}
-                    onClick={() =>
-                      setMatrizSeleccionada(matriz)
-                    }
+                    onClick={() => {
+                      cerrarModal();
+                      setMatrizSeleccionada(matriz);
+                    }}
                     className={`p-4 bg-white rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                       matrizSeleccionada?.id === matriz.id
                         ? "border-[#b1122b] ring-2 ring-[#b1122b]/5 shadow-md"
@@ -406,8 +467,7 @@ const Informes = () => {
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                          {matriz.codigo ||
-                            `ID-BACK: #${matriz.id}`}
+                          {matriz.codigo || `ID-BACK: #${matriz.id}`}
                         </span>
 
                         <span className="text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-full uppercase">
@@ -430,13 +490,7 @@ const Informes = () => {
                         </b>
                       </span>
 
-                      <span
-                        className={`${
-                          matrizSeleccionada?.id === matriz.id
-                            ? "text-[#b1122b]"
-                            : "text-slate-400"
-                        } font-semibold text-[10px]`}
-                      >
+                      <span className="font-semibold text-[10px]">
                         Seleccionar →
                       </span>
                     </div>
@@ -446,12 +500,10 @@ const Informes = () => {
             </div>
           </div>
 
-          {/* DETALLE DEL EXPEDIENTE */}
+          {/* DETALLE */}
           <div
             className={`${
-              !matrizSeleccionada
-                ? "hidden xl:block"
-                : "block"
+              !matrizSeleccionada ? "hidden xl:block" : "block"
             } xl:col-span-8 w-full`}
           >
             {matrizSeleccionada && (
@@ -470,15 +522,12 @@ const Informes = () => {
             {!matrizSeleccionada ? (
               <div className="w-full min-h-[500px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-8 bg-white text-slate-400 text-xs text-center">
                 <FiFileText className="w-12 h-12 text-slate-300 mb-2" />
-
                 <span className="font-semibold text-slate-500">
                   Selecciona un proyecto para visualizar sus documentos
                 </span>
               </div>
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-
-                {/* CABECERA DEL PROYECTO */}
                 <div className="p-5 border-b border-slate-100">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
@@ -491,8 +540,7 @@ const Informes = () => {
                       </h2>
 
                       <p className="text-xs text-slate-400 mt-1">
-                        Datos vinculados al usuario autenticado ·
-                        Semestre {periodo}
+                        Proyecto seleccionado · Semestre {periodo}
                       </p>
                     </div>
 
@@ -507,10 +555,20 @@ const Informes = () => {
                   </div>
                 </div>
 
-                {/* DOCUMENTOS */}
                 <div className="p-4 sm:p-5 bg-slate-50">
+                  {/* ESTADO DE AVANCE: SOLO DEPARTAMENTO Y JEFATURA RSU */}
+                  {!cargandoPerfil && puedeVerEstadoAvance && proyectoAprobado && (
+                    <DocumentoCard
+                      icon={<FiActivity className="text-xl" />}
+                      titulo="Actividades"
+                      descripcion="Avance, porcentaje de ejecución y evidencias registradas."
+                      estado="Consultar"
+                      disponible
+                      loading={loadingDetalleAvance}
+                      onView={abrirEstadoAvance}
+                    />
+                  )}
 
-                  {/* INFORME DE PLANIFICACIÓN */}
                   <DocumentoCard
                     icon={<FiFileText className="text-xl" />}
                     titulo="Informe de planificación"
@@ -532,7 +590,6 @@ const Informes = () => {
                     onView={abrirDocumentoPlanificacion}
                   />
 
-                  {/* INFORME DE FINALIZACIÓN */}
                   <DocumentoCard
                     icon={<FiFileText className="text-xl" />}
                     titulo="Informe de finalización"
@@ -561,7 +618,6 @@ const Informes = () => {
                     onView={handleVerFinalizacionPDF}
                   />
 
-                  {/* CONSTANCIA DE EJECUCIÓN */}
                   <DocumentoCard
                     icon={<FiAward className="text-xl" />}
                     titulo="Constancia de ejecución"
@@ -588,12 +644,19 @@ const Informes = () => {
         </div>
       </div>
 
-      {/* MODAL DEL DOCUMENTO */}
+      {/* MODAL */}
       {documentoModal && (
         <ModalDocumento
           tipo={documentoModal}
           proyecto={matrizSeleccionada}
           cerrar={cerrarModal}
+          actividades={actividades}
+          avances={avances}
+          evidencias={evidencias}
+          loadingDetalle={
+            documentoModal.tipo === "avance" &&
+            (loadingDetalleAvance || loadingDetalle)
+          }
         />
       )}
     </Layout>
