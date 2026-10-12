@@ -101,55 +101,41 @@ class RepositorioLeccionesAprendidasView(_BaseRepositorioView):
 class RepositorioFiltrosView(_BaseRepositorioView):
     """GET /repositorio/filtros/  (T-120)
 
-    Catalogos para los combos de filtros. Solo devuelve valores presentes en
-    al menos un proyecto finalizado, para no ofrecer opciones que lleven a un
-    resultado vacio.
+    Catálogos completos para los combos de filtros: todas las facultades,
+    escuelas, departamentos, ejes RSU, periodos y ODS registrados.
     """
 
     def get(self, request):
-        qs = queryset_historico()
-
-        def ids_de(campo):
-            return [i for i in qs.values_list(campo, flat=True).distinct() if i]
-
-        def catalogo(modelo, campo):
-            return [
-                {'id': r.id, 'nombre': r.nombre}
-                for r in modelo.objects.filter(id__in=ids_de(campo)).order_by('nombre')
-            ]
-
-        escuelas = [
-            {'id': e.id, 'nombre': e.nombre, 'facultad_id': e.facultad_id}
-            for e in EscuelaProfesional.objects.filter(
-                id__in=ids_de('escuela_id')).order_by('nombre')
-        ]
-        departamentos = [
-            {'id': d.id, 'nombre': d.nombre, 'facultad_id': d.facultad_id}
-            for d in DepartamentoAcademico.objects.filter(
-                id__in=ids_de('departamento_id')).order_by('nombre')
-        ]
-        periodos = [
-            {'id': p.id, 'nombre': p.nombre, 'anio': p.anio, 'semestre': p.semestre}
-            for p in PeriodoAcademico.objects.filter(
-                id__in=ids_de('periodo_id')).order_by('-anio', '-semestre')
-        ]
-        ods = [
-            {'id': o.id, 'numero': o.numero, 'nombre': o.nombre, 'icono_url': o.icono_url}
-            for o in ODS.objects.filter(id__in=ids_de('ods__id')).order_by('numero')
-        ]
+        periodos = list(PeriodoAcademico.objects.order_by('-anio', '-semestre', '-id'))
         semestres = sorted(
-            {s for s in qs.values_list('semestre_academico', flat=True) if s},
+            {p.nombre for p in periodos if p.nombre}
+            | {s for s in queryset_historico().values_list('semestre_academico', flat=True) if s},
             reverse=True)
-
         return Response({
             'solo_lectura': True,
             'semestres': semestres,
-            'periodos': periodos,
-            'facultades': catalogo(Facultad, 'facultad_id'),
-            'escuelas': escuelas,
-            'departamentos': departamentos,
-            'ejes_rsu': catalogo(EjeRSU, 'ejes_rsu__id'),
-            'ods': ods,
+            'periodos': [
+                {'id': p.id, 'nombre': p.nombre, 'anio': p.anio, 'semestre': p.semestre}
+                for p in periodos
+            ],
+            'facultades': [
+                {'id': f.id, 'nombre': f.nombre} for f in Facultad.objects.order_by('nombre')
+            ],
+            'escuelas': [
+                {'id': e.id, 'nombre': e.nombre, 'facultad_id': e.facultad_id}
+                for e in EscuelaProfesional.objects.order_by('nombre')
+            ],
+            'departamentos': [
+                {'id': d.id, 'nombre': d.nombre, 'facultad_id': d.facultad_id}
+                for d in DepartamentoAcademico.objects.order_by('nombre')
+            ],
+            'ejes_rsu': [
+                {'id': e.id, 'nombre': e.nombre} for e in EjeRSU.objects.order_by('id')
+            ],
+            'ods': [
+                {'id': o.id, 'numero': o.numero, 'nombre': o.nombre, 'icono_url': o.icono_url}
+                for o in ODS.objects.order_by('numero')
+            ],
             'ordenamientos': sorted(ORDENAMIENTOS),
         })
 

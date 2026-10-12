@@ -46,7 +46,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.planificacion.models import ODS, EjeRSU, PeriodoAcademico
-from apps.usuarios.models import DepartamentoAcademico, EscuelaProfesional, Facultad
+from apps.usuarios.models import DepartamentoAcademico, EscuelaProfesional, Facultad, Rol
 from apps.utils.permissions import PuedeVerInformesConsolidados
 
 from .exports_consolidado import (
@@ -150,28 +150,24 @@ class InformeConsolidadoProyectoDetailView(_BaseInformeConsolidadoView):
 class InformeConsolidadoFiltrosView(_BaseInformeConsolidadoView):
     """GET /informes/consolidado/filtros/
 
-    Catalogos para poblar los combos del panel de filtros. Solo devuelve
-    valores que aparecen en al menos un proyecto consolidable dentro del
-    alcance del usuario, para que el frontend no ofrezca opciones que
-    llevarian a un resultado vacio.
+    Catálogos completos para los combos del panel de filtros. Facultades,
+    escuelas y departamentos se recortan al alcance del usuario (Jefatura ve
+    su facultad; Departamento, su departamento); ejes, periodos y ODS van
+    completos.
     """
 
     def get(self, request):
-        qs = queryset_consolidable(request.user)
-
-        def catalogo(modelo, campo_id, extra=None):
-            ids = qs.values_list(campo_id, flat=True).distinct()
-            registros = modelo.objects.filter(id__in=[i for i in ids if i])
-            return [
-                {'id': r.id, 'nombre': (extra(r) if extra else r.nombre)}
-                for r in registros.order_by('nombre')
-            ]
-
-        ods_ids = qs.values_list('ods__id', flat=True).distinct()
-        ods = [
-            {'id': o.id, 'numero': o.numero, 'nombre': o.nombre}
-            for o in ODS.objects.filter(id__in=[i for i in ods_ids if i]).order_by('numero')
-        ]
+        user = request.user
+        facultades = Facultad.objects.all()
+        escuelas = EscuelaProfesional.objects.all()
+        departamentos = DepartamentoAcademico.objects.all()
+        es_admin = user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR)
+        if not es_admin:
+            if user.rol and user.rol.nombre == Rol.DEPARTAMENTO:
+                departamentos = departamentos.filter(id=user.departamento_id)
+            facultades = facultades.filter(id=user.facultad_id)
+            escuelas = escuelas.filter(facultad_id=user.facultad_id)
+            departamentos = departamentos.filter(facultad_id=user.facultad_id)
 
         return Response({
             'solo_lectura': True,
@@ -179,12 +175,18 @@ class InformeConsolidadoFiltrosView(_BaseInformeConsolidadoView):
                 {'valor': valor, 'nombre': valor.replace('_', ' ').capitalize()}
                 for valor in ESTADOS_CONSOLIDABLES
             ],
-            'facultades': catalogo(Facultad, 'facultad_id'),
-            'escuelas': catalogo(EscuelaProfesional, 'escuela_id'),
-            'departamentos': catalogo(DepartamentoAcademico, 'departamento_id'),
-            'ejes_rsu': catalogo(EjeRSU, 'ejes_rsu__id'),
-            'periodos': catalogo(PeriodoAcademico, 'periodo_id'),
-            'ods': ods,
+            'facultades': [{'id': f.id, 'nombre': f.nombre} for f in facultades.order_by('nombre')],
+            'escuelas': [{'id': e.id, 'nombre': e.nombre} for e in escuelas.order_by('nombre')],
+            'departamentos': [{'id': d.id, 'nombre': d.nombre} for d in departamentos.order_by('nombre')],
+            'ejes_rsu': [{'id': e.id, 'nombre': e.nombre} for e in EjeRSU.objects.order_by('id')],
+            'periodos': [
+                {'id': p.id, 'nombre': p.nombre}
+                for p in PeriodoAcademico.objects.order_by('-anio', '-semestre', '-id')
+            ],
+            'ods': [
+                {'id': o.id, 'numero': o.numero, 'nombre': o.nombre}
+                for o in ODS.objects.order_by('numero')
+            ],
         })
 
 

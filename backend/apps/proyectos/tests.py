@@ -2048,13 +2048,20 @@ class InformesConsolidadosAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['filtros_aplicados'], {})
 
-    def test_los_catalogos_de_filtros_solo_traen_valores_con_proyectos(self):
+    def test_los_catalogos_de_filtros_respetan_el_alcance_de_jefatura(self):
+        from apps.planificacion.models import ODS
         self.client.force_authenticate(user=self.jefatura)
         response = self.client.get(reverse('informe-consolidado-filtros'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         nombres = [f['nombre'] for f in response.data['facultades']]
         self.assertIn(self.facultad.nombre, nombres)
         self.assertNotIn(self.otra_facultad.nombre, nombres)
+        self.assertEqual(len(response.data['ods']), ODS.objects.count())
+
+    def test_los_catalogos_de_filtros_completos_para_el_administrador(self):
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(reverse('informe-consolidado-filtros'))
+        self.assertEqual(len(response.data['facultades']), Facultad.objects.count())
 
     # ── T-106: consolidacion de los datos ─────────────────────────────────────
 
@@ -2377,16 +2384,20 @@ class RepositorioHistoricoAPITests(APITestCase):
             [p['titulo'] for p in response.data['results']],
             ['Alfabetizacion digital', 'Matematica para todos', 'Reciclaje en colegios'])
 
-    def test_catalogo_de_filtros_solo_trae_valores_con_proyectos_finalizados(self):
+    def test_catalogo_de_filtros_trae_todas_las_opciones(self):
+        from apps.planificacion.models import EjeRSU, ODS
         self.client.force_authenticate(user=self.docente)
         response = self.client.get(reverse('repositorio-filtros'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['semestres'], ['2025-B', '2025-A'])
-        self.assertEqual({f['id'] for f in response.data['facultades']},
-                         {self.fips.pk, self.fcnf.pk})
-        self.assertEqual({e['id'] for e in response.data['ejes_rsu']},
-                         {self.gestion.pk, self.extension.pk})
-        self.assertEqual([o['numero'] for o in response.data['ods']], [4, 11])
+        self.assertIn('2025-B', response.data['semestres'])
+        self.assertIn('2025-A', response.data['semestres'])
+        self.assertEqual(len(response.data['facultades']), Facultad.objects.count())
+        self.assertEqual(len(response.data['escuelas']), EscuelaProfesional.objects.count())
+        self.assertEqual(len(response.data['departamentos']), DepartamentoAcademico.objects.count())
+        self.assertEqual(len(response.data['ejes_rsu']), EjeRSU.objects.count())
+        self.assertEqual([o['numero'] for o in response.data['ods']],
+                         list(ODS.objects.order_by('numero').values_list('numero', flat=True)))
+        self.assertNotIn('anios', response.data)
 
     # ── T-123: ficha tecnica ──────────────────────────────────────────────────
 
