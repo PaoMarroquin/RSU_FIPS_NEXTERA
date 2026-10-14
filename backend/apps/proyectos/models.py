@@ -1045,6 +1045,26 @@ class InformeFinalizacion(models.Model):
     # Constancia de finalización: la genera el sistema al aprobar el informe;
     # la ve solo el Departamento hasta que la aprueba, y desde ahí el docente
     # puede descargarla.
+    # Secciones del formato oficial del Informe de Finalización.
+    # II. Fortalezas y limitaciones
+    fortalezas = models.TextField(blank=True, default='')
+    oportunidades = models.TextField(blank=True, default='')
+    aliados = models.TextField(blank=True, default='', help_text='Principales aliados')
+    debilidades = models.TextField(blank=True, default='')
+    amenazas = models.TextField(blank=True, default='')
+    estrategias = models.TextField(
+        blank=True, default='', help_text='Estrategias empleadas para superar limitaciones')
+    # III. Resultados
+    resultado_grupo_destinatario = models.TextField(
+        blank=True, default='', help_text='Logros o cambios en el grupo destinatario')
+    resultado_desarrollo_curricular = models.TextField(
+        blank=True, default='', help_text='Logros o cambios en el desarrollo curricular')
+    # IV. Lecciones aprendidas
+    lecciones_analisis = models.TextField(
+        blank=True, default='', help_text='Análisis de las acciones frente a obstáculos y fortalezas')
+    lecciones_reflexiones = models.TextField(
+        blank=True, default='', help_text='Reflexiones sobre la experiencia vivida')
+
     constancia_aprobada = models.BooleanField(default=False)
     constancia_aprobada_en = models.DateTimeField(null=True, blank=True)
     constancia_aprobada_por = models.ForeignKey(

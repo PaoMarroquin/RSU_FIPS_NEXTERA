@@ -347,3 +347,12 @@ class InformeFinalizacionAdmin(admin.ModelAdmin):
     list_filter = ('estado', 'constancia_aprobada')
     search_fields = ('proyecto__titulo', 'proyecto__codigo')
     readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        (None, {'fields': ('proyecto', 'estado', 'fecha_envio', 'fecha_aprobacion')}),
+        ('II. Fortalezas y limitaciones', {'fields': (
+            'fortalezas', 'oportunidades', 'aliados', 'debilidades', 'amenazas', 'estrategias')}),
+        ('III. Resultados', {'fields': ('resultado_grupo_destinatario', 'resultado_desarrollo_curricular')}),
+        ('IV. Lecciones aprendidas', {'fields': ('lecciones_analisis', 'lecciones_reflexiones')}),
+        ('Constancia', {'fields': ('constancia_aprobada', 'constancia_aprobada_en', 'constancia_aprobada_por')}),
+        ('Trazabilidad', {'fields': ('created_at', 'updated_at')}),
+    )

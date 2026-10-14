@@ -190,6 +190,18 @@ Content-Type: application/json
 }
 ```
 
+Campos de las secciones del formato oficial (también en el PATCH y en `enviar/`):
+
+| Sección del formato | Campo |
+|---|---|
+| II. Fortalezas y limitaciones | `fortalezas`, `oportunidades`, `aliados`, `debilidades`, `amenazas`, `estrategias` |
+| III. Resultados | `resultado_grupo_destinatario`, `resultado_desarrollo_curricular` |
+| IV. Lecciones aprendidas | `lecciones_analisis`, `lecciones_reflexiones` |
+| V. Conclusiones / VI. Recomendaciones | `conclusiones`, `recomendaciones` |
+| X. Medio de difusión | `medio_difusion` |
+
+Todos esos campos son obligatorios para enviar (admiten "n/a"). Se devuelven dentro de `informe_final` en el GET. `lecciones_aprendidas` se arma solo con los dos puntos de la sección IV, para el repositorio histórico. `medio_difusion` (sección X) también es obligatorio. La cronología (VII), los recursos (VIII, en `recursos`) y el financiamiento (IX, en `presupuesto_detalle`) salen de la planificación y la ejecución.
+
 Todos los campos son opcionales en cada PATCH; se puede guardar parcialmente. Responde el informe completo actualizado (mismo formato que el GET).
 
 ```
@@ -318,3 +330,8 @@ python manage.py migrate
 - Backend y frontend deben subir juntos: con backend nuevo y frontend actual, el docente no podría enviar a revisión ni completar actividades.
 - Ejecutar `migrate` antes de arrancar el servidor.
 - Pruebas: los tests del backend pasan en SQLite y en PostgreSQL (Docker).
+
+## PDF del Informe de Ejecución (formato OURS, DS-PM03.02-01)
+
+`GET /proyectos/<id>/informe-finalizacion/pdf/` sigue el formato oficial: encabezado con logo, código DS-PM03.02-01, versión y "Página N de M" en cada hoja; bloque A / DE / ASUNTO (con el código del proyecto) / FECHA; I. Datos generales (1.1 a 1.18, con beneficiarios, ejes, sub-ítems y tipo de actividad marcados); II a VI con lo que llena el docente; VII cronología; VIII recursos; IX financiamiento propuesto y ejecutado; X medio de difusión; XI evidencias subidas en las actividades (las fotos se muestran) y la firma digital del docente.
+

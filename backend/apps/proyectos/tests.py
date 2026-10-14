@@ -1516,6 +1516,13 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         return {
             'conclusiones': 'Se cumplió el objetivo.', 'recomendaciones': 'Repetir el taller.',
             'lecciones_aprendidas': 'Coordinar antes con la comunidad.', 'medio_difusion': 'n/a',
+            'fortalezas': 'Equipo comprometido.', 'oportunidades': 'Apoyo municipal.',
+            'aliados': 'Municipalidad de Cayma.', 'debilidades': 'Poco tiempo.',
+            'amenazas': 'Lluvias.', 'estrategias': 'Reprogramar talleres.',
+            'resultado_grupo_destinatario': 'Mejor segregación de residuos.',
+            'resultado_desarrollo_curricular': 'Casos reales en el curso.',
+            'lecciones_analisis': 'Las alianzas compensaron el poco tiempo.',
+            'lecciones_reflexiones': 'Experiencia valiosa para todos.',
             'metas': [{'id': self.meta.pk, 'valor_alcanzado': 45}],
             'partidas': [{'id': self.partida.pk, 'monto_ejecutado': 48.5}],
         }
@@ -1608,6 +1615,27 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
                                      {'conclusiones': 'x'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('ya está finalizado', str(response.data))
+
+    def test_informe_exige_las_secciones_del_formato(self):
+        self.client.force_authenticate(user=self.docente)
+        datos = self._informe_completo()
+        datos.pop('fortalezas')
+        datos['resultado_grupo_destinatario'] = ''
+        self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]), datos, format='json')
+        response = self.client.post(reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        pendientes = response.data['errors']['campos_pendientes']
+        self.assertIn('fortalezas', pendientes)
+        self.assertIn('resultado_grupo_destinatario', pendientes)
+
+    def test_lecciones_del_formato_alimentan_el_repositorio(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]), {
+            'lecciones_analisis': 'Analisis.', 'lecciones_reflexiones': 'Reflexion.'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['informe_final']['lecciones_analisis'], 'Analisis.')
+        self.proyecto.refresh_from_db()
+        self.assertEqual(self.proyecto.lecciones_aprendidas, 'Analisis.\n\nReflexion.')
 
     def test_otro_docente_no_edita_el_informe(self):
         self.client.force_authenticate(user=self.otro_docente)

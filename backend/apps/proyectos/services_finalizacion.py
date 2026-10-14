@@ -25,6 +25,13 @@ from .models import InformeFinalizacion
 from .services_repositorio import informe_final
 
 TEXTOS_INFORME = ('conclusiones', 'recomendaciones', 'lecciones_aprendidas', 'medio_difusion')
+# Obligatorios para enviar: secciones del formato oficial (V y VI viven en ProyectoRSU).
+TEXTOS_OBLIGATORIOS = ('conclusiones', 'recomendaciones', 'medio_difusion')
+CAMPOS_FORMATO = (
+    'fortalezas', 'oportunidades', 'aliados', 'debilidades', 'amenazas', 'estrategias',
+    'resultado_grupo_destinatario', 'resultado_desarrollo_curricular',
+    'lecciones_analisis', 'lecciones_reflexiones',
+)
 
 
 def _url_archivo(archivo, request):
@@ -117,9 +124,13 @@ def campos_pendientes(proyecto):
     Los textos admiten 'n/a' si al docente no le aplican, pero no pueden
     quedar vacíos; cada meta necesita su valor alcanzado.
     """
+    informe = obtener_informe(proyecto)
     pendientes = [
-        campo for campo in TEXTOS_INFORME
+        campo for campo in TEXTOS_OBLIGATORIOS
         if not (getattr(proyecto, campo) or '').strip()
+    ] + [
+        campo for campo in CAMPOS_FORMATO
+        if not (getattr(informe, campo, '') or '').strip()
     ]
     metas_sin_valor = [
         m.id for m in proyecto.metas_indicadores.all() if m.valor_alcanzado is None
@@ -174,4 +185,20 @@ def informe_finalizacion(proyecto, request=None):
         for r in proyecto.revisiones.filter(etapa='finalizacion').select_related('revisor')
     ]
     datos['ejecucion'] = seguimiento_proyecto(proyecto, request)
+    datos['informe_final'].update(
+        {campo: getattr(informe, campo, '') if informe else '' for campo in CAMPOS_FORMATO})
+    datos['informe_final']['campos_pendientes'] = pendientes
+    datos['informe_final']['completo'] = not pendientes
+    datos['recursos'] = {
+        'humanos': {
+            'docentes': proyecto.rec_hum_docentes, 'administrativos': proyecto.rec_hum_administrativos,
+            'estudiantes': proyecto.rec_hum_estudiantes, 'egresados': proyecto.rec_hum_egresados,
+            'voluntarios': proyecto.rec_hum_voluntarios, 'otros': proyecto.rec_hum_otros,
+        },
+        'materiales': {
+            'material_didactico': proyecto.rec_mat_material_didactico, 'afiches': proyecto.rec_mat_afiches,
+            'equipos': proyecto.rec_mat_equipos, 'utiles': proyecto.rec_mat_utiles,
+            'otros': proyecto.rec_mat_otros,
+        },
+    }
     return datos

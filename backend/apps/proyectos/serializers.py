@@ -32,7 +32,7 @@ from .models import (
     DocumentoSustentoProyecto, PartidaPresupuestaria, MetaIndicadorProyecto,
     FuenteFinanciamiento, TipoBeneficiario, ProyectoEjeSubitem,
     RevisionProyecto, Notificacion, HistorialEstadoProyecto,
-    AvanceActividad, EvidenciaAvance,
+    AvanceActividad, EvidenciaAvance, InformeFinalizacion,
 )
 from apps.planificacion.models import ODS, EjeRSU, EjeRSUSubitem, LineaEstrategica, ObjetivoInstitucional, PeriodoAcademico
 from apps.usuarios.models import Facultad, EscuelaProfesional, DepartamentoAcademico
@@ -360,6 +360,22 @@ class NotificacionSerializer(serializers.ModelSerializer):
 # ──────────────────────────────────────────────────────────────────────────────
 # Main serializer
 # ──────────────────────────────────────────────────────────────────────────────
+
+CAMPOS_FORMATO_INFORME = (
+    'fortalezas', 'oportunidades', 'aliados', 'debilidades', 'amenazas', 'estrategias',
+    'resultado_grupo_destinatario', 'resultado_desarrollo_curricular',
+    'lecciones_analisis', 'lecciones_reflexiones',
+)
+
+
+class InformeFormatoSerializer(serializers.ModelSerializer):
+    """Secciones II, III y IV del formato oficial del Informe de Finalización."""
+
+    class Meta:
+        model = InformeFinalizacion
+        fields = list(CAMPOS_FORMATO_INFORME)
+        extra_kwargs = {campo: {'required': False, 'allow_blank': True} for campo in fields}
+
 
 class InformeFinalSerializer(serializers.ModelSerializer):
     """Informe final que se registra al finalizar el proyecto (HU-07, T-124).

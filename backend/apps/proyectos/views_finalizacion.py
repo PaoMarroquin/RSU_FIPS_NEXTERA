@@ -35,7 +35,7 @@ from apps.utils.permissions import IsAdministrador, IsDepartamento
 
 from .exports_finalizacion import exportar_constancia_pdf, exportar_informe_finalizacion_pdf
 from .models import InformeFinalizacion, ProyectoRSU, RevisionProyecto
-from .serializers import InformeFinalSerializer, ProyectoRSUSerializer
+from .serializers import InformeFinalSerializer, InformeFormatoSerializer, ProyectoRSUSerializer
 from .services_finalizacion import (
     campos_pendientes, informe_finalizacion, obtener_informe, seguimiento_proyecto,
 )
@@ -137,10 +137,22 @@ def guardar_informe(proyecto, usuario, data):
 
     textos = InformeFinalSerializer(data=data, partial=True)
     textos.is_valid(raise_exception=True)
-    for campo, valor in textos.validated_data.items():
+    formato = InformeFormatoSerializer(informe, data=data, partial=True)
+    formato.is_valid(raise_exception=True)
+    formato.save()
+
+    cambios = dict(textos.validated_data)
+    # El repositorio histórico lee lecciones_aprendidas: se arma con los dos
+    # puntos de la sección IV si el cliente no lo manda directamente.
+    if 'lecciones_aprendidas' not in cambios and (
+            'lecciones_analisis' in formato.validated_data
+            or 'lecciones_reflexiones' in formato.validated_data):
+        partes = [informe.lecciones_analisis.strip(), informe.lecciones_reflexiones.strip()]
+        cambios['lecciones_aprendidas'] = '\n\n'.join(p for p in partes if p)
+    for campo, valor in cambios.items():
         setattr(proyecto, campo, valor)
-    if textos.validated_data:
-        proyecto.save(update_fields=[*textos.validated_data, 'updated_at'])
+    if cambios:
+        proyecto.save(update_fields=[*cambios, 'updated_at'])
 
     _actualizar_valores(proyecto.metas_indicadores, data.get('metas'), 'valor_alcanzado', 'metas')
     _actualizar_valores(proyecto.partidas_presupuesto, data.get('partidas'), 'monto_ejecutado', 'partidas')
@@ -244,7 +256,7 @@ class InformeFinalizacionPDFView(APIView):
 
     def get(self, request, pk):
         proyecto = _proyecto_visible(pk, request.user)
-        archivo = exportar_informe_finalizacion_pdf(informe_finalizacion(proyecto, request))
+        archivo = exportar_informe_finalizacion_pdf(informe_finalizacion(proyecto, request), proyecto)
         return _pdf(archivo, f'informe-finalizacion-{proyecto.codigo or proyecto.id}.pdf')
 
 
