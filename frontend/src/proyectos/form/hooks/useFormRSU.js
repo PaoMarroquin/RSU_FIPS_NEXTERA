@@ -310,10 +310,8 @@ const construirPayload = (formData) => {
 
     titulo: (formData.titulo || '').trim(),
 
-    nro_docentes: Math.max(
-      0,
-      parseInt(formData.numDocentes, 10) || 0
-    ),
+    nro_docentes: Math.max(0,parseInt(formData.numDocentes, 10) || 0),
+    nro_estudiantes: Math.max(0,parseInt(formData.numEstudiantes, 10) || 0),
 
     docentes_participantes: Array.isArray(
       formData.docentesParticipantes

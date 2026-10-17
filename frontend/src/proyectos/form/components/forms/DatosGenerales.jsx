@@ -291,7 +291,7 @@ export default function DatosGenerales({ data, updateData }) {
             </select>
           </div>
 
-          {data.anio_carrera === '5' && (
+          {data.anio_carrera == '5' && (
             <div className="md:col-span-2">
               <CheckboxItem
                 label="Este proyecto es tesis de 5to año"
