@@ -29,6 +29,7 @@ Funciones principales:
 - aplicar_filtros(qs, params): traduce los query params a filtros ORM.
 - ordenar(qs, params): ordenamiento con lista blanca de campos.
 - resumen_proyecto(proyecto): tarjeta del listado.
+- datos_generales(proyecto): sección I (también la usa el Informe de Finalización).
 - ficha_tecnica(proyecto): ANEXO 4 completo en solo lectura (T-123).
 - informe_final(proyecto): informe final, resultados y lecciones (T-124).
 - leccion_aprendida(proyecto): item del listado transversal de lecciones.
@@ -282,20 +283,17 @@ def resumen_proyecto(proyecto):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# T-123: ficha tecnica
+# Sección I del ANEXO 4: datos generales
 # ─────────────────────────────────────────────────────────────────────────────
 
-def ficha_tecnica(proyecto):
-    """Ficha tecnica completa del proyecto historico, por secciones del ANEXO 4.
+def datos_generales(proyecto):
+    """Sección I del proyecto (1.5 a 1.18): asignaturas, participantes,
+    beneficiarios, eje, tipo de actividad, fechas y lugar de ejecución.
 
-    Espera un proyecto obtenido de queryset_ficha() para no disparar una
-    consulta por relacion. Deja fuera a proposito la bitacora interna del
-    flujo de aprobacion (revisiones e historial de estados con IP): el
-    repositorio muestra el proyecto, no su tramite.
+    La comparten la ficha técnica del repositorio y el Informe de
+    Finalización, que repite estos datos en su sección I.
     """
-    ficha = _cabecera(proyecto)
-
-    ficha['datos_generales'] = {
+    return {
         'asignaturas': [
             {
                 'nombre': a.nombre_asignatura,
@@ -306,6 +304,7 @@ def ficha_tecnica(proyecto):
             for a in proyecto.asignaturas.all()
         ],
         'nro_docentes': proyecto.nro_docentes or 0,
+        'docentes_participantes': [n for n in (proyecto.docentes_participantes or []) if n],
         'nro_estudiantes': proyecto.nro_estudiantes or 0,
         'docentes_adicionales': [
             {'nombre': _nombre_usuario(d.docente), 'rol': d.rol_en_proyecto}
@@ -333,6 +332,23 @@ def ficha_tecnica(proyecto):
         'fecha_encuesta_grupo_destinatario': _iso(proyecto.fecha_encuesta_grupo_destinatario),
         'lugar_ejecucion': proyecto.lugar_ejecucion,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T-123: ficha tecnica
+# ─────────────────────────────────────────────────────────────────────────────
+
+def ficha_tecnica(proyecto):
+    """Ficha tecnica completa del proyecto historico, por secciones del ANEXO 4.
+
+    Espera un proyecto obtenido de queryset_ficha() para no disparar una
+    consulta por relacion. Deja fuera a proposito la bitacora interna del
+    flujo de aprobacion (revisiones e historial de estados con IP): el
+    repositorio muestra el proyecto, no su tramite.
+    """
+    ficha = _cabecera(proyecto)
+
+    ficha['datos_generales'] = datos_generales(proyecto)
 
     ficha['alineamiento'] = {
         'linea_estrategica': _ref(proyecto.linea_estrategica),

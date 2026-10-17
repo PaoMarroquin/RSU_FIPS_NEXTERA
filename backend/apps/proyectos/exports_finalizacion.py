@@ -244,6 +244,7 @@ def exportar_informe_finalizacion_pdf(datos, proyecto):
     docente = proyecto.docente_responsable
     nombre_docente = f'{docente.nombres} {docente.apellidos}'.strip()
     depto = proyecto.departamento.nombre if proyecto.departamento else '—'
+    depto_completo = _nombre_departamento(proyecto.departamento)
     informe = getattr(proyecto, 'informe_finalizacion', None)
     fecha_informe = timezone.localtime(informe.fecha_envio).date() if informe and informe.fecha_envio \
         else timezone.localdate()
@@ -253,8 +254,9 @@ def exportar_informe_finalizacion_pdf(datos, proyecto):
         Paragraph('INFORME DE EJECUCIÓN PROYECTO DE RESPONSABILIDAD SOCIAL UNIVERSITARIA', titulo),
         Paragraph('(FORMATO OURS)', subtitulo),
         tabla([
-            [Paragraph('<b>A:</b>', celda), Paragraph(escape(f'Director del {depto}'), celda)],
-            [Paragraph('<b>DE:</b>', celda), Paragraph(escape(f'{nombre_docente}, docente adscrito al {depto}'), celda)],
+            [Paragraph('<b>A:</b>', celda), Paragraph(escape(f'Director del {depto_completo}'), celda)],
+            [Paragraph('<b>DE:</b>', celda),
+             Paragraph(escape(f'{nombre_docente}, docente adscrito al {depto_completo}'), celda)],
             [Paragraph('<b>ASUNTO:</b>', celda),
              Paragraph(escape(f'INFORME DE RESPONSABILIDAD SOCIAL NRO. {proyecto.codigo or "—"}'), celda)],
             [Paragraph('<b>FECHA:</b>', celda), Paragraph(fecha(fecha_informe), celda)],
@@ -503,6 +505,43 @@ def _nombre_departamento(departamento):
     return f'Departamento Académico de {nombre}'
 
 
+def _nombre_facultad(facultad):
+    """Nombre completo, sin repetir 'Facultad' si ya viene en el dato."""
+    if not facultad:
+        return '—'
+    nombre = facultad.nombre.strip()
+    if nombre.lower().startswith('facultad'):
+        return nombre
+    return f'Facultad de {nombre}'
+
+
+def _plural(n, singular, plural):
+    return f'{n} {singular if n == 1 else plural}'
+
+
+def _resumen_evidencias(proyecto):
+    """(total, '3 fotográficas, 1 documental y 2 enlaces') de las evidencias vigentes."""
+    from .models import EvidenciaAvance
+    fotos = documentos = enlaces = 0
+    for ev in EvidenciaAvance.objects.filter(avance__proyecto=proyecto, eliminada=False):
+        if ev.tipo == 'enlace':
+            enlaces += 1
+        elif ev.archivo and ev.archivo.name.lower().endswith(EXTENSIONES_IMAGEN):
+            fotos += 1
+        else:
+            documentos += 1
+    partes = [texto for n, texto in (
+        (fotos, _plural(fotos, 'fotográfica', 'fotográficas')),
+        (documentos, _plural(documentos, 'documental', 'documentales')),
+        (enlaces, _plural(enlaces, 'enlace', 'enlaces')),
+    ) if n]
+    return fotos + documentos + enlaces, _enumerar(partes)
+
+
+def _monto(valor):
+    return f'S/ {valor:,.2f}'
+
+
 def _fecha_fin_real(proyecto):
     """Fecha de término planificada, o la de la última actividad completada si fue después."""
     ultima = (proyecto.avances.filter(estado_actividad='completada')
@@ -526,10 +565,14 @@ def datos_constancia(proyecto, informe, firmante):
     ejes = [detalle_otros if e == 'Otros' and detalle_otros else e
             for e in proyecto.ejes_rsu.order_by('id').values_list('nombre', flat=True)]
     participantes = [n for n in (proyecto.docentes_participantes or []) if n]
+    partidas = list(proyecto.partidas_presupuesto.all())
+    presupuestado = sum((p.monto_presupuestado for p in partidas), 0)
+    ejecutado = sum((p.monto_ejecutado for p in partidas), 0)
+    n_evidencias, detalle_evidencias = _resumen_evidencias(proyecto)
     return {
         'departamento': _nombre_departamento(proyecto.departamento),
         'numero': proyecto.codigo or '—',
-        'facultad': proyecto.facultad.nombre if proyecto.facultad else '—',
+        'facultad': _nombre_facultad(proyecto.facultad),
         'titulo': proyecto.titulo,
         'docente': f'{docente.nombres} {docente.apellidos}'.strip(),
         'participantes': _enumerar(participantes),
@@ -539,7 +582,13 @@ def datos_constancia(proyecto, informe, firmante):
         'ejes': _enumerar(ejes) or '—',
         'n_ejes': len(ejes),
         'ods': _enumerar([f'ODS {n}' for n in ods]),
+        'n_ods': len(ods),
         'beneficiarios': beneficiarios or '—',
+        'avance': float(proyecto.porcentaje_ejecucion or 0),
+        'presupuestado': float(presupuestado),
+        'ejecutado': float(ejecutado),
+        'n_evidencias': n_evidencias,
+        'detalle_evidencias': detalle_evidencias,
         'fecha_documento': timezone.localtime(aprobada_en or timezone.now()).date(),
         'firmante': f'{firmante.nombres} {firmante.apellidos}'.strip() if firmante else '',
         'firma': firmante.firma_digital if firmante and firmante.firma_digital else None,
@@ -598,7 +647,24 @@ def _elementos_constancia(d, separacion):
     else:
         participantes = '.'
     eje = 'de los ejes RSU' if d['n_ejes'] > 1 else 'del eje RSU'
-    ods = f' y alineado a los <b>{d["ods"]}</b>' if d['ods'] else ''
+    if d['n_ods'] > 1:
+        ods = f' y alineado a los <b>{d["ods"]}</b>'
+    elif d['n_ods'] == 1:
+        ods = f' y alineado al <b>{d["ods"]}</b>'
+    else:
+        ods = ''
+    # Cifras reales del cierre, en vez de afirmar siempre el 100% y "todas las evidencias".
+    logros = [f'el <b>{_num(d["avance"])}% de ejecución de sus actividades</b>']
+    if d['presupuestado']:
+        porcentaje = round(d['ejecutado'] / d['presupuestado'] * 100, 2)
+        logros.append(
+            f'el <b>{_num(porcentaje)}% de ejecución del presupuesto asignado</b> '
+            f'({_monto(d["ejecutado"])} de {_monto(d["presupuestado"])})')
+    if d['n_evidencias']:
+        evidencias = (f', habiendo registrado <b>{_plural(d["n_evidencias"], "evidencia", "evidencias")}</b> '
+                      f'de sus actividades ({d["detalle_evidencias"]})')
+    else:
+        evidencias = ''
     fecha = d['fecha_documento']
 
     elementos = [
@@ -610,7 +676,7 @@ def _elementos_constancia(d, separacion):
         Paragraph(f'N° {d["numero"]} ', estilo(16, TA_CENTER, 'Times-Italic')),
         Paragraph('&nbsp;', estilo(10, despues=15)),
         Paragraph(
-            f'El director de <b>{d["departamento"]},</b> de la facultad de <b>{d["facultad"]}</b>,  '
+            f'El director del <b>{d["departamento"]}</b>, de la <b>{d["facultad"]}</b>, '
             'de la Universidad Nacional de San Agustín de Arequipa certifica que el proyecto de '
             f'responsabilidad social denominado <b>"{d["titulo"]}"</b>, ejecutado bajo la '
             f'responsabilidad del/de la docente <b>{d["docente"]}</b>{participantes}', cuerpo),
@@ -621,11 +687,10 @@ def _elementos_constancia(d, separacion):
             f'beneficiar a <b>{d["beneficiarios"]}</b>.', cuerpo),
         Paragraph('&nbsp;', estilo(11)),
         Paragraph(
-            'Asimismo, se deja constancia de que la iniciativa alcanzó el <b>100% de ejecución de sus '
-            'actividades y presupuesto asignado</b>, habiendo cumplido con la entrega de todas las '
-            'evidencias documentales y fotográficas requeridas. Tras la evaluación técnica de cierre '
-            'realizada por la Dirección del Departamento Académico, el proyecto ha sido clasificado como '
-            '<b>FINALIZADO</b> y registrado en el Repositorio Institucional de RSU.', cuerpo),
+            f'Asimismo, se deja constancia de que la iniciativa alcanzó {" y ".join(logros)}{evidencias}. '
+            'Tras la evaluación técnica de cierre realizada por la Dirección del Departamento Académico, '
+            'el proyecto ha sido clasificado como <b>FINALIZADO</b> y registrado en el Repositorio '
+            'Institucional de RSU.', cuerpo),
         Paragraph('&nbsp;', estilo(10)),
         Paragraph('Se expide la presente constancia a solicitud del docente responsable para los fines '
                   'que considere pertinentes.', estilo(11)),

@@ -21,8 +21,10 @@ Conecta con:
 - apps/proyectos/services_repositorio.py: informe_final() y su cabecera.
 - apps/proyectos/exports_finalizacion.py: PDF del informe y de la constancia.
 """
+from apps.usuarios.models import Rol
+
 from .models import InformeFinalizacion
-from .services_repositorio import informe_final
+from .services_repositorio import datos_generales, informe_final
 
 TEXTOS_INFORME = ('conclusiones', 'recomendaciones', 'lecciones_aprendidas', 'medio_difusion')
 # Obligatorios para enviar: secciones del formato oficial (V y VI viven en ProyectoRSU).
@@ -32,6 +34,29 @@ CAMPOS_FORMATO = (
     'resultado_grupo_destinatario', 'resultado_desarrollo_curricular',
     'lecciones_analisis', 'lecciones_reflexiones',
 )
+# Sección del formato y nombre legible de cada campo obligatorio, en el orden
+# del formato: así el docente sabe qué le falta y dónde está.
+ETIQUETAS_CAMPOS = {
+    'fortalezas': ('II', 'Fortalezas'),
+    'oportunidades': ('II', 'Oportunidades'),
+    'aliados': ('II', 'Principales aliados'),
+    'debilidades': ('II', 'Debilidades'),
+    'amenazas': ('II', 'Amenazas'),
+    'estrategias': ('II', 'Estrategias empleadas para superar limitaciones'),
+    'resultado_grupo_destinatario': ('III', 'Logros en el grupo destinatario'),
+    'resultado_desarrollo_curricular': ('III', 'Logros en el desarrollo curricular'),
+    'metas_valor_alcanzado': ('III', 'Valor alcanzado de las metas'),
+    'lecciones_analisis': ('IV', 'Análisis de las acciones realizadas'),
+    'lecciones_reflexiones': ('IV', 'Reflexiones sobre la experiencia'),
+    'conclusiones': ('V', 'Conclusiones'),
+    'recomendaciones': ('VI', 'Recomendaciones'),
+    'medio_difusion': ('X', 'Medio de difusión'),
+}
+CONSTANCIA_ESTADOS = {
+    'no_disponible': 'No disponible',
+    'pendiente': 'Pendiente de aprobación',
+    'aprobada': 'Aprobada',
+}
 
 
 def _url_archivo(archivo, request):
@@ -125,19 +150,64 @@ def campos_pendientes(proyecto):
     quedar vacíos; cada meta necesita su valor alcanzado.
     """
     informe = obtener_informe(proyecto)
-    pendientes = [
+    faltan = {
         campo for campo in TEXTOS_OBLIGATORIOS
         if not (getattr(proyecto, campo) or '').strip()
-    ] + [
+    } | {
         campo for campo in CAMPOS_FORMATO
         if not (getattr(informe, campo, '') or '').strip()
-    ]
+    }
     metas_sin_valor = [
         m.id for m in proyecto.metas_indicadores.all() if m.valor_alcanzado is None
     ]
     if metas_sin_valor:
-        pendientes.append('metas_valor_alcanzado')
-    return pendientes, metas_sin_valor
+        faltan.add('metas_valor_alcanzado')
+    return [campo for campo in ETIQUETAS_CAMPOS if campo in faltan], metas_sin_valor
+
+
+def detalle_pendientes(pendientes, metas_sin_valor=()):
+    """[{campo, seccion, etiqueta}] de cada campo pendiente, para mostrarlo al docente."""
+    detalle = []
+    for campo in pendientes:
+        seccion, etiqueta = ETIQUETAS_CAMPOS[campo]
+        if campo == 'metas_valor_alcanzado' and metas_sin_valor:
+            n = len(metas_sin_valor)
+            etiqueta = f'Valor alcanzado de {n} meta{"s" if n > 1 else ""}'
+        detalle.append({'campo': campo, 'seccion': seccion, 'etiqueta': etiqueta})
+    return detalle
+
+
+def mensaje_pendientes(detalle):
+    """'Faltan campos del Informe de Finalización: Fortalezas (II) y Conclusiones (V).'"""
+    nombres = [f"{d['etiqueta']} ({d['seccion']})" for d in detalle]
+    if len(nombres) > 1:
+        nombres = [', '.join(nombres[:-1]) + ' y ' + nombres[-1]]
+    return f'Faltan campos del Informe de Finalización: {nombres[0]}.'
+
+
+def puede_descargar_constancia(user, proyecto, informe):
+    """Departamento y Administrador la ven desde que el proyecto se finaliza;
+    el docente responsable, solo cuando el Departamento la aprueba."""
+    if proyecto.estado != 'finalizado' or informe is None:
+        return False
+    nombre_rol = user.rol.nombre if getattr(user, 'rol', None) else None
+    if user.is_staff or nombre_rol in (Rol.ADMINISTRADOR, Rol.DEPARTAMENTO):
+        return True
+    return proyecto.docente_responsable_id == user.id and informe.constancia_aprobada
+
+
+def estado_constancia(proyecto, informe):
+    if proyecto.estado != 'finalizado' or informe is None:
+        return 'no_disponible'
+    return 'aprobada' if informe.constancia_aprobada else 'pendiente'
+
+
+def _ultima_observacion(observaciones, estado):
+    """Comentario que el docente debe atender mientras el informe está observado."""
+    if estado != 'observado':
+        return None
+    observadas = [o for o in observaciones if o['decision'] == 'observado']
+    return max(observadas, key=lambda o: o['created_at']) if observadas else None
 
 
 def informe_finalizacion(proyecto, request=None):
@@ -149,18 +219,26 @@ def informe_finalizacion(proyecto, request=None):
     actividades = proyecto.actividades.all()
     todas_completadas = bool(actividades) and not actividades.exclude(estado='completada').exists()
     habilitado = proyecto.estado in ('aprobado', 'en_ejecucion') and todas_completadas
+    constancia = estado_constancia(proyecto, informe)
+    user = getattr(request, 'user', None)
 
+    datos['datos_generales'] = datos_generales(proyecto)
     datos['finalizacion'] = {
         'estado': estado,
         'estado_display': informe.get_estado_display() if informe else None,
         'habilitado': habilitado,
         'editable': habilitado and estado in (None, 'borrador', 'observado'),
         'campos_pendientes': pendientes,
+        'campos_pendientes_detalle': detalle_pendientes(pendientes, metas_sin_valor),
         'metas_sin_valor_alcanzado': metas_sin_valor,
         'fecha_envio': informe.fecha_envio.isoformat() if informe and informe.fecha_envio else None,
         'fecha_aprobacion': (
             informe.fecha_aprobacion.isoformat() if informe and informe.fecha_aprobacion else None),
         'constancia_aprobada': bool(informe and informe.constancia_aprobada),
+        'constancia_estado': constancia,
+        'constancia_estado_display': CONSTANCIA_ESTADOS[constancia],
+        'constancia_descargable': bool(
+            user and user.is_authenticated and puede_descargar_constancia(user, proyecto, informe)),
     }
     datos['presupuesto_detalle'] = [
         {
@@ -184,7 +262,13 @@ def informe_finalizacion(proyecto, request=None):
         }
         for r in proyecto.revisiones.filter(etapa='finalizacion').select_related('revisor')
     ]
+    datos['finalizacion']['ultima_observacion'] = _ultima_observacion(datos['observaciones'], estado)
     datos['ejecucion'] = seguimiento_proyecto(proyecto, request)
+    # XI. Evidencias: todo lo que el docente subió en Mis actividades, en una sola lista.
+    datos['evidencias'] = [
+        {**ev, 'actividad_id': act['id'], 'actividad': act['nombre']}
+        for act in datos['ejecucion']['actividades'] for ev in act['evidencias']
+    ]
     datos['informe_final'].update(
         {campo: getattr(informe, campo, '') if informe else '' for campo in CAMPOS_FORMATO})
     datos['informe_final']['campos_pendientes'] = pendientes

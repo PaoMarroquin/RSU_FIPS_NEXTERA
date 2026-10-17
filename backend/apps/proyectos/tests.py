@@ -785,6 +785,23 @@ class PresupuestoAPITests(BaseProyectoTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_resumen_con_partida_que_tiene_fuente(self):
+        # BUG-014: la fuente de la partida es un FK; el resumen daba 500.
+        fuente = FuenteFinanciamiento.objects.create(
+            proyecto=self.proyecto_borrador, fuente='recursos_propios_unsa', monto=100)
+        PartidaPresupuestaria.objects.create(
+            proyecto=self.proyecto_borrador, categoria='refrigerio', cantidad=2, costo_unitario=10,
+            fuente=fuente)
+        PartidaPresupuestaria.objects.create(
+            proyecto=self.proyecto_borrador, categoria='transporte', cantidad=1, costo_unitario=5)
+
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(reverse('presupuesto-resumen', args=[self.proyecto_borrador.id]))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        por_fuente = {f['fuente']: f['presupuestado'] for f in response.data['desglose_por_fuente']}
+        self.assertEqual(por_fuente, {'Recursos Propios UNSA': 20.0, 'Sin especificar': 5.0})
+
 
 class MetasIndicadoresAPITests(BaseProyectoTestCase):
 
@@ -1804,6 +1821,206 @@ class FinalizacionAPITests(_BaseFlujoTestCase):
         self.assertEqual(response['Content-Type'], 'application/pdf')
         self.assertTrue(Notificacion.objects.filter(
             destinatario=self.docente, tipo='constancia_disponible').exists())
+
+    # ── Ajustes del reporte de QA del 16/10/2026 ──
+
+    def test_get_trae_datos_generales_y_evidencias(self):
+        from apps.proyectos.models import TipoBeneficiario
+        self.proyecto.lugar_ejecucion = 'I.E. 40052, Cayma'
+        self.proyecto.docentes_participantes = ['Ana Quispe', 'Luis Mamani']
+        self.proyecto.save(update_fields=['lugar_ejecucion', 'docentes_participantes'])
+        beneficiario = TipoBeneficiario.objects.first()
+        self.proyecto.beneficiarios.set([beneficiario])
+        avance = AvanceActividad.objects.create(
+            proyecto=self.proyecto, actividad=self.proyecto.actividades.first(),
+            descripcion='Taller final', estado_actividad='completada', autor=self.docente)
+        EvidenciaAvance.objects.create(
+            avance=avance, tipo='enlace', enlace_drive='https://drive.google.com/fotos', nombre='Fotos')
+
+        self.client.force_authenticate(user=self.docente)
+        data = self.client.get(reverse('informe-finalizacion', args=[self.proyecto.pk])).data
+
+        generales = data['datos_generales']
+        self.assertEqual(generales['lugar_ejecucion'], 'I.E. 40052, Cayma')
+        self.assertEqual(generales['docentes_participantes'], ['Ana Quispe', 'Luis Mamani'])
+        self.assertEqual(generales['beneficiarios'], [beneficiario.label])
+        self.assertEqual(len(data['evidencias']), 1)
+        self.assertEqual(data['evidencias'][0]['actividad'], 'A1')
+        self.assertEqual(data['evidencias'][0]['url'], 'https://drive.google.com/fotos')
+
+    def test_enviar_incompleto_dice_que_campos_faltan(self):
+        self.client.force_authenticate(user=self.docente)
+        datos = self._informe_completo()
+        datos.pop('fortalezas')
+        datos.pop('metas')
+        datos['conclusiones'] = ''
+        response = self.client.post(
+            reverse('informe-finalizacion-enviar', args=[self.proyecto.pk]), datos, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data['detail'],
+            'Faltan campos del Informe de Finalización: Fortalezas (II), '
+            'Valor alcanzado de 1 meta (III) y Conclusiones (V).')
+        detalle = response.data['errors']['campos_pendientes_detalle']
+        self.assertEqual([d['campo'] for d in detalle],
+                         ['fortalezas', 'metas_valor_alcanzado', 'conclusiones'])
+
+        fin = self.client.get(reverse('informe-finalizacion', args=[self.proyecto.pk])).data['finalizacion']
+        self.assertEqual(fin['campos_pendientes_detalle'][0],
+                         {'campo': 'fortalezas', 'seccion': 'II', 'etiqueta': 'Fortalezas'})
+
+    def test_comentario_corto_tiene_mensaje_legible(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        response = self.client.post(reverse('informe-finalizacion-observar', args=[self.proyecto.pk]),
+                                    {'comentario': 'Corto'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'],
+                         'El comentario es obligatorio y debe tener al menos 15 caracteres.')
+        self.assertIn('comentario', response.data['errors'])
+
+    def test_validation_error_de_texto_llega_en_detail(self):
+        self.proyecto.estado = 'finalizado'
+        self.proyecto.save(update_fields=['estado'])
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]),
+                                     {'conclusiones': 'x'}, format='json')
+        self.assertTrue(response.data['detail'].startswith('El proyecto ya está finalizado'))
+
+    def test_informe_observado_muestra_el_comentario_al_docente(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        self.client.post(reverse('informe-finalizacion-observar', args=[self.proyecto.pk]),
+                         {'comentario': 'Faltan las evidencias del taller final.'}, format='json')
+
+        self.client.force_authenticate(user=self.docente)
+        url = reverse('informe-finalizacion', args=[self.proyecto.pk])
+        observacion = self.client.get(url).data['finalizacion']['ultima_observacion']
+        self.assertEqual(observacion['comentario'], 'Faltan las evidencias del taller final.')
+
+        self._enviar()
+        self.assertIsNone(self.client.get(url).data['finalizacion']['ultima_observacion'])
+
+    def test_valor_alcanzado_no_supera_la_meta(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]), {
+            'metas': [{'id': self.meta.pk, 'valor_alcanzado': 55}]}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('no puede superar el valor de la meta (50)', response.data['detail'])
+        self.meta.refresh_from_db()
+        self.assertIsNone(self.meta.valor_alcanzado)
+
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]), {
+            'metas': [{'id': self.meta.pk, 'valor_alcanzado': 50}]}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_monto_ejecutado_no_supera_lo_presupuestado(self):
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.patch(reverse('informe-finalizacion', args=[self.proyecto.pk]), {
+            'partidas': [{'id': self.partida.pk, 'monto_ejecutado': 50.01}]}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('no puede superar el monto presupuestado (S/ 50.00)', response.data['detail'])
+
+    def test_estado_de_la_constancia_y_mensaje_al_docente(self):
+        url = reverse('informe-finalizacion', args=[self.proyecto.pk])
+        self.client.force_authenticate(user=self.docente)
+        self.assertEqual(self.client.get(url).data['finalizacion']['constancia_estado'], 'no_disponible')
+
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        self.client.post(reverse('proyecto-finalizar', args=[self.proyecto.pk]))
+        self.assertTrue(self.client.get(url).data['finalizacion']['constancia_descargable'])
+
+        self.client.force_authenticate(user=self.docente)
+        fin = self.client.get(url).data['finalizacion']
+        self.assertEqual((fin['constancia_estado'], fin['constancia_descargable']), ('pendiente', False))
+        response = self.client.get(reverse('constancia-pdf', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('el Departamento aún no la aprueba', response.data['detail'])
+
+        self.client.force_authenticate(user=self.jefatura)
+        response = self.client.get(reverse('constancia-pdf', args=[self.proyecto.pk]))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('Solo el Departamento', response.data['detail'])
+
+    def test_constancias_del_departamento_con_estado_y_filtro(self):
+        self._enviar()
+        self.client.force_authenticate(user=self.depto)
+        self.client.post(reverse('proyecto-finalizar', args=[self.proyecto.pk]))
+        url = reverse('constancia-list')
+
+        fila = self.client.get(url).data[0]
+        self.assertEqual((fila['constancia_estado'], fila['constancia_estado_display']),
+                         ('pendiente', 'Pendiente de aprobación'))
+        self.assertEqual(len(self.client.get(url, {'estado': 'aprobada'}).data), 0)
+
+        self.client.post(reverse('constancia-aprobar', args=[self.proyecto.pk]))
+        fila = self.client.get(url, {'estado': 'aprobada'}).data[0]
+        self.assertEqual(fila['constancia_estado'], 'aprobada')
+        self.assertEqual(fila['constancia_aprobada_por'], f'{self.depto.nombres} {self.depto.apellidos}'.strip())
+        self.assertEqual(len(self.client.get(url, {'estado': 'pendiente'}).data), 0)
+
+    def _texto_constancia(self):
+        from apps.proyectos.exports_finalizacion import _elementos_constancia
+        elementos = _elementos_constancia(self._datos_constancia(self.depto), 30)
+        return ' '.join(e.getPlainText() for e in elementos if hasattr(e, 'getPlainText'))
+
+    def test_constancia_un_solo_ods_en_singular(self):
+        self.proyecto.ods.set([self.ods])
+        self.assertIn('alineado al ODS 4', self._texto_constancia())
+        self.proyecto.ods.add(ODS.objects.get(numero=11))
+        self.assertIn('alineado a los ODS 4 y ODS 11', self._texto_constancia())
+
+    def test_constancia_no_repite_facultad_en_el_nombre(self):
+        from apps.proyectos.exports_finalizacion import _nombre_facultad
+
+        class Fac:
+            nombre = 'Facultad de Ingeniería de Producción y Servicios'
+        self.assertEqual(_nombre_facultad(Fac), 'Facultad de Ingeniería de Producción y Servicios')
+        Fac.nombre = 'Ingeniería de Producción y Servicios'
+        self.assertEqual(_nombre_facultad(Fac), 'Facultad de Ingeniería de Producción y Servicios')
+        self.assertNotIn('facultad de facultad', self._texto_constancia().lower())
+
+    def test_constancia_usa_las_cifras_reales_del_cierre(self):
+        self.partida.monto_ejecutado = Decimal('25.00')
+        self.partida.save(update_fields=['monto_ejecutado'])
+        texto = self._texto_constancia()
+        self.assertIn('50% de ejecución del presupuesto asignado (S/ 25.00 de S/ 50.00)', texto)
+        self.assertNotIn('evidencias de sus actividades', texto)
+
+        avance = AvanceActividad.objects.create(
+            proyecto=self.proyecto, actividad=self.proyecto.actividades.first(),
+            descripcion='ok', estado_actividad='completada', autor=self.docente)
+        EvidenciaAvance.objects.create(avance=avance, tipo='enlace',
+                                       enlace_drive='https://drive.google.com/a', nombre='Fotos')
+        EvidenciaAvance.objects.create(avance=avance, tipo='enlace', eliminada=True,
+                                       enlace_drive='https://drive.google.com/b', nombre='Borrada')
+        self.assertIn('habiendo registrado 1 evidencia de sus actividades (1 enlace)', self._texto_constancia())
+
+
+class ListadoProyectosAPITests(_BaseFlujoTestCase):
+    """GET /proyectos/: tamaño de página y filtro por varios estados (Mis informes)."""
+
+    def setUp(self):
+        super().setUp()
+        for i in range(22):
+            self.crear_proyecto('en_ejecucion', titulo=f'Proyecto en ejecución {i}')
+        self.crear_proyecto('finalizado', titulo='Proyecto finalizado')
+        self.crear_proyecto('borrador', titulo='Proyecto borrador')
+        self.client.force_authenticate(user=self.docente)
+
+    def test_por_defecto_trae_20_y_con_page_size_mas(self):
+        url = reverse('proyecto-list')
+        response = self.client.get(url)
+        self.assertEqual((response.data['count'], len(response.data['results'])), (24, 20))
+        self.assertEqual(len(self.client.get(url, {'page_size': 50}).data['results']), 24)
+
+    def test_filtra_por_varios_estados(self):
+        response = self.client.get(reverse('proyecto-list'),
+                                   {'estado': 'en_ejecucion,finalizado', 'page_size': 100})
+        estados = {p['estado'] for p in response.data['results']}
+        self.assertEqual((response.data['count'], estados), (23, {'en_ejecucion', 'finalizado'}))
 
 
 class NotificarListoParaCerrarAPITests(_BaseFlujoTestCase):

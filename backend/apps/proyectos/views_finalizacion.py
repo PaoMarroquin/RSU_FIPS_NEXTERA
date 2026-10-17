@@ -37,7 +37,8 @@ from .exports_finalizacion import exportar_constancia_pdf, exportar_informe_fina
 from .models import InformeFinalizacion, ProyectoRSU, RevisionProyecto
 from .serializers import InformeFinalSerializer, InformeFormatoSerializer, ProyectoRSUSerializer
 from .services_finalizacion import (
-    campos_pendientes, informe_finalizacion, obtener_informe, seguimiento_proyecto,
+    CONSTANCIA_ESTADOS, campos_pendientes, detalle_pendientes, estado_constancia, informe_finalizacion,
+    mensaje_pendientes, obtener_informe, puede_descargar_constancia, seguimiento_proyecto,
 )
 from .views import (
     _crear_notificacion, _filter_proyectos_por_rol, _proyecto_qs_base, _recalcular_porcentaje_ejecucion,
@@ -49,10 +50,6 @@ MIN_COMENTARIO = 15
 
 def _proyecto_visible(pk, user):
     return get_object_or_404(_filter_proyectos_por_rol(ProyectoRSU.objects.all(), user), pk=pk)
-
-
-def _es_admin(user):
-    return user.is_staff or (user.rol and user.rol.nombre == Rol.ADMINISTRADOR)
 
 
 def _validar_comentario(request):
@@ -83,7 +80,24 @@ class ProyectoSeguimientoView(APIView):
 
 # ─── Sprint 8: Informe de Finalización ───────────────────────────────────────
 
-def _actualizar_valores(relacion, items, campo, clave):
+def _tope_meta(meta, valor):
+    if meta.valor_meta is not None and valor > meta.valor_meta:
+        return (f'El valor alcanzado de la meta "{meta.meta_descripcion[:60]}" ({float(valor):g}) '
+                f'no puede superar el valor de la meta ({float(meta.valor_meta):g}).')
+    return None
+
+
+def _tope_partida(partida, valor):
+    if valor > partida.monto_presupuestado:
+        nombre = partida.descripcion or partida.get_categoria_display() or f'#{partida.id}'
+        return (f'El monto ejecutado de la partida "{nombre[:60]}" (S/ {valor:.2f}) '
+                f'no puede superar el monto presupuestado (S/ {partida.monto_presupuestado:.2f}).')
+    return None
+
+
+def _actualizar_valores(relacion, items, campo, clave, tope):
+    """Guarda valor_alcanzado / monto_ejecutado; `tope(obj, valor)` devuelve el
+    error si el valor supera lo planificado (meta o monto presupuestado)."""
     if items is None:
         return
     if not isinstance(items, list):
@@ -97,6 +111,9 @@ def _actualizar_valores(relacion, items, campo, clave):
             item.get(campo))
         if valor < 0:
             raise serializers.ValidationError({clave: 'No se permiten valores negativos.'})
+        error = tope(obj, valor)
+        if error:
+            raise serializers.ValidationError({clave: error})
         setattr(obj, campo, valor)
         obj.save(update_fields=[campo])
 
@@ -154,8 +171,10 @@ def guardar_informe(proyecto, usuario, data):
     if cambios:
         proyecto.save(update_fields=[*cambios, 'updated_at'])
 
-    _actualizar_valores(proyecto.metas_indicadores, data.get('metas'), 'valor_alcanzado', 'metas')
-    _actualizar_valores(proyecto.partidas_presupuesto, data.get('partidas'), 'monto_ejecutado', 'partidas')
+    _actualizar_valores(proyecto.metas_indicadores, data.get('metas'), 'valor_alcanzado', 'metas',
+                        _tope_meta)
+    _actualizar_valores(proyecto.partidas_presupuesto, data.get('partidas'), 'monto_ejecutado', 'partidas',
+                        _tope_partida)
     return informe
 
 
@@ -202,11 +221,12 @@ class InformeFinalizacionEnviarView(APIView):
             raise serializers.ValidationError(
                 'Primero complete el Informe de Finalización antes de enviarlo.')
 
-        pendientes, _ = campos_pendientes(proyecto)
+        pendientes, metas_sin_valor = campos_pendientes(proyecto)
         if pendientes:
+            detalle = detalle_pendientes(pendientes, metas_sin_valor)
             raise serializers.ValidationError({
-                'detail': 'Faltan campos del Informe de Finalización.',
-                'errors': {'campos_pendientes': pendientes}})
+                'detail': mensaje_pendientes(detalle),
+                'errors': {'campos_pendientes': pendientes, 'campos_pendientes_detalle': detalle}})
 
         informe.estado = 'enviado'
         informe.fecha_envio = timezone.now()
@@ -321,27 +341,41 @@ class ProyectoFinalizarView(APIView):
 # ─── Constancia de finalización ──────────────────────────────────────────────
 
 class ConstanciasListView(APIView):
-    """GET /constancias/ - proyectos finalizados del alcance y el estado de su constancia."""
+    """GET /constancias/ - proyectos finalizados del alcance y el estado de su constancia.
+
+    ?estado=pendiente|aprobada filtra por el estado de la constancia.
+    """
     permission_classes = [IsAuthenticated, IsDepartamento | IsAdministrador]
 
     def get(self, request):
         proyectos = _filter_proyectos_por_rol(ProyectoRSU.objects.all(), request.user).filter(
             estado='finalizado', informe_finalizacion__isnull=False,
-        ).select_related('informe_finalizacion', 'docente_responsable').order_by('-fecha_cierre')
-        return Response([
-            {
+        ).select_related(
+            'informe_finalizacion__constancia_aprobada_por', 'docente_responsable',
+        ).order_by('informe_finalizacion__constancia_aprobada', '-fecha_cierre')
+        filtro = (request.query_params.get('estado') or '').strip()
+        if filtro in ('pendiente', 'aprobada'):
+            proyectos = proyectos.filter(informe_finalizacion__constancia_aprobada=filtro == 'aprobada')
+        filas = []
+        for p in proyectos:
+            informe = p.informe_finalizacion
+            estado = estado_constancia(p, informe)
+            aprobada_por = informe.constancia_aprobada_por
+            filas.append({
                 'proyecto_id': p.id,
                 'codigo': p.codigo,
                 'titulo': p.titulo,
                 'docente': f'{p.docente_responsable.nombres} {p.docente_responsable.apellidos}'.strip(),
                 'fecha_cierre': p.fecha_cierre.isoformat() if p.fecha_cierre else None,
-                'constancia_aprobada': p.informe_finalizacion.constancia_aprobada,
+                'constancia_aprobada': informe.constancia_aprobada,
+                'constancia_estado': estado,
+                'constancia_estado_display': CONSTANCIA_ESTADOS[estado],
                 'constancia_aprobada_en': (
-                    p.informe_finalizacion.constancia_aprobada_en.isoformat()
-                    if p.informe_finalizacion.constancia_aprobada_en else None),
-            }
-            for p in proyectos
-        ])
+                    informe.constancia_aprobada_en.isoformat() if informe.constancia_aprobada_en else None),
+                'constancia_aprobada_por': (
+                    f'{aprobada_por.nombres} {aprobada_por.apellidos}'.strip() if aprobada_por else None),
+            })
+        return Response(filas)
 
 
 class ConstanciaPDFView(APIView):
@@ -355,13 +389,20 @@ class ConstanciaPDFView(APIView):
         proyecto = _proyecto_visible(pk, request.user)
         informe = obtener_informe(proyecto)
         if proyecto.estado != 'finalizado' or informe is None:
-            raise serializers.ValidationError('La constancia existe solo para proyectos finalizados.')
+            raise serializers.ValidationError(
+                'La constancia se genera cuando el Departamento aprueba el Informe de Finalización '
+                'y el proyecto queda finalizado.')
 
         user = request.user
+        if not puede_descargar_constancia(user, proyecto, informe):
+            if proyecto.docente_responsable_id == user.id:
+                raise PermissionDenied(
+                    'La constancia todavía no está disponible: el Departamento aún no la aprueba. '
+                    'Te llegará una notificación cuando la apruebe.')
+            raise PermissionDenied(
+                'Solo el Departamento, el Administrador y el docente responsable pueden '
+                'descargar la constancia.')
         es_departamento = user.rol and user.rol.nombre == Rol.DEPARTAMENTO
-        es_docente_dueno = proyecto.docente_responsable_id == user.id
-        if not (_es_admin(user) or es_departamento or (es_docente_dueno and informe.constancia_aprobada)):
-            raise PermissionDenied('La constancia todavía no está disponible.')
         # Firma quien aprueba la constancia (Departamento); antes de aprobarla, el
         # Departamento que la revisa la previsualiza con su propio nombre.
         firmante = informe.constancia_aprobada_por or (user if es_departamento else None)

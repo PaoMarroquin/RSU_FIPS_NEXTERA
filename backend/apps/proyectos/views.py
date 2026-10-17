@@ -36,6 +36,7 @@ Conecta con:
 """
 from decimal import Decimal
 from rest_framework import generics, status, serializers, filters
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -303,10 +304,25 @@ def _verificar_proyecto_visible(pk, user):
         raise Http404
 
 
+class PaginacionProyectos(PageNumberPagination):
+    """20 por página; con ?page_size= se pueden pedir hasta 100 (p. ej. Mis informes)."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class ProyectoListCreateView(generics.ListCreateAPIView):
+    """GET /proyectos/ - proyectos del alcance del usuario, paginados.
+
+    Filtros: ?search=, ?estado= (uno o varios separados por coma, p. ej.
+    "en_ejecucion,finalizado"), ?periodo=, ?facultad= (solo Admin),
+    ?ordering= y ?page_size= (máx. 100).
+    """
     serializer_class = ProyectoRSUSerializer
+    pagination_class = PaginacionProyectos
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['titulo', 'codigo', 'docente_responsable__nombres', 'escuela__nombre']
+    search_fields = ['titulo', 'codigo', 'docente_responsable__nombres', 'docente_responsable__apellidos',
+                     'escuela__nombre', 'facultad__nombre']
     ordering_fields = ['titulo', 'estado', 'created_at', 'anio_carrera', 'periodo__nombre']
     ordering = ['-created_at']
 
@@ -320,9 +336,9 @@ class ProyectoListCreateView(generics.ListCreateAPIView):
             if facultad_id:
                 qs = qs.filter(facultad_id=facultad_id)
 
-        estado = self.request.query_params.get('estado')
-        if estado:
-            qs = qs.filter(estado=estado)
+        estados = [e.strip() for e in (self.request.query_params.get('estado') or '').split(',') if e.strip()]
+        if estados:
+            qs = qs.filter(estado__in=estados)
 
         periodo_id = self.request.query_params.get('periodo')
         if periodo_id:
@@ -610,7 +626,7 @@ class PresupuestoResumenView(APIView):
             ),
             pk=proyecto_pk,
         )
-        partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk)
+        partidas = PartidaPresupuestaria.objects.filter(proyecto_id=proyecto_pk).select_related('fuente')
 
         total_presupuestado = sum(p.monto_presupuestado for p in partidas)
         total_ejecutado = sum(p.monto_ejecutado for p in partidas)
@@ -625,8 +641,10 @@ class PresupuestoResumenView(APIView):
             por_categoria[cat_key]['presupuestado'] += float(p.monto_presupuestado)
             por_categoria[cat_key]['ejecutado'] += float(p.monto_ejecutado)
 
-            fuente_key = p.fuente or 'sin_especificar'
-            fuente_label = p.get_fuente_display() if p.fuente else 'Sin especificar'
+            # p.fuente es un FK a FuenteFinanciamiento (Sprint 8): el texto de
+            # la fuente sale de esa fila, y se agrupa por tipo de fuente.
+            fuente_key = p.fuente.fuente if p.fuente else 'sin_especificar'
+            fuente_label = p.fuente.get_fuente_display() if p.fuente else 'Sin especificar'
             if fuente_key not in por_fuente:
                 por_fuente[fuente_key] = {'fuente': fuente_label, 'presupuestado': 0, 'ejecutado': 0}
             por_fuente[fuente_key]['presupuestado'] += float(p.monto_presupuestado)
