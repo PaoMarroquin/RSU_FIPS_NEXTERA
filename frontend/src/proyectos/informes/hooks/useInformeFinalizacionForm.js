@@ -5,17 +5,83 @@ import {
   enviarInformeFinalizacion,
 } from "./informefinalizado";
 
+// Campos de texto que llena el docente (contrato del informe, formato OURS).
+export const CAMPOS_TEXTO = [
+  "fortalezas",
+  "oportunidades",
+  "aliados",
+  "debilidades",
+  "amenazas",
+  "estrategias",
+  "resultado_grupo_destinatario",
+  "resultado_desarrollo_curricular",
+  "lecciones_analisis",
+  "lecciones_reflexiones",
+  "conclusiones",
+  "recomendaciones",
+  "medio_difusion",
+];
+
+export const MAX_MEDIO_DIFUSION = 200;
+
+const ETIQUETAS = {
+  fortalezas: "Fortalezas",
+  oportunidades: "Oportunidades",
+  aliados: "Principales aliados",
+  debilidades: "Debilidades",
+  amenazas: "Amenazas",
+  estrategias: "Estrategias empleadas",
+  resultado_grupo_destinatario: "Resultados en el grupo destinatario",
+  resultado_desarrollo_curricular: "Resultados en el desarrollo curricular",
+  lecciones_analisis: "Lecciones: análisis",
+  lecciones_reflexiones: "Lecciones: reflexiones",
+  conclusiones: "Conclusiones",
+  recomendaciones: "Recomendaciones",
+  medio_difusion: "Medio de difusión",
+  metas_valor_alcanzado: "Valor alcanzado de las metas",
+};
+
+// Paso del formulario donde se llena cada campo.
+const PASO_DE_CAMPO = {
+  fortalezas: 2,
+  oportunidades: 2,
+  aliados: 2,
+  debilidades: 2,
+  amenazas: 2,
+  estrategias: 2,
+  resultado_grupo_destinatario: 3,
+  resultado_desarrollo_curricular: 3,
+  lecciones_analisis: 4,
+  lecciones_reflexiones: 4,
+  conclusiones: 5,
+  recomendaciones: 6,
+  medio_difusion: 6,
+  metas_valor_alcanzado: 8,
+};
+
+const textosVacios = () =>
+  Object.fromEntries(CAMPOS_TEXTO.map((campo) => [campo, ""]));
+
+const textoLleno = (valor) => String(valor ?? "").trim() !== "";
+
+const numeroValido = (valor) =>
+  valor !== null &&
+  valor !== undefined &&
+  String(valor).trim() !== "" &&
+  Number.isFinite(Number(valor)) &&
+  Number(valor) >= 0;
+
+const vacio = (valor) =>
+  valor === null || valor === undefined || String(valor).trim() === "";
+
+const nombresDeCampos = (campos) =>
+  campos.map((campo) => ETIQUETAS[campo] || campo).join(", ");
+
 export const useInformeFinalizacionForm = () => {
   const [step, setStep] = useState(1);
   const [informeData, setInformeData] = useState(null);
 
-  const [textos, setTextos] = useState({
-    conclusiones: "",
-    recomendaciones: "",
-    lecciones_aprendidas: "",
-    medio_difusion: "",
-  });
-
+  const [textos, setTextos] = useState(textosVacios);
   const [metas, setMetas] = useState([]);
   const [partidas, setPartidas] = useState([]);
   const [partidasEditadas, setPartidasEditadas] = useState(false);
@@ -24,64 +90,72 @@ export const useInformeFinalizacionForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  // El backend decide si el formulario se puede editar.
+  const finalizacion = informeData?.finalizacion;
+  const puedeEditar = Boolean(finalizacion?.editable);
+
+  // ============================================================
+  // CARGAR DATOS DEL BACKEND AL FORMULARIO
+  // ============================================================
+  const aplicarInforme = useCallback((data) => {
+    setInformeData(data);
+
+    const informe = data?.informe_final ?? {};
+    setTextos(
+      Object.fromEntries(
+        CAMPOS_TEXTO.map((campo) => [campo, informe[campo] ?? ""])
+      )
+    );
+
+    setMetas(data?.resultados_alcanzados?.detalle_metas ?? []);
+    setPartidas(data?.presupuesto_detalle ?? []);
+
+    // La carga inicial no cuenta como edición del usuario.
+    setPartidasEditadas(false);
+  }, []);
+
   // ============================================================
   // CÁLCULO DINÁMICO DE PASOS COMPLETADOS
   // ============================================================
   const pasosCompletados = useMemo(() => {
-    const completados = [1, 2, 3, 7, 10];
+    // I, VII y X son de solo lectura.
+    const completados = [1, 7, 10];
+    const llenos = (campos) => campos.every((c) => textoLleno(textos[c]));
 
-    if (textos.lecciones_aprendidas?.trim() !== "") {
+    if (
+      llenos([
+        "fortalezas",
+        "oportunidades",
+        "aliados",
+        "debilidades",
+        "amenazas",
+        "estrategias",
+      ])
+    ) {
+      completados.push(2);
+    }
+
+    if (llenos(["resultado_grupo_destinatario", "resultado_desarrollo_curricular"])) {
+      completados.push(3);
+    }
+
+    if (llenos(["lecciones_analisis", "lecciones_reflexiones"])) {
       completados.push(4);
     }
 
-    if (textos.conclusiones?.trim() !== "") {
-      completados.push(5);
-    }
+    if (llenos(["conclusiones"])) completados.push(5);
+    if (llenos(["recomendaciones", "medio_difusion"])) completados.push(6);
 
-    if (
-      textos.recomendaciones?.trim() !== "" &&
-      textos.medio_difusion?.trim() !== ""
-    ) {
-      completados.push(6);
-    }
-
-    // Paso 8: todas las metas deben tener un valor válido.
-    const metasCompletas =
-      metas.length > 0 &&
-      metas.every((meta) => {
-        const valor = meta.valor_alcanzado;
-
-        return (
-          valor !== null &&
-          valor !== undefined &&
-          String(valor).trim() !== "" &&
-          Number.isFinite(Number(valor)) &&
-          Number(valor) >= 0
-        );
-      });
-
-    if (metasCompletas) {
+    if (metas.length > 0 && metas.every((m) => numeroValido(m.valor_alcanzado))) {
       completados.push(8);
     }
 
-    // Paso 9: presupuesto.
-    // No se considera completado al cargar datos del backend.
-    const presupuestoCompleto =
-      partidasEditadas &&
-      partidas.length > 0 &&
-      partidas.every((partida) => {
-        const monto = partida.monto_ejecutado;
-
-        return (
-          monto !== null &&
-          monto !== undefined &&
-          String(monto).trim() !== "" &&
-          Number.isFinite(Number(monto)) &&
-          Number(monto) >= 0
-        );
-      });
-
-    if (presupuestoCompleto) {
+    // Las partidas son opcionales: el paso cuenta como completo cuando el
+    // usuario las llenó, o cuando el proyecto no tiene partidas.
+    if (
+      partidas.length === 0 ||
+      (partidasEditadas && partidas.every((p) => numeroValido(p.monto_ejecutado)))
+    ) {
       completados.push(9);
     }
 
@@ -91,84 +165,59 @@ export const useInformeFinalizacionForm = () => {
   // ============================================================
   // CARGAR INFORME
   // ============================================================
-  const cargarInforme = useCallback(async (proyectoId) => {
-    if (!proyectoId) return;
+  const cargarInforme = useCallback(
+    async (proyectoId) => {
+      if (!proyectoId) return;
 
-    setLoading(true);
-    setError(null);
-    setStep(1);
+      setLoading(true);
+      setError(null);
+      setStep(1);
+      setInformeData(null);
 
-    try {
-      const response = await obtenerInformeFinalizacion(proyectoId);
-      const data = response?.data ?? response;
+      try {
+        const response = await obtenerInformeFinalizacion(proyectoId);
+        aplicarInforme(response?.data ?? response);
+      } catch (err) {
+        console.error("Error al cargar el informe:", err);
 
-      setInformeData(data);
-
-      setTextos({
-        conclusiones: data?.informe_final?.conclusiones ?? "",
-        recomendaciones: data?.informe_final?.recomendaciones ?? "",
-        lecciones_aprendidas:
-          data?.informe_final?.lecciones_aprendidas ?? "",
-        medio_difusion: data?.informe_final?.medio_difusion ?? "",
-      });
-
-      setMetas(data?.resultados_alcanzados?.detalle_metas ?? []);
-      setPartidas(data?.presupuesto_detalle ?? []);
-
-      // La carga inicial no cuenta como edición del usuario.
-      setPartidasEditadas(false);
-    } catch (err) {
-      console.error("Error al cargar el informe:", err);
-
-      setError(
-        err?.response?.data?.detail ||
-          "No se pudo cargar la información del informe."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        setError(
+          err?.response?.data?.detail ||
+            "No se pudo cargar la información del informe."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [aplicarInforme]
+  );
 
   // ============================================================
   // CAMBIAR CAMPOS
   // ============================================================
   const cambiarTexto = (campo, valor) => {
-    setTextos((prev) => ({
-      ...prev,
-      [campo]: valor,
-    }));
+    if (campo === "medio_difusion" && valor.length > MAX_MEDIO_DIFUSION) {
+      valor = valor.slice(0, MAX_MEDIO_DIFUSION);
+    }
+
+    setTextos((prev) => ({ ...prev, [campo]: valor }));
   };
 
   const cambiarMeta = (id, valor) => {
-    if (
-      valor !== "" &&
-      (!Number.isFinite(Number(valor)) || Number(valor) < 0)
-    ) {
-      return;
-    }
+    if (valor !== "" && !numeroValido(valor)) return;
 
     setMetas((prev) =>
       prev.map((meta) =>
-        meta.id === id
-          ? { ...meta, valor_alcanzado: valor }
-          : meta
+        meta.id === id ? { ...meta, valor_alcanzado: valor } : meta
       )
     );
   };
 
   const cambiarPartida = (id, valor) => {
-    if (
-      valor !== "" &&
-      (!Number.isFinite(Number(valor)) || Number(valor) < 0)
-    ) {
-      return;
-    }
+    if (valor !== "" && !numeroValido(valor)) return;
 
     setPartidas((prev) =>
       prev.map((partida) =>
-        partida.id === id
-          ? { ...partida, monto_ejecutado: valor }
-          : partida
+        partida.id === id ? { ...partida, monto_ejecutado: valor } : partida
       )
     );
 
@@ -176,46 +225,44 @@ export const useInformeFinalizacionForm = () => {
   };
 
   // ============================================================
-  // VALIDAR ANTES DE GUARDAR O ENVIAR
+  // VALIDACIONES
   // ============================================================
-  const validarDatos = () => {
-    const metasInvalidas = metas.some((meta) => {
-      const valor = meta.valor_alcanzado;
 
-      return (
-        valor === null ||
-        valor === undefined ||
-        String(valor).trim() === "" ||
-        !Number.isFinite(Number(valor)) ||
-        Number(valor) < 0
-      );
-    });
-
-    if (metasInvalidas) {
-      setError(
-        "Completa todas las metas con valores numéricos iguales o mayores que cero."
-      );
+  // Guardar borrador: se permite guardar por partes, solo se rechazan
+  // valores que el backend no aceptaría.
+  const validarParaGuardar = () => {
+    if (metas.some((m) => !vacio(m.valor_alcanzado) && !numeroValido(m.valor_alcanzado))) {
+      setError("Los valores alcanzados de las metas deben ser números iguales o mayores que cero.");
       setStep(8);
       return false;
     }
 
-    const partidasInvalidas = partidas.some((partida) => {
-      const monto = partida.monto_ejecutado;
-
-      return (
-        monto === null ||
-        monto === undefined ||
-        String(monto).trim() === "" ||
-        !Number.isFinite(Number(monto)) ||
-        Number(monto) < 0
-      );
-    });
-
-    if (partidasInvalidas) {
-      setError(
-        "Completa todas las partidas presupuestales con montos iguales o mayores que cero."
-      );
+    if (partidas.some((p) => !vacio(p.monto_ejecutado) && !numeroValido(p.monto_ejecutado))) {
+      setError("Los montos ejecutados deben ser números iguales o mayores que cero.");
       setStep(9);
+      return false;
+    }
+
+    return true;
+  };
+
+  // Enviar: todos los textos y todas las metas son obligatorios.
+  const validarParaEnviar = () => {
+    if (!validarParaGuardar()) return false;
+
+    const faltantes = CAMPOS_TEXTO.filter((campo) => !textoLleno(textos[campo]));
+
+    if (faltantes.length > 0) {
+      setError(
+        `Completa los campos obligatorios (si no aplica, escribe "n/a"): ${nombresDeCampos(faltantes)}.`
+      );
+      setStep(PASO_DE_CAMPO[faltantes[0]]);
+      return false;
+    }
+
+    if (metas.some((m) => !numeroValido(m.valor_alcanzado))) {
+      setError("Completa el valor alcanzado de todas las metas.");
+      setStep(8);
       return false;
     }
 
@@ -226,31 +273,41 @@ export const useInformeFinalizacionForm = () => {
   // PAYLOAD PARA EL BACKEND
   // ============================================================
   const prepararPayload = () => ({
-    conclusiones: textos.conclusiones,
-    recomendaciones: textos.recomendaciones,
-    lecciones_aprendidas: textos.lecciones_aprendidas,
-    medio_difusion: textos.medio_difusion,
+    ...Object.fromEntries(
+      CAMPOS_TEXTO.map((campo) => [campo, textos[campo] ?? ""])
+    ),
 
-    metas: metas.map((meta) => ({
-      id: meta.id,
-      valor_alcanzado:
-        meta.valor_alcanzado === "" ||
-        meta.valor_alcanzado === null ||
-        meta.valor_alcanzado === undefined
-          ? null
-          : Number(meta.valor_alcanzado),
-    })),
+    // Solo se envían las metas y partidas que tienen valor: un guardado
+    // parcial no debe borrar ni invalidar las demás.
+    metas: metas
+      .filter((meta) => !vacio(meta.valor_alcanzado))
+      .map((meta) => ({
+        id: meta.id,
+        valor_alcanzado: Number(meta.valor_alcanzado),
+      })),
 
-    partidas: partidas.map((partida) => ({
-      id: partida.id,
-      monto_ejecutado:
-        partida.monto_ejecutado === "" ||
-        partida.monto_ejecutado === null ||
-        partida.monto_ejecutado === undefined
-          ? null
-          : Number(partida.monto_ejecutado),
-    })),
+    partidas: partidas
+      .filter((partida) => !vacio(partida.monto_ejecutado))
+      .map((partida) => ({
+        id: partida.id,
+        monto_ejecutado: Number(partida.monto_ejecutado),
+      })),
   });
+
+  // Convierte el error del backend en un mensaje legible.
+  const mensajeDeError = (err, porDefecto) => {
+    const data = err?.response?.data;
+    const pendientes = data?.errors?.campos_pendientes;
+
+    if (Array.isArray(pendientes) && pendientes.length > 0) {
+      const paso = PASO_DE_CAMPO[pendientes[0]];
+      if (paso) setStep(paso);
+
+      return `Faltan datos para enviar el informe: ${nombresDeCampos(pendientes)}.`;
+    }
+
+    return data?.detail || data?.error || porDefecto;
+  };
 
   // ============================================================
   // GUARDAR BORRADOR
@@ -261,28 +318,25 @@ export const useInformeFinalizacionForm = () => {
       return false;
     }
 
-    if (!validarDatos()) {
-      return false;
-    }
+    if (!validarParaGuardar()) return false;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const payload = prepararPayload();
+      const response = await guardarInformeFinalizacion(
+        proyectoId,
+        prepararPayload()
+      );
 
-      await guardarInformeFinalizacion(proyectoId, payload);
+      // El PATCH devuelve el informe completo: se refresca el formulario.
+      const data = response?.data ?? response;
+      if (data?.finalizacion) aplicarInforme(data);
 
       return true;
     } catch (err) {
       console.error("Error al guardar borrador:", err);
-      console.error("Detalle del backend:", err?.response?.data);
-
-      setError(
-        err?.response?.data?.detail ||
-          "No se pudo guardar el borrador."
-      );
-
+      setError(mensajeDeError(err, "No se pudo guardar el borrador."));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -290,7 +344,7 @@ export const useInformeFinalizacionForm = () => {
   };
 
   // ============================================================
-  // ENVIAR A REVISIÓN
+  // ENVIAR A REVISIÓN (guarda y envía en un paso)
   // ============================================================
   const enviarRevision = async (proyectoId) => {
     if (!proyectoId) {
@@ -298,31 +352,17 @@ export const useInformeFinalizacionForm = () => {
       return false;
     }
 
-    if (!validarDatos()) {
-      return false;
-    }
+    if (!validarParaEnviar()) return false;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const payload = prepararPayload();
-
-      await enviarInformeFinalizacion(proyectoId, payload);
-
+      await enviarInformeFinalizacion(proyectoId, prepararPayload());
       return true;
     } catch (err) {
-      console.error("Error completo al enviar a revisión:", err);
-      console.error("Respuesta del backend:", err?.response?.data);
-      console.error("Código de estado:", err?.response?.status);
-
-      const backendMessage =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        "No se pudo enviar el informe a revisión.";
-
-      setError(backendMessage);
-
+      console.error("Error al enviar a revisión:", err);
+      setError(mensajeDeError(err, "No se pudo enviar el informe a revisión."));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -355,6 +395,7 @@ export const useInformeFinalizacionForm = () => {
     pasosCompletados,
 
     informeData,
+    puedeEditar,
     textos,
     metas,
     partidas,

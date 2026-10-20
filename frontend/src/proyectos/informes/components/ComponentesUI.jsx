@@ -20,7 +20,7 @@ export const CampoLectura = ({ label, value }) => (
   </div>
 );
 
-export const CampoTexto = ({ label, obligatorio = false, disabled = false, value, onChange }) => (
+export const CampoTexto = ({ label, obligatorio = false, disabled = false, value, onChange, maxLength, altura = "min-h-[150px]" }) => (
   <div>
     <label className="block text-xs font-semibold text-slate-700 mb-2">
       {label} {obligatorio && <span className="text-red-500">*</span>}
@@ -28,9 +28,15 @@ export const CampoTexto = ({ label, obligatorio = false, disabled = false, value
     <textarea 
       value={value} 
       disabled={disabled} 
+      maxLength={maxLength}
       onChange={(e) => onChange(e.target.value)} 
-      className="w-full min-h-[150px] p-3 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#b1122b] disabled:bg-slate-50" 
+      className={`w-full ${altura} p-3 border border-slate-200 rounded-lg text-xs outline-none focus:border-[#b1122b] disabled:bg-slate-50`} 
     />
+    {maxLength && (
+      <p className="text-[10px] text-slate-400 mt-1 text-right">
+        {(value || "").length}/{maxLength}
+      </p>
+    )}
   </div>
 );
 
@@ -42,4 +48,4 @@ export const Indicador = ({ icon, titulo, valor }) => (
     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{titulo}</p>
     <p className="text-xl font-bold text-slate-800 mt-1">{valor}</p>
   </div>
-);
+);

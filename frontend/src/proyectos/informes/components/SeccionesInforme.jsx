@@ -81,16 +81,42 @@ export const SeccionDatosGenerales = ({ informe }) => (
 // =====================================================
 // PASO 2: FORTALEZAS Y LIMITACIONES
 // =====================================================
-export const SeccionFortalezas = () => (
+const CAMPOS_FORTALEZAS = [
+  ["fortalezas", "Fortalezas"],
+  ["oportunidades", "Oportunidades"],
+  ["aliados", "Principales aliados"],
+  ["debilidades", "Debilidades"],
+  ["amenazas", "Amenazas"],
+];
+
+export const SeccionFortalezas = ({ textos, onChange, puedeEditar }) => (
   <ContenedorPaso
     titulo="Fortalezas y limitaciones"
-    descripcion="Evaluación general"
+    descripcion='Todos los campos son obligatorios para enviar. Si no aplica, escribe "n/a".'
   >
-    <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-      <p className="text-xs text-slate-500">
-        Esta sección se nutre automáticamente a partir de los seguimientos
-        aprobados.
-      </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {CAMPOS_FORTALEZAS.map(([campo, label]) => (
+        <CampoTexto
+          key={campo}
+          label={label}
+          obligatorio
+          altura="min-h-[110px]"
+          disabled={!puedeEditar}
+          value={textos[campo] ?? ""}
+          onChange={(v) => onChange(campo, v)}
+        />
+      ))}
+
+      <div className="md:col-span-2">
+        <CampoTexto
+          label="Estrategias empleadas para superar las limitaciones"
+          obligatorio
+          altura="min-h-[110px]"
+          disabled={!puedeEditar}
+          value={textos.estrategias ?? ""}
+          onChange={(v) => onChange("estrategias", v)}
+        />
+      </div>
     </div>
   </ContenedorPaso>
 );
@@ -98,7 +124,13 @@ export const SeccionFortalezas = () => (
 // =====================================================
 // PASO 3: RESULTADOS
 // =====================================================
-export const SeccionResultados = ({ avance, esperados }) => (
+export const SeccionResultados = ({
+  avance,
+  esperados,
+  textos,
+  onChange,
+  puedeEditar,
+}) => (
   <ContenedorPaso
     titulo="Resultados"
     descripcion="Progreso actual de ejecución."
@@ -118,14 +150,18 @@ export const SeccionResultados = ({ avance, esperados }) => (
 
       <Indicador
         icon={<FiTarget />}
-        titulo="Avances Reg."
-        valor={avance?.avances_registrados ?? 0}
+        titulo="Actividades"
+        valor={avance?.actividades_total ?? 0}
       />
 
       <Indicador
         icon={<FiCheckCircle />}
-        titulo="Evidencias"
-        valor={avance?.evidencias_vigentes ?? 0}
+        titulo="Pendientes"
+        valor={Math.max(
+          (avance?.actividades_total ?? 0) -
+            (avance?.actividades_completadas ?? 0),
+          0
+        )}
       />
     </div>
 
@@ -152,11 +188,63 @@ export const SeccionResultados = ({ avance, esperados }) => (
         </p>
       </div>
     </div>
+
+    <h4 className="text-sm font-bold text-slate-800 mt-8 mb-4">
+      Resultados alcanzados
+    </h4>
+
+    <div className="space-y-5">
+      <CampoTexto
+        label="Resultados en el grupo destinatario"
+        obligatorio
+        altura="min-h-[110px]"
+        disabled={!puedeEditar}
+        value={textos.resultado_grupo_destinatario ?? ""}
+        onChange={(v) => onChange("resultado_grupo_destinatario", v)}
+      />
+
+      <CampoTexto
+        label="Resultados en el desarrollo curricular"
+        obligatorio
+        altura="min-h-[110px]"
+        disabled={!puedeEditar}
+        value={textos.resultado_desarrollo_curricular ?? ""}
+        onChange={(v) => onChange("resultado_desarrollo_curricular", v)}
+      />
+    </div>
   </ContenedorPaso>
 );
 
 // =====================================================
-// PASOS 4, 5 Y 6: CAMPOS DE TEXTO
+// PASO 4: LECCIONES APRENDIDAS
+// =====================================================
+export const SeccionLecciones = ({ textos, onChange, puedeEditar }) => (
+  <ContenedorPaso
+    titulo="Lecciones aprendidas"
+    descripcion='Ambos campos son obligatorios para enviar. Si no aplica, escribe "n/a".'
+  >
+    <div className="space-y-5">
+      <CampoTexto
+        label="Análisis"
+        obligatorio
+        disabled={!puedeEditar}
+        value={textos.lecciones_analisis ?? ""}
+        onChange={(v) => onChange("lecciones_analisis", v)}
+      />
+
+      <CampoTexto
+        label="Reflexiones"
+        obligatorio
+        disabled={!puedeEditar}
+        value={textos.lecciones_reflexiones ?? ""}
+        onChange={(v) => onChange("lecciones_reflexiones", v)}
+      />
+    </div>
+  </ContenedorPaso>
+);
+
+// =====================================================
+// PASOS 5 Y 6: CAMPOS DE TEXTO
 // =====================================================
 export const SeccionTextosSimple = ({
   titulo,
@@ -165,11 +253,13 @@ export const SeccionTextosSimple = ({
   valor,
   onChange,
   puedeEditar,
+  maxLength,
 }) => (
   <ContenedorPaso titulo={titulo} descripcion={descripcion}>
     <CampoTexto
       label={label}
       obligatorio
+      maxLength={maxLength}
       disabled={!puedeEditar}
       value={valor}
       onChange={onChange}
@@ -183,7 +273,7 @@ export const SeccionTextosSimple = ({
 export const SeccionCronologia = ({ actividades }) => (
   <ContenedorPaso
     titulo="Cronología"
-    descripcion="Avances registrados y actividades del proyecto."
+    descripcion="Actividades y acciones realizadas durante el proyecto."
   >
     <div className="space-y-4">
       {!actividades || actividades.length === 0 ? (
@@ -196,38 +286,40 @@ export const SeccionCronologia = ({ actividades }) => (
             key={act.id}
             className="border border-slate-200 rounded-xl overflow-hidden"
           >
-            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center gap-3">
               <h4 className="text-sm font-bold text-slate-700">
                 {act.nombre}
               </h4>
 
-              <span className="text-[9px] uppercase px-2 py-1 rounded-full bg-slate-200 font-bold text-slate-600">
-                {act.estado_display}
+              <span className="text-[9px] uppercase px-2 py-1 rounded-full bg-slate-200 font-bold text-slate-600 shrink-0">
+                {act.estado_display || act.estado}
               </span>
             </div>
 
             <div className="p-4">
-              <p className="text-xs text-slate-600 mb-3">
-                {act.descripcion}
-              </p>
+              {act.descripcion && (
+                <p className="text-xs text-slate-600 mb-3">
+                  {act.descripcion}
+                </p>
+              )}
 
-              {act.avances && act.avances.length > 0 ? (
+              {act.acciones && act.acciones.length > 0 ? (
                 <div className="space-y-2 border-l-2 border-[#b1122b]/30 pl-4 mt-2">
-                  {act.avances.map((av) => (
-                    <div key={av.id}>
+                  {act.acciones.map((accion) => (
+                    <div key={accion.id}>
                       <p className="text-xs font-semibold text-slate-700">
-                        {av.descripcion}
+                        {accion.descripcion}
                       </p>
                       <p className="text-[10px] text-slate-400">
-                        {new Date(av.created_at).toLocaleDateString()} - Por{" "}
-                        {av.autor}
+                        {accion.fecha_inicio || "—"} a{" "}
+                        {accion.fecha_fin || "—"}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="text-[10px] text-slate-400">
-                  Sin avances reportados.
+                  Sin acciones registradas.
                 </p>
               )}
             </div>
@@ -443,15 +535,83 @@ export const SeccionPresupuesto = ({
 // =====================================================
 // PASO 10: EVIDENCIAS
 // =====================================================
-export const SeccionEvidencias = () => (
-  <ContenedorPaso
-    titulo="Evidencias y Anexos"
-    descripcion="Gestión de evidencias finales del proyecto."
-  >
-    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
-      <p className="text-xs text-slate-500">
-        Módulo de carga de evidencias conectado desde la vista de seguimiento.
+export const SeccionEvidencias = ({ actividades }) => {
+  const evidencias = (actividades || []).flatMap((act) =>
+    (act.evidencias || []).map((ev) => ({ ...ev, actividad: act.nombre }))
+  );
+
+  return (
+    <ContenedorPaso
+      titulo="Evidencias y anexos"
+      descripcion="Evidencias registradas en las actividades del proyecto."
+    >
+      {evidencias.length === 0 ? (
+        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
+          <p className="text-xs text-slate-500">
+            El proyecto no tiene evidencias registradas.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {evidencias.map((ev) => (
+            <li
+              key={ev.id}
+              className="flex items-center justify-between gap-3 border border-slate-200 rounded-lg px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-700 truncate">
+                  {ev.nombre}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate">
+                  {ev.actividad} · {ev.tipo}
+                </p>
+              </div>
+
+              {ev.url && (
+                <a
+                  href={ev.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-semibold text-[#b1122b] hover:underline shrink-0"
+                >
+                  Abrir
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </ContenedorPaso>
+  );
+};
+
+// =====================================================
+// COMENTARIOS DEL DEPARTAMENTO
+// =====================================================
+export const PanelObservaciones = ({ observaciones }) => {
+  if (!observaciones || observaciones.length === 0) return null;
+
+  return (
+    <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
+      <p className="text-sm font-bold text-amber-900 m-0">
+        Comentarios del Departamento
       </p>
+
+      <div className="mt-3 space-y-3">
+        {observaciones.map((obs) => (
+          <div key={obs.id} className="border-l-2 border-amber-400 pl-3">
+            <p className="text-sm text-amber-950 m-0 whitespace-pre-line">
+              {obs.comentario}
+            </p>
+            <p className="text-[10px] text-amber-700 m-0 mt-1">
+              {obs.revisor}
+              {obs.created_at
+                ? ` · ${new Date(obs.created_at).toLocaleDateString()}`
+                : ""}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
-  </ContenedorPaso>
-);
+  );
+};

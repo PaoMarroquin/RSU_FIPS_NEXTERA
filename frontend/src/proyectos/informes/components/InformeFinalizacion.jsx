@@ -4,11 +4,17 @@ import {
   FiArrowLeft,
   FiAlertTriangle,
   FiRefreshCw,
+  FiDownload,
+  FiInfo,
 } from "react-icons/fi";
 import { useToast } from "../../../shared/context/ToastContext";
 
 import { useProyectosListado } from "../../listar/hooks/useProyectosListado";
-import { useInformeFinalizacionForm } from "../hooks/useInformeFinalizacionForm";
+import {
+  useInformeFinalizacionForm,
+  MAX_MEDIO_DIFUSION,
+} from "../hooks/useInformeFinalizacionForm";
+import { descargarInformeFinalizacionPDF } from "../hooks/informefinalizado";
 
 import { BuscadorProyectos } from "../components/BuscadorProyectos";
 import StepperFinalizacion from "../components/StepperFinalizacion";
@@ -18,11 +24,13 @@ import {
   SeccionDatosGenerales,
   SeccionFortalezas,
   SeccionResultados,
+  SeccionLecciones,
   SeccionTextosSimple,
   SeccionCronologia,
   SeccionMetas,
   SeccionPresupuesto,
   SeccionEvidencias,
+  PanelObservaciones,
 } from "../components/SeccionesInforme";
 
 export default function InformeFinalizacion() {
@@ -50,6 +58,7 @@ export default function InformeFinalizacion() {
     goToStep,
     pasosCompletados,
     informeData,
+    puedeEditar,
     textos,
     metas,
     partidas,
@@ -87,7 +96,6 @@ export default function InformeFinalizacion() {
 
     if (exito) {
       showToast("success", "Borrador guardado exitosamente.");
-      setProyectoSeleccionado(null);
     }
   };
 
@@ -104,10 +112,56 @@ const handleFinalizarYEnviar = async () => {
 };
 
 
-  const estadoInforme = informeData?.finalizacion?.estado || "borrador";
+  const finalizacion = informeData?.finalizacion;
+  const estadoInforme = finalizacion?.estado || "borrador";
 
-  const puedeEditar =
-    estadoInforme === "borrador" || estadoInforme === "observado";
+  // Descarga el PDF oficial del informe.
+  const handleDescargarPDF = async () => {
+    if (!proyectoSeleccionado?.id) return;
+
+    try {
+      const response = await descargarInformeFinalizacionPDF(
+        proyectoSeleccionado.id
+      );
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" })
+      );
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `informe-finalizacion-${proyectoSeleccionado.codigo || proyectoSeleccionado.id}.pdf`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al descargar el PDF:", err);
+      showToast("error", "No se pudo descargar el PDF del informe.");
+    }
+  };
+
+  // Mensaje que explica por qué el formulario está bloqueado.
+  const avisoBloqueo = (() => {
+    if (!finalizacion || finalizacion.editable) return null;
+
+    if (informeData?.estado === "finalizado") {
+      return "El proyecto ya está finalizado: su Informe de Finalización ya no se puede modificar.";
+    }
+
+    if (!finalizacion.habilitado) {
+      return "El Informe de Finalización se habilita cuando todas las actividades del proyecto están completadas.";
+    }
+
+    if (estadoInforme === "enviado") {
+      return "El informe fue enviado al Departamento y está en revisión. No se puede modificar.";
+    }
+
+    if (estadoInforme === "aprobado") {
+      return "El informe ya fue aprobado y no se puede modificar.";
+    }
+
+    return "El informe no se puede modificar en este momento.";
+  })();
 
   // Renderizar el paso actual
   const renderCurrentStep = () => {
@@ -127,26 +181,30 @@ const handleFinalizarYEnviar = async () => {
         return <SeccionDatosGenerales informe={informeData} />;
 
       case 2:
-        return <SeccionFortalezas />;
+        return (
+          <SeccionFortalezas
+            textos={textos}
+            onChange={cambiarTexto}
+            puedeEditar={puedeEditar}
+          />
+        );
 
       case 3:
         return (
           <SeccionResultados
             avance={informeData?.resultados_alcanzados?.avance}
             esperados={informeData?.resultados_esperados}
+            textos={textos}
+            onChange={cambiarTexto}
+            puedeEditar={puedeEditar}
           />
         );
 
       case 4:
         return (
-          <SeccionTextosSimple
-            titulo="Lecciones Aprendidas"
-            descripcion="Analice la experiencia, obstáculos superados y aprendizajes."
-            label="Lecciones aprendidas"
-            valor={textos.lecciones_aprendidas}
-            onChange={(v) =>
-              cambiarTexto("lecciones_aprendidas", v)
-            }
+          <SeccionLecciones
+            textos={textos}
+            onChange={cambiarTexto}
             puedeEditar={puedeEditar}
           />
         );
@@ -186,6 +244,7 @@ const handleFinalizarYEnviar = async () => {
                 cambiarTexto("medio_difusion", v)
               }
               puedeEditar={puedeEditar}
+              maxLength={MAX_MEDIO_DIFUSION}
             />
           </div>
         );
@@ -216,7 +275,11 @@ const handleFinalizarYEnviar = async () => {
         );
 
       case 10:
-        return <SeccionEvidencias />;
+        return (
+          <SeccionEvidencias
+            actividades={informeData?.ejecucion?.actividades}
+          />
+        );
 
       default:
         return null;
@@ -264,15 +327,43 @@ const handleFinalizarYEnviar = async () => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleVolver}
-                className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <FiArrowLeft />
-                Volver a proyectos
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                {informeData && (
+                  <button
+                    type="button"
+                    onClick={handleDescargarPDF}
+                    className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <FiDownload />
+                    Descargar PDF
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleVolver}
+                  className="h-9 px-4 border border-slate-300 bg-white rounded-md text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiArrowLeft />
+                  Volver a proyectos
+                </button>
+              </div>
             </div>
+
+            {/* Estado del informe */}
+            {avisoBloqueo && !loadingInforme && (
+              <div className="flex gap-3 p-4 mb-6 rounded-xl border border-blue-200 bg-blue-50">
+                <FiInfo className="text-blue-600 text-xl shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-900 m-0">{avisoBloqueo}</p>
+              </div>
+            )}
+
+            {/* Comentarios del Departamento */}
+            {!loadingInforme && (
+              <PanelObservaciones
+                observaciones={informeData?.observaciones}
+              />
+            )}
 
             {/* Alerta de errores */}
             {error && (
