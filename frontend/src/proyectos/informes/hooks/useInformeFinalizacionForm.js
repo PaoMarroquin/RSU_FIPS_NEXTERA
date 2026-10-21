@@ -254,7 +254,7 @@ export const useInformeFinalizacionForm = () => {
 
     if (faltantes.length > 0) {
       setError(
-        `Completa los campos obligatorios (si no aplica, escribe "n/a"): ${nombresDeCampos(faltantes)}.`
+        `Completa los campos obligatorios: ${nombresDeCampos(faltantes)}.`
       );
       setStep(PASO_DE_CAMPO[faltantes[0]]);
       return false;

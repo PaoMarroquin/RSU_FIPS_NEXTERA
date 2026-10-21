@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import Layout from "../../../shared/layout/Layout";
 import {
@@ -36,7 +37,7 @@ import {
 export default function InformeFinalizacion() {
   const { showToast } = useToast();
 
-  // Listado de proyectos
+  // La API devuelve los proyectos en ejecución.
   const {
     projectsDb = [],
     loading: loadingProyectos,
@@ -50,7 +51,27 @@ export default function InformeFinalizacion() {
 
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
 
-  // Formulario de finalización
+  // Mostrar proyectos con todas sus actividades completadas
+  // o que ya tengan un informe enviado/aprobado.
+  const proyectosElegibles = projectsDb.filter((proyecto) => {
+    const actividades = proyecto.actividades ?? [];
+    const estadoInforme = proyecto.informe_finalizacion_estado;
+
+    const todasActividadesCompletadas =
+      actividades.length > 0 &&
+      actividades.every(
+        (actividad) => actividad.estado === "completada"
+      );
+
+    const informeYaEnviado = [
+      "enviado",
+      "aprobado",
+    ].includes(estadoInforme);
+
+    return todasActividadesCompletadas || informeYaEnviado;
+  });
+
+  // Formulario de finalización.
   const {
     step,
     nextStep,
@@ -74,7 +95,7 @@ export default function InformeFinalizacion() {
     enviarRevision,
   } = useInformeFinalizacionForm();
 
-  // Seleccionar proyecto
+  // Seleccionar proyecto.
   const handleSeleccionarProyecto = async (proyecto) => {
     if (!proyecto?.id) return;
 
@@ -82,13 +103,13 @@ export default function InformeFinalizacion() {
     await cargarInforme(proyecto.id);
   };
 
-  // Volver al listado
+  // Volver al listado.
   const handleVolver = () => {
     setProyectoSeleccionado(null);
     setError(null);
   };
 
-  // Guardar borrador
+  // Guardar borrador.
   const handleGuardarBorrador = async () => {
     if (!proyectoSeleccionado?.id) return;
 
@@ -99,23 +120,22 @@ export default function InformeFinalizacion() {
     }
   };
 
-// Enviar informe a revisión
-const handleFinalizarYEnviar = async () => {
-  if (!proyectoSeleccionado?.id) return;
+  // Enviar informe a revisión.
+  const handleFinalizarYEnviar = async () => {
+    if (!proyectoSeleccionado?.id) return;
 
-  const exito = await enviarRevision(proyectoSeleccionado.id);
+    const exito = await enviarRevision(proyectoSeleccionado.id);
 
-  if (exito) {
-    showToast("success", "Informe enviado correctamente.");
-    setProyectoSeleccionado(null);
-  }
-};
-
+    if (exito) {
+      showToast("success", "Informe enviado correctamente.");
+      setProyectoSeleccionado(null);
+    }
+  };
 
   const finalizacion = informeData?.finalizacion;
   const estadoInforme = finalizacion?.estado || "borrador";
 
-  // Descarga el PDF oficial del informe.
+  // Descargar el PDF oficial del informe.
   const handleDescargarPDF = async () => {
     if (!proyectoSeleccionado?.id) return;
 
@@ -127,9 +147,13 @@ const handleFinalizarYEnviar = async () => {
       const url = window.URL.createObjectURL(
         new Blob([response.data], { type: "application/pdf" })
       );
+
       const enlace = document.createElement("a");
       enlace.href = url;
-      enlace.download = `informe-finalizacion-${proyectoSeleccionado.codigo || proyectoSeleccionado.id}.pdf`;
+      enlace.download = `informe-finalizacion-${
+        proyectoSeleccionado.codigo || proyectoSeleccionado.id
+      }.pdf`;
+
       document.body.appendChild(enlace);
       enlace.click();
       enlace.remove();
@@ -163,7 +187,7 @@ const handleFinalizarYEnviar = async () => {
     return "El informe no se puede modificar en este momento.";
   })();
 
-  // Renderizar el paso actual
+  // Renderizar el paso actual.
   const renderCurrentStep = () => {
     if (loadingInforme) {
       return (
@@ -229,9 +253,7 @@ const handleFinalizarYEnviar = async () => {
               descripcion="Sugerencias para futuros proyectos."
               label="Recomendaciones"
               valor={textos.recomendaciones}
-              onChange={(v) =>
-                cambiarTexto("recomendaciones", v)
-              }
+              onChange={(v) => cambiarTexto("recomendaciones", v)}
               puedeEditar={puedeEditar}
             />
 
@@ -240,9 +262,7 @@ const handleFinalizarYEnviar = async () => {
               descripcion="Cómo se difundieron los resultados de este proyecto."
               label="Medio de difusión"
               valor={textos.medio_difusion}
-              onChange={(v) =>
-                cambiarTexto("medio_difusion", v)
-              }
+              onChange={(v) => cambiarTexto("medio_difusion", v)}
               puedeEditar={puedeEditar}
               maxLength={MAX_MEDIO_DIFUSION}
             />
@@ -288,7 +308,6 @@ const handleFinalizarYEnviar = async () => {
 
   return (
     <Layout>
-      {/* Mismo contenedor principal que Actividades.jsx */}
       <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
         {!proyectoSeleccionado ? (
           <>
@@ -299,17 +318,17 @@ const handleFinalizarYEnviar = async () => {
               </h1>
 
               <p className="text-slate-500 text-sm m-0 mt-1">
-                Selecciona un proyecto para emitir su informe de cierre.
+                Selecciona un proyecto para emitir o consultar su informe de cierre.
               </p>
             </div>
 
-            {/* Buscador de proyectos */}
+            {/* Buscador con proyectos elegibles */}
             <BuscadorProyectos
               busquedaProyecto={busquedaProyecto}
               setBusquedaProyecto={setBusquedaProyecto}
               setSearchTerm={setSearchTerm}
               loading={loadingProyectos}
-              proyectos={projectsDb}
+              proyectos={proyectosElegibles}
               seleccionarProyecto={handleSeleccionarProyecto}
             />
           </>
@@ -354,7 +373,9 @@ const handleFinalizarYEnviar = async () => {
             {avisoBloqueo && !loadingInforme && (
               <div className="flex gap-3 p-4 mb-6 rounded-xl border border-blue-200 bg-blue-50">
                 <FiInfo className="text-blue-600 text-xl shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-900 m-0">{avisoBloqueo}</p>
+                <p className="text-sm text-blue-900 m-0">
+                  {avisoBloqueo}
+                </p>
               </div>
             )}
 
