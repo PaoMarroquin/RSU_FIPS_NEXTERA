@@ -5,7 +5,7 @@ import {
   enviarInformeFinalizacion,
 } from "./informefinalizado";
 
-// Campos de texto que llena el docente (contrato del informe, formato OURS).
+// Campos de texto que llena el docente.
 export const CAMPOS_TEXTO = [
   "fortalezas",
   "oportunidades",
@@ -41,7 +41,7 @@ const ETIQUETAS = {
   metas_valor_alcanzado: "Valor alcanzado de las metas",
 };
 
-// Paso del formulario donde se llena cada campo.
+// Paso en el que se completa cada campo.
 const PASO_DE_CAMPO = {
   fortalezas: 2,
   oportunidades: 2,
@@ -56,8 +56,10 @@ const PASO_DE_CAMPO = {
   conclusiones: 5,
   recomendaciones: 6,
   medio_difusion: 6,
-  metas_valor_alcanzado: 8,
+  metas_valor_alcanzado: 9,
 };
+
+const TOTAL_PASOS = 11;
 
 const textosVacios = () =>
   Object.fromEntries(CAMPOS_TEXTO.map((campo) => [campo, ""]));
@@ -90,20 +92,24 @@ export const useInformeFinalizacionForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // El backend decide si el formulario se puede editar.
+  // El backend determina si el informe puede editarse.
   const finalizacion = informeData?.finalizacion;
   const puedeEditar = Boolean(finalizacion?.editable);
 
   // ============================================================
-  // CARGAR DATOS DEL BACKEND AL FORMULARIO
+  // CARGAR DATOS DEL BACKEND
   // ============================================================
   const aplicarInforme = useCallback((data) => {
     setInformeData(data);
 
     const informe = data?.informe_final ?? {};
+
     setTextos(
       Object.fromEntries(
-        CAMPOS_TEXTO.map((campo) => [campo, informe[campo] ?? ""])
+        CAMPOS_TEXTO.map((campo) => [
+          campo,
+          informe[campo] ?? "",
+        ])
       )
     );
 
@@ -115,12 +121,17 @@ export const useInformeFinalizacionForm = () => {
   }, []);
 
   // ============================================================
-  // CÁLCULO DINÁMICO DE PASOS COMPLETADOS
+  // PASOS COMPLETADOS
   // ============================================================
   const pasosCompletados = useMemo(() => {
-    // I, VII y X son de solo lectura.
-    const completados = [1, 7, 10];
-    const llenos = (campos) => campos.every((c) => textoLleno(textos[c]));
+    // Paso 1: datos generales.
+    // Paso 7: cronología.
+    // Paso 8: recursos, mostrados desde la información del backend.
+    // Paso 11: evidencias, mostradas desde las actividades.
+    const completados = [1, 7, 8, 11];
+
+    const llenos = (campos) =>
+      campos.every((campo) => textoLleno(textos[campo]));
 
     if (
       llenos([
@@ -135,28 +146,49 @@ export const useInformeFinalizacionForm = () => {
       completados.push(2);
     }
 
-    if (llenos(["resultado_grupo_destinatario", "resultado_desarrollo_curricular"])) {
+    if (
+      llenos([
+        "resultado_grupo_destinatario",
+        "resultado_desarrollo_curricular",
+      ])
+    ) {
       completados.push(3);
     }
 
-    if (llenos(["lecciones_analisis", "lecciones_reflexiones"])) {
+    if (
+      llenos([
+        "lecciones_analisis",
+        "lecciones_reflexiones",
+      ])
+    ) {
       completados.push(4);
     }
 
-    if (llenos(["conclusiones"])) completados.push(5);
-    if (llenos(["recomendaciones", "medio_difusion"])) completados.push(6);
-
-    if (metas.length > 0 && metas.every((m) => numeroValido(m.valor_alcanzado))) {
-      completados.push(8);
+    if (llenos(["conclusiones"])) {
+      completados.push(5);
     }
 
-    // Las partidas son opcionales: el paso cuenta como completo cuando el
-    // usuario las llenó, o cuando el proyecto no tiene partidas.
+    if (llenos(["recomendaciones", "medio_difusion"])) {
+      completados.push(6);
+    }
+
+    // Paso 9: todas las metas deben tener un valor alcanzado.
     if (
-      partidas.length === 0 ||
-      (partidasEditadas && partidas.every((p) => numeroValido(p.monto_ejecutado)))
+      metas.length > 0 &&
+      metas.every((meta) => numeroValido(meta.valor_alcanzado))
     ) {
       completados.push(9);
+    }
+
+    // Paso 10: presupuesto.
+    if (
+      partidas.length === 0 ||
+      (partidasEditadas &&
+        partidas.every((partida) =>
+          numeroValido(partida.monto_ejecutado)
+        ))
+    ) {
+      completados.push(10);
     }
 
     return completados;
@@ -195,11 +227,17 @@ export const useInformeFinalizacionForm = () => {
   // CAMBIAR CAMPOS
   // ============================================================
   const cambiarTexto = (campo, valor) => {
-    if (campo === "medio_difusion" && valor.length > MAX_MEDIO_DIFUSION) {
+    if (
+      campo === "medio_difusion" &&
+      valor.length > MAX_MEDIO_DIFUSION
+    ) {
       valor = valor.slice(0, MAX_MEDIO_DIFUSION);
     }
 
-    setTextos((prev) => ({ ...prev, [campo]: valor }));
+    setTextos((prev) => ({
+      ...prev,
+      [campo]: valor,
+    }));
   };
 
   const cambiarMeta = (id, valor) => {
@@ -207,7 +245,9 @@ export const useInformeFinalizacionForm = () => {
 
     setMetas((prev) =>
       prev.map((meta) =>
-        meta.id === id ? { ...meta, valor_alcanzado: valor } : meta
+        meta.id === id
+          ? { ...meta, valor_alcanzado: valor }
+          : meta
       )
     );
   };
@@ -217,7 +257,9 @@ export const useInformeFinalizacionForm = () => {
 
     setPartidas((prev) =>
       prev.map((partida) =>
-        partida.id === id ? { ...partida, monto_ejecutado: valor } : partida
+        partida.id === id
+          ? { ...partida, monto_ejecutado: valor }
+          : partida
       )
     );
 
@@ -227,30 +269,44 @@ export const useInformeFinalizacionForm = () => {
   // ============================================================
   // VALIDACIONES
   // ============================================================
-
-  // Guardar borrador: se permite guardar por partes, solo se rechazan
-  // valores que el backend no aceptaría.
   const validarParaGuardar = () => {
-    if (metas.some((m) => !vacio(m.valor_alcanzado) && !numeroValido(m.valor_alcanzado))) {
-      setError("Los valores alcanzados de las metas deben ser números iguales o mayores que cero.");
-      setStep(8);
+    if (
+      metas.some(
+        (meta) =>
+          !vacio(meta.valor_alcanzado) &&
+          !numeroValido(meta.valor_alcanzado)
+      )
+    ) {
+      setError(
+        "Los valores alcanzados de las metas deben ser números iguales o mayores que cero."
+      );
+      setStep(9);
       return false;
     }
 
-    if (partidas.some((p) => !vacio(p.monto_ejecutado) && !numeroValido(p.monto_ejecutado))) {
-      setError("Los montos ejecutados deben ser números iguales o mayores que cero.");
-      setStep(9);
+    if (
+      partidas.some(
+        (partida) =>
+          !vacio(partida.monto_ejecutado) &&
+          !numeroValido(partida.monto_ejecutado)
+      )
+    ) {
+      setError(
+        "Los montos ejecutados deben ser números iguales o mayores que cero."
+      );
+      setStep(10);
       return false;
     }
 
     return true;
   };
 
-  // Enviar: todos los textos y todas las metas son obligatorios.
   const validarParaEnviar = () => {
     if (!validarParaGuardar()) return false;
 
-    const faltantes = CAMPOS_TEXTO.filter((campo) => !textoLleno(textos[campo]));
+    const faltantes = CAMPOS_TEXTO.filter(
+      (campo) => !textoLleno(textos[campo])
+    );
 
     if (faltantes.length > 0) {
       setError(
@@ -260,9 +316,13 @@ export const useInformeFinalizacionForm = () => {
       return false;
     }
 
-    if (metas.some((m) => !numeroValido(m.valor_alcanzado))) {
+    if (
+      metas.some(
+        (meta) => !numeroValido(meta.valor_alcanzado)
+      )
+    ) {
       setError("Completa el valor alcanzado de todas las metas.");
-      setStep(8);
+      setStep(9);
       return false;
     }
 
@@ -270,15 +330,16 @@ export const useInformeFinalizacionForm = () => {
   };
 
   // ============================================================
-  // PAYLOAD PARA EL BACKEND
+  // PREPARAR DATOS PARA EL BACKEND
   // ============================================================
   const prepararPayload = () => ({
     ...Object.fromEntries(
-      CAMPOS_TEXTO.map((campo) => [campo, textos[campo] ?? ""])
+      CAMPOS_TEXTO.map((campo) => [
+        campo,
+        textos[campo] ?? "",
+      ])
     ),
 
-    // Solo se envían las metas y partidas que tienen valor: un guardado
-    // parcial no debe borrar ni invalidar las demás.
     metas: metas
       .filter((meta) => !vacio(meta.valor_alcanzado))
       .map((meta) => ({
@@ -294,13 +355,16 @@ export const useInformeFinalizacionForm = () => {
       })),
   });
 
-  // Convierte el error del backend en un mensaje legible.
+  // ============================================================
+  // MENSAJES DE ERROR DEL BACKEND
+  // ============================================================
   const mensajeDeError = (err, porDefecto) => {
     const data = err?.response?.data;
     const pendientes = data?.errors?.campos_pendientes;
 
     if (Array.isArray(pendientes) && pendientes.length > 0) {
       const paso = PASO_DE_CAMPO[pendientes[0]];
+
       if (paso) setStep(paso);
 
       return `Faltan datos para enviar el informe: ${nombresDeCampos(pendientes)}.`;
@@ -329,14 +393,20 @@ export const useInformeFinalizacionForm = () => {
         prepararPayload()
       );
 
-      // El PATCH devuelve el informe completo: se refresca el formulario.
       const data = response?.data ?? response;
-      if (data?.finalizacion) aplicarInforme(data);
+
+      if (data?.finalizacion) {
+        aplicarInforme(data);
+      }
 
       return true;
     } catch (err) {
       console.error("Error al guardar borrador:", err);
-      setError(mensajeDeError(err, "No se pudo guardar el borrador."));
+
+      setError(
+        mensajeDeError(err, "No se pudo guardar el borrador.")
+      );
+
       return false;
     } finally {
       setIsSubmitting(false);
@@ -344,7 +414,7 @@ export const useInformeFinalizacionForm = () => {
   };
 
   // ============================================================
-  // ENVIAR A REVISIÓN (guarda y envía en un paso)
+  // ENVIAR A REVISIÓN
   // ============================================================
   const enviarRevision = async (proyectoId) => {
     if (!proyectoId) {
@@ -358,11 +428,22 @@ export const useInformeFinalizacionForm = () => {
     setError(null);
 
     try {
-      await enviarInformeFinalizacion(proyectoId, prepararPayload());
+      await enviarInformeFinalizacion(
+        proyectoId,
+        prepararPayload()
+      );
+
       return true;
     } catch (err) {
       console.error("Error al enviar a revisión:", err);
-      setError(mensajeDeError(err, "No se pudo enviar el informe a revisión."));
+
+      setError(
+        mensajeDeError(
+          err,
+          "No se pudo enviar el informe a revisión."
+        )
+      );
+
       return false;
     } finally {
       setIsSubmitting(false);
@@ -370,10 +451,10 @@ export const useInformeFinalizacionForm = () => {
   };
 
   // ============================================================
-  // NAVEGACIÓN
+  // NAVEGACIÓN: 11 PASOS
   // ============================================================
   const nextStep = () => {
-    setStep((prev) => Math.min(prev + 1, 10));
+    setStep((prev) => Math.min(prev + 1, TOTAL_PASOS));
     setError(null);
   };
 
@@ -383,7 +464,9 @@ export const useInformeFinalizacionForm = () => {
   };
 
   const goToStep = (nuevoStep) => {
-    setStep(Math.min(Math.max(nuevoStep, 1), 10));
+    setStep(
+      Math.min(Math.max(Number(nuevoStep) || 1, 1), TOTAL_PASOS)
+    );
     setError(null);
   };
 

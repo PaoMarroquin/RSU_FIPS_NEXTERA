@@ -28,6 +28,7 @@ import {
   SeccionLecciones,
   SeccionTextosSimple,
   SeccionCronologia,
+  SeccionRecursos,
   SeccionMetas,
   SeccionPresupuesto,
   SeccionEvidencias,
@@ -63,10 +64,9 @@ export default function InformeFinalizacion() {
         (actividad) => actividad.estado === "completada"
       );
 
-    const informeYaEnviado = [
-      "enviado",
-      "aprobado",
-    ].includes(estadoInforme);
+    const informeYaEnviado = ["enviado", "aprobado"].includes(
+      estadoInforme
+    );
 
     return todasActividadesCompletadas || informeYaEnviado;
   });
@@ -201,9 +201,11 @@ export default function InformeFinalizacion() {
     }
 
     switch (step) {
+      // PASO 1: Datos generales
       case 1:
         return <SeccionDatosGenerales informe={informeData} />;
 
+      // PASO 2: Fortalezas y limitaciones
       case 2:
         return (
           <SeccionFortalezas
@@ -213,6 +215,7 @@ export default function InformeFinalizacion() {
           />
         );
 
+      // PASO 3: Resultados
       case 3:
         return (
           <SeccionResultados
@@ -224,6 +227,7 @@ export default function InformeFinalizacion() {
           />
         );
 
+      // PASO 4: Lecciones aprendidas
       case 4:
         return (
           <SeccionLecciones
@@ -233,6 +237,7 @@ export default function InformeFinalizacion() {
           />
         );
 
+      // PASO 5: Conclusiones
       case 5:
         return (
           <SeccionTextosSimple
@@ -245,6 +250,7 @@ export default function InformeFinalizacion() {
           />
         );
 
+      // PASO 6: Recomendaciones y medio de difusión
       case 6:
         return (
           <div className="space-y-6">
@@ -269,6 +275,7 @@ export default function InformeFinalizacion() {
           </div>
         );
 
+      // PASO 7: Cronología
       case 7:
         return (
           <SeccionCronologia
@@ -276,7 +283,16 @@ export default function InformeFinalizacion() {
           />
         );
 
+      // PASO 8: Recursos humanos y materiales
       case 8:
+        return (
+          <SeccionRecursos
+            recursos={informeData?.recursos}
+          />
+        );
+
+      // PASO 9: Metas e indicadores
+      case 9:
         return (
           <SeccionMetas
             metas={metas}
@@ -285,7 +301,8 @@ export default function InformeFinalizacion() {
           />
         );
 
-      case 9:
+      // PASO 10: Ejecución presupuestal
+      case 10:
         return (
           <SeccionPresupuesto
             partidas={partidas}
@@ -294,7 +311,8 @@ export default function InformeFinalizacion() {
           />
         );
 
-      case 10:
+      // PASO 11: Evidencias
+      case 11:
         return (
           <SeccionEvidencias
             actividades={informeData?.ejecucion?.actividades}
@@ -423,7 +441,7 @@ export default function InformeFinalizacion() {
         {proyectoSeleccionado && !loadingInforme && (
           <FormFooterFinalizacion
             step={step}
-            totalSteps={10}
+            totalSteps={11}
             nextStep={nextStep}
             prevStep={prevStep}
             guardarBorrador={handleGuardarBorrador}
