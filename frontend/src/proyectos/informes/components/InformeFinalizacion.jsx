@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import Layout from "../../../shared/layout/Layout";
 import {
@@ -44,6 +43,12 @@ export default function InformeFinalizacion() {
     loading: loadingProyectos,
     searchTerm = "",
     setSearchTerm,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+    nextPage,
+    previousPage,
   } = useProyectosListado({ estado: "en_ejecucion" });
 
   const [busquedaProyecto, setBusquedaProyecto] = useState(
@@ -150,9 +155,8 @@ export default function InformeFinalizacion() {
 
       const enlace = document.createElement("a");
       enlace.href = url;
-      enlace.download = `informe-finalizacion-${
-        proyectoSeleccionado.codigo || proyectoSeleccionado.id
-      }.pdf`;
+      enlace.download = `informe-finalizacion-${proyectoSeleccionado.codigo || proyectoSeleccionado.id
+        }.pdf`;
 
       document.body.appendChild(enlace);
       enlace.click();
@@ -348,6 +352,11 @@ export default function InformeFinalizacion() {
               loading={loadingProyectos}
               proyectos={proyectosElegibles}
               seleccionarProyecto={handleSeleccionarProyecto}
+              setPage={setPage}
+              nextPage={nextPage}
+              previousPage={previousPage}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
             />
           </>
         ) : (
