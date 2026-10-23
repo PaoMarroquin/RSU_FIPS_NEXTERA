@@ -47,8 +47,7 @@ export default function InformeFinalizacion() {
     setPage,
     pageSize,
     setPageSize,
-    nextPage,
-    previousPage,
+    totalPages,
   } = useProyectosListado({ estado: "en_ejecucion" });
 
   const [busquedaProyecto, setBusquedaProyecto] = useState(
@@ -354,8 +353,7 @@ export default function InformeFinalizacion() {
               seleccionarProyecto={handleSeleccionarProyecto}
               page={page}
               setPage={setPage}
-              nextPage={nextPage}
-              previousPage={previousPage}
+              totalPages={totalPages}
               pageSize={pageSize}
               setPageSize={setPageSize}
             />

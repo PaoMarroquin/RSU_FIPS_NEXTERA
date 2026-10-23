@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../../shared/api/axiosConfig";
+import { fetchAllPages } from "../../../shared/api/fetchAllPages";
 
 // Encapsula el fetch de proyectos para el dashboard: loading, error y
 // normalización de la respuesta (array directo o paginada { results }).
@@ -13,14 +14,10 @@ export function useProyectosDashboard() {
     setLoading(true);
     setError(null);
 
-    api
-      .get("/api/v1/proyectos/")
-      .then((res) => {
+    fetchAllPages("/api/v1/proyectos/")
+      .then((lista) => {
         if (cancelled) return;
-        const data = res.data;
-        if (Array.isArray(data)) setProyectos(data);
-        else if (data && Array.isArray(data.results)) setProyectos(data.results);
-        else setProyectos([]);
+        setProyectos(lista);
       })
       .catch((err) => {
         if (!cancelled) {

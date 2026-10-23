@@ -18,8 +18,7 @@ export const BuscadorProyectos = ({
   seleccionarProyecto,
   page = 1,
   setPage,
-  nextPage = null,
-  previousPage = null,
+  totalPages = 1,
   pageSize = 10,
   setPageSize,
 }) => {
@@ -65,7 +64,7 @@ export const BuscadorProyectos = ({
     );
   };
 
-  const hayPaginacion = Boolean(setPage) && (nextPage || previousPage || page > 1);
+  const hayPaginacion = Boolean(setPage) && totalPages > 1;
 
   return (
     <div className="flex-1 flex flex-col gap-6 w-full max-w-2xl">
@@ -164,7 +163,7 @@ export const BuscadorProyectos = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              disabled={!previousPage}
+              disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(p - 1, 1))}
               className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -173,13 +172,13 @@ export const BuscadorProyectos = ({
             </button>
 
             <span className="font-semibold text-slate-600">
-              Página {page}
+              Página {page} de {totalPages}
             </span>
 
             <button
               type="button"
-              disabled={!nextPage}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
               className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Siguiente

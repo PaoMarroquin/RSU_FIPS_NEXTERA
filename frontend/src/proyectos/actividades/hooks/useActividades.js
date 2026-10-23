@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 import { useToast } from "../../../shared/context/ToastContext";
+import { fetchAllPages } from "../../../shared/api/fetchAllPages";
 
 const obtenerLista = (respuesta) => {
   if (Array.isArray(respuesta)) return respuesta;
@@ -89,8 +90,9 @@ export const useActividades = () => {
       try {
         setLoading(true);
 
-        const response = await proyectoApi.obtenerProyectos();
-        const listaProyectos = obtenerLista(response);
+        const listaProyectos = await fetchAllPages(() =>
+          proyectoApi.obtenerProyectos({ page_size: 100 })
+        );
 
         setProyectos(
           listaProyectos.filter((proyecto) => {

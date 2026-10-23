@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 import { useToast } from "../../../shared/context/ToastContext";
+import { fetchAllPages } from "../../../shared/api/fetchAllPages";
 
 // =====================================================
 // HOOK - MIS INFORMES
@@ -53,13 +54,9 @@ export const useInformes = () => {
        * El endpoint de proyectos ya trabaja con el usuario autenticado.
        * Por eso no enviamos un docente manualmente.
        */
-      const response = await proyectoApi.obtenerProyectos();
-
-      const proyectosArray = Array.isArray(response)
-        ? response
-        : Array.isArray(response?.results)
-        ? response.results
-        : [];
+      const proyectosArray = await fetchAllPages(() =>
+        proyectoApi.obtenerProyectos({ page_size: 100 })
+      );
 
       setDataMatrices(proyectosArray);
 

@@ -15,6 +15,7 @@ import { authService } from "../auth/authService";
 import { tokenStore } from "../auth/tokenStore";
 import { notificacionApi } from "../api/proyectos/notificacionApi";
 import { getTipoConfig } from "../utils/notificacionTipos";
+import { fetchAllPages } from "../api/fetchAllPages";
 
 export default function Topbar({ onMenuClick }) {
   const navigate = useNavigate();
@@ -27,12 +28,9 @@ export default function Topbar({ onMenuClick }) {
 
   const fetchNotificaciones = useCallback(async () => {
     try {
-      const data = await notificacionApi.obtenerNotificaciones();
-      const lista = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.results)
-          ? data.results
-          : [];
+      const lista = await fetchAllPages(() =>
+        notificacionApi.obtenerNotificaciones()
+      );
 
       setNotificaciones(lista);
     } catch (error) {

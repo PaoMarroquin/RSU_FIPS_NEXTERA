@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 import { useToast } from "../../../shared/context/ToastContext";
+import { fetchAllPages } from "../../../shared/api/fetchAllPages";
 
 export const useProyectosParaFinalizar = () => {
   const [proyectos, setProyectos] = useState([]);
@@ -19,14 +20,18 @@ export const useProyectosParaFinalizar = () => {
         setLoading(true);
         setError(null);
 
-        const response =
-          await proyectoApi.obtenerProyectosParaFinalizar(params);
-
-        const proyectosData = response?.results || [];
+        const proyectosData = await fetchAllPages(() =>
+          proyectoApi.obtenerProyectosParaFinalizar({ page_size: 100, ...params })
+        );
 
         setProyectos(proyectosData);
 
-        return response;
+        return {
+          count: proyectosData.length,
+          next: null,
+          previous: null,
+          results: proyectosData,
+        };
       } catch (err) {
         console.error(
           "Error al obtener proyectos para finalizar:",

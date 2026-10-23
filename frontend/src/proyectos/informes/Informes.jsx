@@ -259,7 +259,7 @@ const Informes = () => {
 
   const informeFinalizacionEnviado = estadoInforme === "enviado";
   const informeFinalizacionObservado = estadoInforme === "observado";
-  const constanciaDisponible = proyectoFinalizado;
+  const constanciaDisponible = Boolean(informeFinalizacion?.finalizacion?.constancia_descargable);
 
   // Estado de la constancia que informa el backend (no_disponible, pendiente, aprobada).
   const estadoConstancia = informeFinalizacion?.finalizacion?.constancia_estado;
@@ -373,7 +373,7 @@ const Informes = () => {
       let mensaje = "No se pudo descargar la constancia.";
 
       if (err?.response?.status === 403) {
-        mensaje = "No tienes permiso para descargar esta constancia.";
+        mensaje = err?.response?.data?.detail || "No tienes permiso para descargar esta constancia.";
       } else if (err?.response?.status === 404) {
         mensaje = "La constancia todavía no está disponible.";
       } else if (err?.response?.status === 401) {
