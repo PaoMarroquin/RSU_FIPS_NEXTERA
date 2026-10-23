@@ -352,6 +352,7 @@ export default function InformeFinalizacion() {
               loading={loadingProyectos}
               proyectos={proyectosElegibles}
               seleccionarProyecto={handleSeleccionarProyecto}
+              page={page}
               setPage={setPage}
               nextPage={nextPage}
               previousPage={previousPage}
@@ -462,4 +463,4 @@ export default function InformeFinalizacion() {
       </div>
     </Layout>
   );
-}
+}

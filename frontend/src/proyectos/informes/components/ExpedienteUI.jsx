@@ -19,6 +19,7 @@ export const DocumentoCard = ({
   loading,
   onView,
   ultimo = false,
+  tono,
 }) => (
   <div
     className={`bg-white border border-slate-200 rounded-xl ${
@@ -44,7 +45,9 @@ export const DocumentoCard = ({
 
           <span
             className={`text-[9px] font-bold px-2 py-1 rounded-full ${
-              disponible
+              tono === "alerta"
+                ? "bg-amber-100 text-amber-700"
+                : disponible
                 ? "bg-emerald-100 text-emerald-700"
                 : "bg-slate-100 text-slate-500"
             }`}

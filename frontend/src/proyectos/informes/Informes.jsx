@@ -261,6 +261,11 @@ const Informes = () => {
   const informeFinalizacionObservado = estadoInforme === "observado";
   const constanciaDisponible = proyectoFinalizado;
 
+  // Estado de la constancia que informa el backend (no_disponible, pendiente, aprobada).
+  const estadoConstancia = informeFinalizacion?.finalizacion?.constancia_estado;
+  const etiquetaConstancia =
+    informeFinalizacion?.finalizacion?.constancia_estado_display;
+
   // CERRAR MODAL
   const cerrarModal = () => {
     if (documentoModal?.url) {
@@ -628,10 +633,10 @@ const Informes = () => {
                     estado={
                       loadingConstancia
                         ? "Descargando"
-                        : constanciaDisponible
-                        ? "Disponible"
-                        : "Pendiente"
+                        : etiquetaConstancia ||
+                          (constanciaDisponible ? "Disponible" : "Pendiente")
                     }
+                    tono={estadoConstancia === "pendiente" ? "alerta" : undefined}
                     disponible={constanciaDisponible}
                     loading={loadingConstancia}
                     onView={handleVerConstanciaPDF}

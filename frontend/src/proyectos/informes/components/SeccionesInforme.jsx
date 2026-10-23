@@ -59,6 +59,52 @@ const CampoGeneral = ({ label, value }) => (
   <CampoLectura label={label} value={mostrarValor(value)} />
 );
 
+// Lista de datos (asignaturas, beneficiarios, tipo de actividad) en una caja de solo lectura.
+const CampoLista = ({ label, items = [] }) => (
+  <div>
+    <label className="block text-xs font-semibold text-slate-700 mb-2">
+      {label}
+    </label>
+
+    <div className="min-h-[42px] px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-600">
+      {items.length === 0 ? (
+        "No especificado"
+      ) : (
+        <ul className="m-0 p-0 list-none space-y-1.5">
+          {items.map((item, index) => (
+            <li key={index}>
+              <span className="text-slate-700">{item.texto}</span>
+              {item.detalle && (
+                <span className="block text-[10px] text-slate-400">
+                  {item.detalle}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+);
+
+// 1.5 Asignatura(s): nombre, código, año de carrera y semestre.
+const itemsAsignaturas = (asignaturas) =>
+  (asignaturas ?? []).map((a) => ({
+    texto: `${a.nombre || "Sin nombre"}${a.codigo ? ` (${a.codigo})` : ""}`,
+    detalle: [
+      a.anio_carrera ? `Año de carrera: ${a.anio_carrera}` : null,
+      a.semestre ? `Semestre: ${a.semestre}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  }));
+
+// 1.9 Beneficiarios y 1.11 Tipo de actividad: etiquetas más el detalle de "Otro".
+const itemsConOtro = (lista, otro) => [
+  ...(lista ?? []).map((texto) => ({ texto })),
+  ...(otro ? [{ texto: `Otro: ${otro}` }] : []),
+];
+
 // =====================================================
 // PASO 1: DATOS GENERALES
 // =====================================================
@@ -132,6 +178,31 @@ export const SeccionDatosGenerales = ({ informe }) => {
 
       </div>
 
+
+      {/* ASIGNATURAS, BENEFICIARIOS Y TIPO DE ACTIVIDAD (1.5, 1.9 y 1.11) */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Asignaturas, beneficiarios y tipo de actividad
+      </h4>
+
+      <div className="grid grid-cols-1 gap-5 mb-7">
+        <CampoLista
+          label="Asignatura(s)"
+          items={itemsAsignaturas(datos.asignaturas)}
+        />
+
+        <CampoLista
+          label="Beneficiarios"
+          items={itemsConOtro(
+            datos.beneficiarios,
+            datos.beneficiarios_otro_detalle
+          )}
+        />
+
+        <CampoLista
+          label="Tipo de actividad"
+          items={itemsConOtro(datos.tipo_actividad, datos.tipo_actividad_otro)}
+        />
+      </div>
 
       {/* DOCENTES PARTICIPANTES */}
       <h4 className="text-sm font-bold text-slate-800 mb-3">
