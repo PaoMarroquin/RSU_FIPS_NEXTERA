@@ -6,9 +6,8 @@ export function useProyectosListado(customFilters = {}) {
   const [projectsDb, setProjectsDb] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [nextPage, setNextPage] = useState(null);
-  const [previousPage, setPreviousPage] = useState(null);
   const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -37,8 +36,7 @@ export function useProyectosListado(customFilters = {}) {
       });
 
       setProjectsDb(data.results);
-      setNextPage(data.next);
-      setPreviousPage(data.previous);
+      setTotalPages(Math.max(1, Math.ceil((data.count ?? 0) / pageSize)));
     } catch (error) {
       console.error("Error cargando proyectos:", error);
       throw error;
@@ -61,12 +59,11 @@ export function useProyectosListado(customFilters = {}) {
     loading,
     page,
     setPage,
+    totalPages,
     pageSize,
     setPageSize,
-    nextPage,
-    previousPage,
     searchTerm,
     setSearchTerm,
     eliminarProyecto,
   };
-}
+}
