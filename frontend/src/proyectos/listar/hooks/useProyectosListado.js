@@ -37,6 +37,7 @@ export function useProyectosListado(customFilters = {}) {
 
       setProjectsDb(data.results);
       setTotalPages(Math.max(1, Math.ceil((data.count ?? 0) / pageSize)));
+      setTotalPages(Math.max(1, Math.ceil((data.count ?? 0) / pageSize)));
     } catch (error) {
       console.error("Error cargando proyectos:", error);
       throw error;
@@ -60,6 +61,7 @@ export function useProyectosListado(customFilters = {}) {
     page,
     setPage,
     totalPages,
+    totalPages,
     pageSize,
     setPageSize,
     searchTerm,
@@ -67,3 +69,4 @@ export function useProyectosListado(customFilters = {}) {
     eliminarProyecto,
   };
 }
+
