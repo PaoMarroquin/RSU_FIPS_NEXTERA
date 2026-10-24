@@ -30,8 +30,8 @@ export default function StepperFinalizacion({
     { id: 6, roman: "VI", label: "Recomendaciones" },
     { id: 7, roman: "VII", label: "Cronología" },
     { id: 8, roman: "VIII", label: "Recursos" },
-    { id: 9, roman: "IX", label: "Metas e Ind." },
-    { id: 10, roman: "X", label: "Presupuesto" },
+    { id: 9, roman: "IX", label: "Metas e Ind." },   // aqui es FINANCIAMIENTO
+    { id: 10, roman: "X", label: "Presupuesto" },    // aqui es MEDIO DE DIFUSION
     { id: 11, roman: "XI", label: "Evidencias" },
   ];
 
