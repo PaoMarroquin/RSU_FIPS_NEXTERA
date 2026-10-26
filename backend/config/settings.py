@@ -97,7 +97,7 @@ AUTH_USER_MODEL = 'usuarios.Usuario'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.utils.autenticacion.JWTConCambioObligatorio',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -106,6 +106,10 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'EXCEPTION_HANDLER': 'apps.utils.exceptions.custom_exception_handler',
+    # Límite de intentos de inicio de sesión (por IP), contra fuerza bruta.
+    'DEFAULT_THROTTLE_RATES': {
+        'login': config('LOGIN_THROTTLE_RATE', default='10/min'),
+    },
     'DEFAULT_FILTER_BACKENDS': [
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
@@ -144,6 +148,14 @@ CSRF_TRUSTED_ORIGINS = config(
 
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=None)
 
+# Producción detrás de Nginx con HTTPS (solo con DEBUG apagado).
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+
 LANGUAGE_CODE = 'es-pe'
 TIME_ZONE = 'America/Lima'
 USE_I18N = True
@@ -153,6 +165,16 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
+
+# Archivos subidos solo con URL firmada y con vencimiento (apps/utils/almacenamiento.py).
+STORAGES = {
+    'default': {'BACKEND': 'apps.utils.almacenamiento.MediaFirmadoStorage'},
+    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
+MEDIA_URL_EXPIRACION_SEGUNDOS = config('MEDIA_URL_EXPIRACION_SEGUNDOS', default=7200, cast=int)
+# En producción Nginx entrega el archivo tras la validación (X-Accel-Redirect).
+MEDIA_X_ACCEL = config('MEDIA_X_ACCEL', default=False, cast=bool)
+MEDIA_X_ACCEL_PREFIJO = '/media-protegido/'
 # OJO: python-decouple solo aplica el `default` cuando la variable NO existe
 # en .env. Si existe pero está vacía (como venía "MEDIA_ROOT=" en .env y en
 # .env.example) config() devuelve '' y Django guarda los archivos subidos

@@ -34,7 +34,7 @@ import re
 from django.contrib import admin
 from django.urls import path, re_path, include
 from django.conf import settings
-from django.views.static import serve
+from apps.utils.almacenamiento import media_protegido
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 API_V1 = 'api/v1/'
@@ -51,6 +51,6 @@ urlpatterns = [
 
     re_path(
         r'^%s(?P<path>.*)$' % re.escape(settings.MEDIA_URL.lstrip('/')),
-        serve, {'document_root': settings.MEDIA_ROOT},
+        media_protegido,
     ),
 ]

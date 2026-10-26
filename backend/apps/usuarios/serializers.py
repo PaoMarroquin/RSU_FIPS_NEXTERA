@@ -98,6 +98,8 @@ class UsuarioCreateSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', '') or validated_data['correo_institucional']
         usuario = Usuario(**validated_data)
         usuario.set_password(password)
+        # La contraseña la conoce quien la creó (por defecto, el correo): se cambia al entrar.
+        usuario.debe_cambiar_password = True
         usuario.save()
         return usuario
 
@@ -130,7 +132,7 @@ class UsuarioListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nombres', 'apellidos', 'correo_institucional',
             'celular', 'rol_nombre', 'facultad_nombre', 'estado',
-            'firma_digital', 'created_at',
+            'firma_digital', 'debe_cambiar_password', 'created_at',
         ]
 
 

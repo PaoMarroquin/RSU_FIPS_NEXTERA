@@ -76,4 +76,7 @@ def custom_exception_handler(exc, context):
         'detail': detail,
         'errors': errors,
     }
+    # Código estable para que el frontend reconozca el caso sin depender del texto.
+    if getattr(exc, 'default_code', None) == 'cambio_password_requerido':
+        response.data['codigo'] = 'cambio_password_requerido'
     return response

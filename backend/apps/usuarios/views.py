@@ -35,6 +35,7 @@ from rest_framework import filters, generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -122,12 +123,15 @@ class CorreoTokenObtainPairSerializer(TokenObtainPairSerializer):
             'correo_institucional': self.user.correo_institucional,
             'rol': self.user.rol.nombre if self.user.rol else None,
             'estado': self.user.estado,
+            'debe_cambiar_password': self.user.debe_cambiar_password,
         }
         return data
 
 
 class SessionLoginView(TokenObtainPairView):
     serializer_class = CorreoTokenObtainPairSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -179,6 +183,8 @@ class LogoutView(APIView):
 
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
     def post(self, request):
         if not settings.GOOGLE_CLIENT_ID or not _GOOGLE_AUTH_AVAILABLE:
@@ -356,7 +362,8 @@ class CambiarPasswordView(APIView):
         serializer = CambiarPasswordSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data['password_nueva'])
-        request.user.save(update_fields=['password'])
+        request.user.debe_cambiar_password = False
+        request.user.save(update_fields=['password', 'debe_cambiar_password'])
         return Response({'detail': 'Contraseña actualizada.'}, status=status.HTTP_200_OK)
 
 
