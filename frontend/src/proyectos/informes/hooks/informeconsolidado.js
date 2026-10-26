@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { proyectoApi } from "../../../shared/api/proyectos/proyectoApi";
 import { useToast } from "../../../shared/context/ToastContext";
+import { fetchAllPages } from "../../../shared/api/fetchAllPages";
 
 export const useInformes = () => {
   const [informe, setInforme] = useState(null);
@@ -104,8 +105,16 @@ export const useInformes = () => {
         setLoadingProyectos(true);
         setError(null);
 
-        const response =
-          await proyectoApi.obtenerProyectosConsolidados(params);
+        const listaProyectos = await fetchAllPages(() =>
+          proyectoApi.obtenerProyectosConsolidados({ page_size: 100, ...params })
+        );
+
+        const response = {
+          count: listaProyectos.length,
+          next: null,
+          previous: null,
+          results: listaProyectos,
+        };
 
         setProyectos(response);
 

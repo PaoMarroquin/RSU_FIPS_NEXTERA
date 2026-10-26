@@ -6,6 +6,7 @@ export function useProyectosListado(customFilters = {}) {
   const [projectsDb, setProjectsDb] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -25,23 +26,25 @@ export function useProyectosListado(customFilters = {}) {
     setLoading(true);
     try {
       const filters = JSON.parse(filtersKey);
-      
+
       // Enviamos la página, la búsqueda y esparcimos los filtros dinámicos (ej. estado: "finalizado")
-      const data = await proyectoApi.obtenerProyectos({ 
-        page, 
+      const data = await proyectoApi.obtenerProyectos({
+        page,
+        page_size: pageSize,
         search: debouncedSearch,
-        ...filters 
+        ...filters,
       });
-      
+
       setProjectsDb(data.results);
-      setTotalPages(Math.ceil(data.count / 10));
+      setTotalPages(Math.max(1, Math.ceil((data.count ?? 0) / pageSize)));
+      setTotalPages(Math.max(1, Math.ceil((data.count ?? 0) / pageSize)));
     } catch (error) {
       console.error("Error cargando proyectos:", error);
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, filtersKey]);
+  }, [page, pageSize, debouncedSearch, filtersKey]);
 
   useEffect(() => {
     fetchProjects();
@@ -58,8 +61,12 @@ export function useProyectosListado(customFilters = {}) {
     page,
     setPage,
     totalPages,
+    totalPages,
+    pageSize,
+    setPageSize,
     searchTerm,
     setSearchTerm,
     eliminarProyecto,
   };
 }
+

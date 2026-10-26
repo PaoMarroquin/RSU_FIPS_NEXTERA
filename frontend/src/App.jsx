@@ -21,6 +21,7 @@ import ImportarUsuarios from './usuario/importar/ImportarUsuarios';
 import MatrizOperativa from './planificacion/matriz/MatrizOperativa';
 import ProyectosJefatura from './proyectos/jefatura/ProyectosJefatura';
 import FinalizarProyectos from "./proyectos/revision/FinalizarProyectos";
+import Constancias from "./proyectos/revision/Constancias";
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
             <Route path="/evaluacion" element={<RevisionProyectos />} />
             {/*<Route path="/informes" element={<InformesEjecucion />} />*/}
             <Route path="/FinalizarProyectos" element={<FinalizarProyectos />} />
+            <Route path="/constancias" element={<Constancias />} />
           </Route>
 
           {/* Exclusivas Jefatura RSU */}
@@ -103,4 +105,4 @@ function App() {
   );
 }
 
-export default App;
+export default App;

@@ -30,7 +30,7 @@ export function useProyectosJefatura() {
         });
         setProyectos(res.results || res);
         if (res.count) {
-          setTotalPages(Math.ceil(res.count / 10));
+          setTotalPages(Math.ceil(res.count / 20));
         }
       } catch (err) {
         console.error('Error cargando proyectos:', err);

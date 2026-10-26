@@ -28,6 +28,8 @@ Conecta con:
 """
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
 
 
 class Facultad(models.Model):
@@ -117,6 +119,14 @@ class UsuarioManager(BaseUserManager):
         return self.create_user(correo_institucional, password, **extra_fields)
 
 
+FIRMA_MAX_MB = 2
+
+
+def validar_tamano_firma(archivo):
+    if archivo and archivo.size > FIRMA_MAX_MB * 1024 * 1024:
+        raise ValidationError(f'La firma no puede superar los {FIRMA_MAX_MB} MB.')
+
+
 class Usuario(AbstractBaseUser, PermissionsMixin):
     nombres      = models.CharField(max_length=150)
     apellidos            = models.CharField(max_length=100, blank=True, default='')
@@ -136,7 +146,12 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
                                                help_text='Indica si el usuario puede hacer login')
     firma_digital        = models.ImageField(
                                              upload_to='firmas/', null=True, blank=True,
-                                             help_text='Firma digital del usuario (JPG/PNG)')
+                                             validators=[
+                                                 FileExtensionValidator(['png', 'jpg', 'jpeg']),
+                                                 validar_tamano_firma],
+                                             help_text='Firma digital del usuario (PNG/JPG, máx. 2 MB)')
+    debe_cambiar_password = models.BooleanField(
+        default=False, help_text='La contraseña inicial debe cambiarse en el primer ingreso')
     is_staff             = models.BooleanField(default=False)
     ultimo_acceso        = models.DateTimeField(null=True, blank=True)
     created_at           = models.DateTimeField(auto_now_add=True)

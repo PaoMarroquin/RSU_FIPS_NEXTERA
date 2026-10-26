@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { notificacionApi } from '../../../shared/api/proyectos/notificacionApi';
+import { fetchAllPages } from "../../../shared/api/fetchAllPages";
 
 export function useNotificaciones() {
   const [notificaciones, setNotificaciones] = useState([]);
@@ -8,9 +9,9 @@ export function useNotificaciones() {
   const fetchNotificaciones = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await notificacionApi.obtenerNotificaciones();
-      // Soporte por si Django pagina la respuesta (.results) o manda el array directo
-      const lista = response.results ? response.results : (Array.isArray(response) ? response : []);
+      const lista = await fetchAllPages(() =>
+        notificacionApi.obtenerNotificaciones()
+      );
       setNotificaciones(lista);
     } catch (error) {
       console.error('Error al cargar notificaciones:', error);

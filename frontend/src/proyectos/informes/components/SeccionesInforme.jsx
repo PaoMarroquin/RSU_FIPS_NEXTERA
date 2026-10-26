@@ -4,6 +4,7 @@ import {
   FiActivity,
   FiCheckCircle,
   FiTarget,
+  FiPackage,
 } from "react-icons/fi";
 import { CampoLectura, CampoTexto, Indicador } from "./ComponentesUI";
 
@@ -16,81 +17,330 @@ const ContenedorPaso = ({ titulo, descripcion, children }) => (
       <h3 className="text-xl font-bold text-slate-800">{titulo}</h3>
       <p className="text-xs text-slate-500 mt-1">{descripcion}</p>
     </div>
-
     <div className="w-full">{children}</div>
   </div>
 );
 
 // =====================================================
+// COMPONENTE AUXILIAR: MOSTRAR DATOS
+// =====================================================
+const mostrarValor = (valor) => {
+  if (valor === null || valor === undefined || valor === "") {
+    return "No especificado";
+  }
+
+  if (typeof valor === "boolean") {
+    return valor ? "Sí" : "No";
+  }
+
+  if (Array.isArray(valor)) {
+    if (valor.length === 0) return "No especificado";
+
+    return valor
+      .map((item) => {
+        if (typeof item === "string" || typeof item === "number") {
+          return String(item);
+        }
+
+        return (
+          item?.nombre ??
+          item?.nombre_completo ??
+          item?.titulo ??
+          "Sin nombre"
+        );
+      })
+      .join(", ");
+  }
+
+  return String(valor);
+};
+
+const CampoGeneral = ({ label, value }) => (
+  <CampoLectura label={label} value={mostrarValor(value)} />
+);
+
+// Lista de datos (asignaturas, beneficiarios, tipo de actividad) en una caja de solo lectura.
+const CampoLista = ({ label, items = [] }) => (
+  <div>
+    <label className="block text-xs font-semibold text-slate-700 mb-2">
+      {label}
+    </label>
+
+    <div className="min-h-[42px] px-3 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-600">
+      {items.length === 0 ? (
+        "No especificado"
+      ) : (
+        <ul className="m-0 p-0 list-none space-y-1.5">
+          {items.map((item, index) => (
+            <li key={index}>
+              <span className="text-slate-700">{item.texto}</span>
+              {item.detalle && (
+                <span className="block text-[10px] text-slate-400">
+                  {item.detalle}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+);
+
+// 1.5 Asignatura(s): nombre, código, año de carrera y semestre.
+const itemsAsignaturas = (asignaturas) =>
+  (asignaturas ?? []).map((a) => ({
+    texto: `${a.nombre || "Sin nombre"}${a.codigo ? ` (${a.codigo})` : ""}`,
+    detalle: [
+      a.anio_carrera ? `Año de carrera: ${a.anio_carrera}` : null,
+      a.semestre ? `Semestre: ${a.semestre}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  }));
+
+// 1.9 Beneficiarios y 1.11 Tipo de actividad: etiquetas más el detalle de "Otro".
+const itemsConOtro = (lista, otro) => [
+  ...(lista ?? []).map((texto) => ({ texto })),
+  ...(otro ? [{ texto: `Otro: ${otro}` }] : []),
+];
+
+// =====================================================
 // PASO 1: DATOS GENERALES
 // =====================================================
-export const SeccionDatosGenerales = ({ informe }) => (
-  <ContenedorPaso
-    titulo="Datos Generales"
-    descripcion="Información heredada del plan de proyecto inicial."
-  >
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
-      <CampoLectura label="Código" value={informe?.codigo} />
-      <CampoLectura label="Título" value={informe?.titulo} />
-      <CampoLectura label="Semestre" value={informe?.semestre_academico} />
-      <CampoLectura label="Facultad" value={informe?.facultad?.nombre} />
-      <CampoLectura label="Escuela" value={informe?.escuela?.nombre} />
-      <CampoLectura
-        label="Departamento"
-        value={informe?.departamento?.nombre}
-      />
-      <CampoLectura label="Fecha inicio" value={informe?.fecha_inicio} />
-      <CampoLectura label="Fecha término" value={informe?.fecha_termino} />
-    </div>
+export const SeccionDatosGenerales = ({ informe }) => {
+  // Los datos complementarios vienen anidados en datos_generales.
+  const datos = informe?.datos_generales ?? {};
 
-    <h4 className="text-sm font-bold text-slate-800 mb-3">
-      Ejes RSU y ODS
-    </h4>
+  return (
+    <ContenedorPaso
+      titulo="Datos Generales"
+      descripcion="Información heredada del plan de proyecto inicial."
+    >
+      {/* INFORMACIÓN DEL PROYECTO */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Información del proyecto
+      </h4>
 
-    <div className="flex flex-wrap gap-2 mb-6">
-      {(informe?.ejes_rsu || []).map((eje) => (
-        <span
-          key={eje.id}
-          className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100"
-        >
-          {eje.nombre}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
+        <CampoGeneral label="Código" value={informe?.codigo} />
+        <CampoGeneral label="Título" value={informe?.titulo} />
+
+        <CampoGeneral
+          label="Semestre académico"
+          value={informe?.semestre_academico}
+        />
+
+        <CampoGeneral
+          label="Facultad"
+          value={informe?.facultad?.nombre}
+        />
+
+        <CampoGeneral
+          label="Escuela profesional"
+          value={informe?.escuela?.nombre}
+        />
+
+        <CampoGeneral
+          label="Departamento"
+          value={informe?.departamento?.nombre}
+        />
+
+        <CampoGeneral
+          label="Fecha de inicio"
+          value={informe?.fecha_inicio}
+        />
+
+        <CampoGeneral
+          label="Fecha de término"
+          value={informe?.fecha_termino}
+        />
+
+        <CampoGeneral
+          label="Lugar de ejecución"
+          value={datos.lugar_ejecucion}
+        />
+
+        <CampoGeneral
+          label="Número de docentes"
+          value={datos.nro_docentes}
+        />
+
+        <CampoGeneral
+          label="Número de estudiantes"
+          value={datos.nro_estudiantes}
+        />
+
+        <CampoGeneral
+          label="Año de carrera"
+          value={datos.anio_carrera}
+        />
+
+      </div>
+
+
+      {/* ASIGNATURAS, BENEFICIARIOS Y TIPO DE ACTIVIDAD (1.5, 1.9 y 1.11) */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Asignaturas, beneficiarios y tipo de actividad
+      </h4>
+
+      <div className="grid grid-cols-1 gap-5 mb-7">
+        <CampoLista
+          label="Asignatura(s)"
+          items={itemsAsignaturas(datos.asignaturas)}
+        />
+
+        <CampoLista
+          label="Beneficiarios"
+          items={itemsConOtro(
+            datos.beneficiarios,
+            datos.beneficiarios_otro_detalle
+          )}
+        />
+
+        <CampoLista
+          label="Tipo de actividad"
+          items={itemsConOtro(datos.tipo_actividad, datos.tipo_actividad_otro)}
+        />
+      </div>
+
+      {/* DOCENTES PARTICIPANTES */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Docentes participantes
+      </h4>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
+        <CampoGeneral
+          label="Cantidad de docentes"
+          value={datos.nro_docentes}
+        />
+
+        <CampoGeneral
+          label="Docentes participantes"
+          value={datos.docentes_participantes}
+        />
+
+        <CampoGeneral
+          label="Docentes adicionales"
+          value={datos.docentes_adicionales}
+        />
+      </div>
+
+    
+      
+      {/* EJES RSU Y ODS */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Ejes RSU y Objetivos de Desarrollo Sostenible
+      </h4>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {(informe?.ejes_rsu ?? []).map((eje) => (
+          <span
+            key={eje.id}
+            className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100"
+          >
+            {eje.nombre}
+          </span>
+        ))}
+
+        {(informe?.ods ?? []).map((ods) => (
+          <span
+            key={ods.id}
+            className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100"
+          >
+            ODS {ods.numero}: {ods.nombre}
+          </span>
+        ))}
+
+        {(!informe?.ejes_rsu || informe.ejes_rsu.length === 0) &&
+          (!informe?.ods || informe.ods.length === 0) && (
+            <p className="text-xs text-slate-400">
+              No hay ejes RSU ni ODS registrados.
+            </p>
+          )}
+      </div>
+
+      {/* FECHAS DE EVALUACIÓN */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Fechas de evaluación y encuestas
+      </h4>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
+        <CampoGeneral
+          label="Evaluación de avance"
+          value={datos.fecha_evaluacion_avance}
+        />
+
+        <CampoGeneral
+          label="Encuesta a docentes"
+          value={datos.fecha_encuesta_docentes}
+        />
+
+        <CampoGeneral
+          label="Encuesta a estudiantes"
+          value={datos.fecha_encuesta_alumnos}
+        />
+
+        <CampoGeneral
+          label="Encuesta al grupo destinatario"
+          value={datos.fecha_encuesta_grupo_destinatario}
+        />
+      </div>
+
+      {/* DOCENTE RESPONSABLE */}
+      <h4 className="text-sm font-bold text-slate-800 mb-3">
+        Docente responsable
+      </h4>
+
+      <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 w-fit">
+        <FiUsers className="text-[#b1122b]" />
+        <span className="text-sm font-semibold text-slate-700">
+          {mostrarValor(informe?.docente_responsable)}
         </span>
-      ))}
-
-      {(informe?.ods || []).map((ods) => (
-        <span
-          key={ods.id}
-          className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-100"
-        >
-          ODS {ods.numero}: {ods.nombre}
-        </span>
-      ))}
-    </div>
-
-    <h4 className="text-sm font-bold text-slate-800 mb-3">Responsable</h4>
-
-    <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 w-fit">
-      <FiUsers className="text-[#b1122b]" />
-      <span className="text-sm font-semibold text-slate-700">
-        {informe?.docente_responsable}
-      </span>
-    </div>
-  </ContenedorPaso>
-);
+      </div>
+    </ContenedorPaso>
+  );
+};
 
 // =====================================================
 // PASO 2: FORTALEZAS Y LIMITACIONES
 // =====================================================
-export const SeccionFortalezas = () => (
+const CAMPOS_FORTALEZAS = [
+  ["fortalezas", "Fortalezas"],
+  ["oportunidades", "Oportunidades"],
+  ["aliados", "Principales aliados"],
+  ["debilidades", "Debilidades"],
+  ["amenazas", "Amenazas"],
+];
+
+export const SeccionFortalezas = ({ textos, onChange, puedeEditar }) => (
   <ContenedorPaso
     titulo="Fortalezas y limitaciones"
-    descripcion="Evaluación general"
+    descripcion='Todos los campos son obligatorios para enviar. Si no aplica, escribe "n/a".'
   >
-    <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-      <p className="text-xs text-slate-500">
-        Esta sección se nutre automáticamente a partir de los seguimientos
-        aprobados.
-      </p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {CAMPOS_FORTALEZAS.map(([campo, label]) => (
+        <CampoTexto
+          key={campo}
+          label={label}
+          obligatorio
+          altura="min-h-[110px]"
+          disabled={!puedeEditar}
+          value={textos[campo] ?? ""}
+          onChange={(v) => onChange(campo, v)}
+        />
+      ))}
+
+      <div className="md:col-span-2">
+        <CampoTexto
+          label="Estrategias empleadas para superar las limitaciones"
+          obligatorio
+          altura="min-h-[110px]"
+          disabled={!puedeEditar}
+          value={textos.estrategias ?? ""}
+          onChange={(v) => onChange("estrategias", v)}
+        />
+      </div>
     </div>
   </ContenedorPaso>
 );
@@ -98,7 +348,13 @@ export const SeccionFortalezas = () => (
 // =====================================================
 // PASO 3: RESULTADOS
 // =====================================================
-export const SeccionResultados = ({ avance, esperados }) => (
+export const SeccionResultados = ({
+  avance,
+  esperados,
+  textos,
+  onChange,
+  puedeEditar,
+}) => (
   <ContenedorPaso
     titulo="Resultados"
     descripcion="Progreso actual de ejecución."
@@ -118,25 +374,29 @@ export const SeccionResultados = ({ avance, esperados }) => (
 
       <Indicador
         icon={<FiTarget />}
-        titulo="Avances Reg."
-        valor={avance?.avances_registrados ?? 0}
+        titulo="Actividades"
+        valor={avance?.actividades_total ?? 0}
       />
 
       <Indicador
         icon={<FiCheckCircle />}
-        titulo="Evidencias"
-        valor={avance?.evidencias_vigentes ?? 0}
+        titulo="Pendientes"
+        valor={Math.max(
+          (avance?.actividades_total ?? 0) -
+            (avance?.actividades_completadas ?? 0),
+          0
+        )}
       />
     </div>
 
     <h4 className="text-sm font-bold text-slate-800 mb-4">
-      Resultados Esperados
+      Resultados esperados
     </h4>
 
     <div className="space-y-4">
       <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
         <p className="text-[10px] font-bold text-slate-500 uppercase">
-          En Beneficiarios
+          En beneficiarios
         </p>
         <p className="text-xs text-slate-700 mt-2">
           {esperados?.en_beneficiarios || "—"}
@@ -145,18 +405,70 @@ export const SeccionResultados = ({ avance, esperados }) => (
 
       <div className="p-4 border border-slate-200 rounded-xl bg-slate-50">
         <p className="text-[10px] font-bold text-slate-500 uppercase">
-          En Currículo
+          En currículo
         </p>
         <p className="text-xs text-slate-700 mt-2">
           {esperados?.en_curriculo || "—"}
         </p>
       </div>
     </div>
+
+    <h4 className="text-sm font-bold text-slate-800 mt-8 mb-4">
+      Resultados alcanzados
+    </h4>
+
+    <div className="space-y-5">
+      <CampoTexto
+        label="Resultados en el grupo destinatario"
+        obligatorio
+        altura="min-h-[110px]"
+        disabled={!puedeEditar}
+        value={textos.resultado_grupo_destinatario ?? ""}
+        onChange={(v) => onChange("resultado_grupo_destinatario", v)}
+      />
+
+      <CampoTexto
+        label="Resultados en el desarrollo curricular"
+        obligatorio
+        altura="min-h-[110px]"
+        disabled={!puedeEditar}
+        value={textos.resultado_desarrollo_curricular ?? ""}
+        onChange={(v) => onChange("resultado_desarrollo_curricular", v)}
+      />
+    </div>
   </ContenedorPaso>
 );
 
 // =====================================================
-// PASOS 4, 5 Y 6: CAMPOS DE TEXTO
+// PASO 4: LECCIONES APRENDIDAS
+// =====================================================
+export const SeccionLecciones = ({ textos, onChange, puedeEditar }) => (
+  <ContenedorPaso
+    titulo="Lecciones aprendidas"
+    descripcion='Ambos campos son obligatorios para enviar. Si no aplica, escribe "n/a".'
+  >
+    <div className="space-y-5">
+      <CampoTexto
+        label="Análisis"
+        obligatorio
+        disabled={!puedeEditar}
+        value={textos.lecciones_analisis ?? ""}
+        onChange={(v) => onChange("lecciones_analisis", v)}
+      />
+
+      <CampoTexto
+        label="Reflexiones"
+        obligatorio
+        disabled={!puedeEditar}
+        value={textos.lecciones_reflexiones ?? ""}
+        onChange={(v) => onChange("lecciones_reflexiones", v)}
+      />
+    </div>
+  </ContenedorPaso>
+);
+
+// =====================================================
+// PASOS 5 Y 6: CAMPOS DE TEXTO
 // =====================================================
 export const SeccionTextosSimple = ({
   titulo,
@@ -165,11 +477,13 @@ export const SeccionTextosSimple = ({
   valor,
   onChange,
   puedeEditar,
+  maxLength,
 }) => (
   <ContenedorPaso titulo={titulo} descripcion={descripcion}>
     <CampoTexto
       label={label}
       obligatorio
+      maxLength={maxLength}
       disabled={!puedeEditar}
       value={valor}
       onChange={onChange}
@@ -183,7 +497,7 @@ export const SeccionTextosSimple = ({
 export const SeccionCronologia = ({ actividades }) => (
   <ContenedorPaso
     titulo="Cronología"
-    descripcion="Avances registrados y actividades del proyecto."
+    descripcion="Actividades y acciones realizadas durante el proyecto."
   >
     <div className="space-y-4">
       {!actividades || actividades.length === 0 ? (
@@ -196,38 +510,40 @@ export const SeccionCronologia = ({ actividades }) => (
             key={act.id}
             className="border border-slate-200 rounded-xl overflow-hidden"
           >
-            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center gap-3">
               <h4 className="text-sm font-bold text-slate-700">
                 {act.nombre}
               </h4>
 
-              <span className="text-[9px] uppercase px-2 py-1 rounded-full bg-slate-200 font-bold text-slate-600">
-                {act.estado_display}
+              <span className="text-[9px] uppercase px-2 py-1 rounded-full bg-slate-200 font-bold text-slate-600 shrink-0">
+                {act.estado_display || act.estado}
               </span>
             </div>
 
             <div className="p-4">
-              <p className="text-xs text-slate-600 mb-3">
-                {act.descripcion}
-              </p>
+              {act.descripcion && (
+                <p className="text-xs text-slate-600 mb-3">
+                  {act.descripcion}
+                </p>
+              )}
 
-              {act.avances && act.avances.length > 0 ? (
+              {act.acciones && act.acciones.length > 0 ? (
                 <div className="space-y-2 border-l-2 border-[#b1122b]/30 pl-4 mt-2">
-                  {act.avances.map((av) => (
-                    <div key={av.id}>
+                  {act.acciones.map((accion) => (
+                    <div key={accion.id}>
                       <p className="text-xs font-semibold text-slate-700">
-                        {av.descripcion}
+                        {accion.descripcion}
                       </p>
                       <p className="text-[10px] text-slate-400">
-                        {new Date(av.created_at).toLocaleDateString()} - Por{" "}
-                        {av.autor}
+                        {accion.fecha_inicio || "—"} a{" "}
+                        {accion.fecha_fin || "—"}
                       </p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="text-[10px] text-slate-400">
-                  Sin avances reportados.
+                  Sin acciones registradas.
                 </p>
               )}
             </div>
@@ -239,7 +555,80 @@ export const SeccionCronologia = ({ actividades }) => (
 );
 
 // =====================================================
-// PASO 8: METAS E INDICADORES
+// PASO 8: RECURSOS HUMANOS Y MATERIALES
+// =====================================================
+const CampoRecurso = ({ label, value }) => (
+  <div className="p-4 rounded-xl border border-slate-200 bg-white">
+    <p className="text-xs text-slate-500 mb-1">{label}</p>
+    <p className="text-sm font-semibold text-slate-800 break-words">
+      {value === null || value === undefined || value === ""
+        ? "No especificado"
+        : value}
+    </p>
+  </div>
+);
+
+export const SeccionRecursos = ({ recursos }) => {
+  const humanos = recursos?.humanos ?? {};
+  const materiales = recursos?.materiales ?? {};
+
+  const listaHumanos = [
+    ["Docentes", humanos.docentes ?? 0],
+    ["Administrativos", humanos.administrativos ?? 0],
+    ["Estudiantes", humanos.estudiantes ?? 0],
+    ["Egresados", humanos.egresados ?? 0],
+    ["Voluntarios", humanos.voluntarios ?? 0],
+    ["Otros", humanos.otros ?? 0],
+  ];
+
+  const listaMateriales = [
+    ["Material didáctico", materiales.material_didactico],
+    ["Afiches", materiales.afiches],
+    ["Equipos", materiales.equipos],
+    ["Útiles", materiales.utiles],
+    ["Otros materiales", materiales.otros],
+  ];
+
+  return (
+    <ContenedorPaso
+      titulo="Recursos humanos y materiales"
+      descripcion="Recursos registrados en el proyecto."
+    >
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <FiUsers className="text-[#b1122b] text-lg" />
+          <h4 className="text-sm font-bold text-slate-800">
+            Recursos humanos
+          </h4>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {listaHumanos.map(([label, value]) => (
+            <CampoRecurso key={label} label={label} value={value} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <FiPackage className="text-[#b1122b] text-lg" />
+          <h4 className="text-sm font-bold text-slate-800">
+            Recursos materiales
+          </h4>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {listaMateriales.map(([label, value]) => (
+            <CampoRecurso key={label} label={label} value={value} />
+          ))}
+        </div>
+      </section>
+    </ContenedorPaso>
+  );
+};
+
+// =====================================================
+// PASO 9: METAS E INDICADORES
 // =====================================================
 export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
   <ContenedorPaso
@@ -254,7 +643,7 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
               Descripción
             </th>
             <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase">
-              Línea Base
+              Línea base
             </th>
             <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase">
               Meta
@@ -266,7 +655,7 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
         </thead>
 
         <tbody>
-          {metas.map((meta) => (
+          {(metas ?? []).map((meta) => (
             <tr key={meta.id} className="border-b border-slate-100">
               <td className="px-4 py-3 text-xs text-slate-700">
                 {meta.meta} -{" "}
@@ -293,25 +682,20 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
 
                     if (
                       valor === "" ||
-                      (Number.isFinite(Number(valor)) && Number(valor) >= 0)
+                      (Number.isFinite(Number(valor)) &&
+                        Number(valor) >= 0)
                     ) {
                       cambiarMeta(meta.id, valor);
                     }
                   }}
                   onKeyDown={(e) => {
-                    if (
-                      e.key === "-" ||
-                      e.key === "e" ||
-                      e.key === "E"
-                    ) {
+                    if (["-", "e", "E"].includes(e.key)) {
                       e.preventDefault();
                     }
                   }}
                   onPaste={(e) => {
                     const texto = e.clipboardData.getData("text");
-                    if (Number(texto) < 0) {
-                      e.preventDefault();
-                    }
+                    if (Number(texto) < 0) e.preventDefault();
                   }}
                   className="w-full max-w-[120px] border border-slate-300 p-2 text-xs rounded-lg outline-none focus:border-[#b1122b] transition-colors disabled:bg-slate-100"
                   placeholder="Ej. 10"
@@ -320,7 +704,7 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
             </tr>
           ))}
 
-          {metas.length === 0 && (
+          {(!metas || metas.length === 0) && (
             <tr>
               <td
                 colSpan="4"
@@ -337,7 +721,7 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
 );
 
 // =====================================================
-// PASO 9: EJECUCIÓN PRESUPUESTAL
+// PASO 10: EJECUCIÓN PRESUPUESTAL
 // =====================================================
 export const SeccionPresupuesto = ({
   partidas,
@@ -365,7 +749,7 @@ export const SeccionPresupuesto = ({
         </thead>
 
         <tbody>
-          {partidas.map((partida) => (
+          {(partidas ?? []).map((partida) => (
             <tr key={partida.id} className="border-b border-slate-100">
               <td className="px-4 py-3 text-xs text-slate-700 font-medium">
                 {partida.descripcion}
@@ -375,15 +759,12 @@ export const SeccionPresupuesto = ({
               </td>
 
               <td className="px-4 py-3 text-xs text-slate-600">
-                S/{" "}
-                {(Number(partida.monto_presupuestado) || 0).toFixed(2)}
+                S/ {(Number(partida.monto_presupuestado) || 0).toFixed(2)}
               </td>
 
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-bold">
-                    S/
-                  </span>
+                  <span className="text-xs text-slate-400 font-bold">S/</span>
 
                   <input
                     type="number"
@@ -396,25 +777,20 @@ export const SeccionPresupuesto = ({
 
                       if (
                         valor === "" ||
-                        (Number.isFinite(Number(valor)) && Number(valor) >= 0)
+                        (Number.isFinite(Number(valor)) &&
+                          Number(valor) >= 0)
                       ) {
                         cambiarPartida(partida.id, valor);
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (
-                        e.key === "-" ||
-                        e.key === "e" ||
-                        e.key === "E"
-                      ) {
+                      if (["-", "e", "E"].includes(e.key)) {
                         e.preventDefault();
                       }
                     }}
                     onPaste={(e) => {
                       const texto = e.clipboardData.getData("text");
-                      if (Number(texto) < 0) {
-                        e.preventDefault();
-                      }
+                      if (Number(texto) < 0) e.preventDefault();
                     }}
                     className="w-full max-w-[120px] border border-slate-300 p-2 text-xs rounded-lg outline-none focus:border-[#b1122b] transition-colors disabled:bg-slate-100"
                     placeholder="0.00"
@@ -424,7 +800,7 @@ export const SeccionPresupuesto = ({
             </tr>
           ))}
 
-          {partidas.length === 0 && (
+          {(!partidas || partidas.length === 0) && (
             <tr>
               <td
                 colSpan="3"
@@ -441,17 +817,88 @@ export const SeccionPresupuesto = ({
 );
 
 // =====================================================
-// PASO 10: EVIDENCIAS
+// PASO 11: EVIDENCIAS
 // =====================================================
-export const SeccionEvidencias = () => (
-  <ContenedorPaso
-    titulo="Evidencias y Anexos"
-    descripcion="Gestión de evidencias finales del proyecto."
-  >
-    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
-      <p className="text-xs text-slate-500">
-        Módulo de carga de evidencias conectado desde la vista de seguimiento.
+export const SeccionEvidencias = ({ actividades }) => {
+  const evidencias = (actividades || []).flatMap((act) =>
+    (act.evidencias || []).map((ev) => ({
+      ...ev,
+      actividad: act.nombre,
+    }))
+  );
+
+  return (
+    <ContenedorPaso
+      titulo="Evidencias y anexos"
+      descripcion="Evidencias registradas en las actividades del proyecto."
+    >
+      {evidencias.length === 0 ? (
+        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
+          <p className="text-xs text-slate-500">
+            El proyecto no tiene evidencias registradas.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {evidencias.map((ev) => (
+            <li
+              key={ev.id}
+              className="flex items-center justify-between gap-3 border border-slate-200 rounded-lg px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-700 truncate">
+                  {ev.nombre}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate">
+                  {ev.actividad} · {ev.tipo}
+                </p>
+              </div>
+
+              {ev.url && (
+                <a
+                  href={ev.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-semibold text-[#b1122b] hover:underline shrink-0"
+                >
+                  Abrir
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </ContenedorPaso>
+  );
+};
+
+// =====================================================
+// COMENTARIOS DEL DEPARTAMENTO
+// =====================================================
+export const PanelObservaciones = ({ observaciones }) => {
+  if (!observaciones || observaciones.length === 0) return null;
+
+  return (
+    <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
+      <p className="text-sm font-bold text-amber-900 m-0">
+        Comentarios del Departamento
       </p>
+
+      <div className="mt-3 space-y-3">
+        {observaciones.map((obs) => (
+          <div key={obs.id} className="border-l-2 border-amber-400 pl-3">
+            <p className="text-sm text-amber-950 m-0 whitespace-pre-line">
+              {obs.comentario}
+            </p>
+            <p className="text-[10px] text-amber-700 m-0 mt-1">
+              {obs.revisor}
+              {obs.created_at
+                ? ` · ${new Date(obs.created_at).toLocaleDateString()}`
+                : ""}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
-  </ContenedorPaso>
-);
+  );
+};

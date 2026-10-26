@@ -462,7 +462,7 @@ export default function RevisionProyectos() {
                       Proyecto
                     </th>
                     <th className="whitespace-nowrap px-4 py-3 font-medium md:px-6">
-                      Coordinador
+                      Docente responsable
                     </th>
                     <th className="whitespace-nowrap px-4 py-3 font-medium md:px-6">
                       Enviado
