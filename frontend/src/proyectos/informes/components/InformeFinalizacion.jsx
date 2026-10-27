@@ -329,7 +329,7 @@ export default function InformeFinalizacion() {
 
   return (
     <Layout>
-      <div className="p-6 md:p-8 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
+      <div className="p-6 md:p-8 pb-32 md:pb-28 flex-1 flex flex-col min-h-[calc(100vh-64px)]">
         {!proyectoSeleccionado ? (
           <>
             {/* Encabezado del listado */}
@@ -461,4 +461,4 @@ export default function InformeFinalizacion() {
       </div>
     </Layout>
   );
-}
+}
