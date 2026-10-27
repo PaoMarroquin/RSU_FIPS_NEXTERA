@@ -400,7 +400,8 @@ class ProyectoRSUSerializer(serializers.ModelSerializer):
     docentes_adicionales = ProyectoDocenteSerializer(many=True, required=False)
     actividades = ActividadProyectoSerializer(many=True, required=False)
     cronograma = CronogramaAccionSerializer(many=True, read_only=True)
-    documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, required=False)
+    # Se suben y borran por /proyectos/<id>/documentos-sustento/ (multipart); aquí solo se leen.
+    documentos_sustento = DocumentoSustentoProyectoSerializer(many=True, read_only=True)
     metas_indicadores = MetaIndicadorProyectoSerializer(many=True, required=False)
     ejes_subitems = ProyectoEjeSubitemSerializer(many=True, required=False)
     fuentes_financiamiento = FuenteFinanciamientoSerializer(many=True, read_only=True)
