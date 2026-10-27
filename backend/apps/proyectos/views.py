@@ -53,7 +53,7 @@ from apps.utils.permissions import (
 from apps.planificacion.models import PeriodoAcademico
 from .models import (
     ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
-    PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento, DocumentoSustentoProyecto,
+    PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento, DocumentoSustentoProyecto, TipoBeneficiario,
     ProyectoEjeSubitem, RevisionProyecto, HistorialEstadoProyecto, Notificacion,
     AvanceActividad, EvidenciaAvance,
 )
@@ -65,6 +65,7 @@ from .serializers import (
     MetaIndicadorProyectoSerializer,
     FuenteFinanciamientoSerializer,
     DocumentoSustentoProyectoSerializer,
+    TipoBeneficiarioSerializer,
     RevisionProyectoSerializer,
     NotificacionSerializer,
     AvanceActividadSerializer,
@@ -579,6 +580,14 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
+
+
+class TipoBeneficiarioListView(generics.ListAPIView):
+    """GET /tipos-beneficiario/ - catálogo para el punto 1.9 (beneficiarios) del proyecto."""
+    queryset = TipoBeneficiario.objects.order_by('orden', 'id')
+    serializer_class = TipoBeneficiarioSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
 
 
 class DocumentoSustentoListCreateView(generics.ListCreateAPIView):

@@ -2810,3 +2810,14 @@ class DocumentoSustentoAPITests(BaseProyectoTestCase):
                               {'titulo': 'Nuevo título', 'documentos_sustento': []}, format='json')
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         self.assertEqual(len(r.data['documentos_sustento']), 1)
+
+
+class TipoBeneficiarioCatalogoTests(BaseProyectoTestCase):
+
+    def test_lista_el_catalogo_de_beneficiarios(self):
+        from apps.proyectos.models import TipoBeneficiario
+        self.client.force_authenticate(user=self.docente)
+        r = self.client.get(reverse('tipo-beneficiario-list'))
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(r.data), TipoBeneficiario.objects.count())
+        self.assertTrue({'id', 'codigo', 'label'} <= set(r.data[0]))
