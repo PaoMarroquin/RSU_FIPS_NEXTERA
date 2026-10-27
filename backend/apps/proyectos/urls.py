@@ -71,6 +71,9 @@ urlpatterns = [
     path('proyectos/<int:proyecto_pk>/cronograma/<int:pk>/', views.CronogramaAccionDetailView.as_view(), name='cronograma-detail'),
 
     # ── IX. Fuentes de financiamiento ────────────────────────────────────────
+    path('tipos-beneficiario/', views.TipoBeneficiarioListView.as_view(), name='tipo-beneficiario-list'),
+    path('proyectos/<int:proyecto_pk>/documentos-sustento/', views.DocumentoSustentoListCreateView.as_view(), name='documento-sustento-list'),
+    path('proyectos/<int:proyecto_pk>/documentos-sustento/<int:pk>/', views.DocumentoSustentoDetailView.as_view(), name='documento-sustento-detail'),
     path('proyectos/<int:proyecto_pk>/financiamiento/', views.FuenteFinanciamientoListCreateView.as_view(), name='financiamiento-list'),
     path('proyectos/<int:proyecto_pk>/financiamiento/<int:pk>/', views.FuenteFinanciamientoDetailView.as_view(), name='financiamiento-detail'),
 
