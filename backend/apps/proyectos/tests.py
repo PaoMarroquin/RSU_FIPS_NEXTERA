@@ -2752,3 +2752,61 @@ class BorradorMinimoAPITests(BaseProyectoTestCase):
             self.assertIn(campo, errores)
         proyecto.refresh_from_db()
         self.assertEqual(proyecto.estado, 'borrador')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# IX. Documentos de sustento (F10): subida por multipart en su propia ruta
+# ──────────────────────────────────────────────────────────────────────────────
+
+_MEDIA_SUSTENTO = tempfile.mkdtemp()
+
+
+@override_settings(MEDIA_ROOT=_MEDIA_SUSTENTO)
+class DocumentoSustentoAPITests(BaseProyectoTestCase):
+
+    def _pdf(self, nombre='presupuesto.pdf', tamano=1000):
+        return SimpleUploadedFile(nombre, b'%PDF-1.4 ' + b'0' * tamano, content_type='application/pdf')
+
+    def _url(self, proyecto=None):
+        return reverse('documento-sustento-list', args=[(proyecto or self.proyecto_borrador).id])
+
+    def test_docente_sube_lista_y_borra_un_documento(self):
+        self.client.force_authenticate(user=self.docente)
+        r = self.client.post(self._url(), {'archivo': self._pdf(), 'nombre': 'Cotización'}, format='multipart')
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(r.data['nombre'], 'Cotización')
+        self.assertIn('?t=', r.data['archivo'])
+        self.assertEqual(len(self.client.get(self._url()).data), 1)
+        detalle = reverse('documento-sustento-detail', args=[self.proyecto_borrador.id, r.data['id']])
+        self.assertEqual(self.client.delete(detalle).status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(len(self.client.get(self._url()).data), 0)
+
+    def test_sin_nombre_usa_el_del_archivo(self):
+        self.client.force_authenticate(user=self.docente)
+        r = self.client.post(self._url(), {'archivo': self._pdf('sustento.pdf')}, format='multipart')
+        self.assertEqual(r.data['nombre'], 'sustento.pdf')
+
+    def test_rechaza_formato_y_tamano(self):
+        self.client.force_authenticate(user=self.docente)
+        imagen = SimpleUploadedFile('foto.png', b'\x89PNG', content_type='image/png')
+        self.assertEqual(self.client.post(self._url(), {'archivo': imagen}, format='multipart').status_code,
+                         status.HTTP_400_BAD_REQUEST)
+        grande = self._pdf(tamano=10 * 1024 * 1024 + 1)
+        self.assertEqual(self.client.post(self._url(), {'archivo': grande}, format='multipart').status_code,
+                         status.HTTP_400_BAD_REQUEST)
+
+    def test_otro_docente_y_proyecto_en_revision_no_pueden_subir(self):
+        self.client.force_authenticate(user=self.otro_docente)
+        self.assertEqual(self.client.post(self._url(), {'archivo': self._pdf()}, format='multipart').status_code,
+                         status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(user=self.docente)
+        self.assertEqual(self.client.post(self._url(self.proyecto_en_revision), {'archivo': self._pdf()},
+                                          format='multipart').status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_guardar_el_proyecto_no_borra_los_documentos(self):
+        self.client.force_authenticate(user=self.docente)
+        self.client.post(self._url(), {'archivo': self._pdf()}, format='multipart')
+        r = self.client.patch(reverse('proyecto-detail', args=[self.proyecto_borrador.id]),
+                              {'titulo': 'Nuevo título', 'documentos_sustento': []}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(r.data['documentos_sustento']), 1)

@@ -53,7 +53,7 @@ from apps.utils.permissions import (
 from apps.planificacion.models import PeriodoAcademico
 from .models import (
     ProyectoRSU, ProyectoDocente, ActividadProyecto, CronogramaAccion,
-    PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento,
+    PartidaPresupuestaria, MetaIndicadorProyecto, FuenteFinanciamiento, DocumentoSustentoProyecto,
     ProyectoEjeSubitem, RevisionProyecto, HistorialEstadoProyecto, Notificacion,
     AvanceActividad, EvidenciaAvance,
 )
@@ -64,6 +64,7 @@ from .serializers import (
     PartidaPresupuestariaSerializer,
     MetaIndicadorProyectoSerializer,
     FuenteFinanciamientoSerializer,
+    DocumentoSustentoProyectoSerializer,
     RevisionProyectoSerializer,
     NotificacionSerializer,
     AvanceActividadSerializer,
@@ -578,6 +579,52 @@ class PartidaPresupuestariaDetailView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
         return super().destroy(request, *args, **kwargs)
+
+
+class DocumentoSustentoListCreateView(generics.ListCreateAPIView):
+    """
+    GET  /proyectos/<proyecto_pk>/documentos-sustento/ - documentos del proyecto.
+    POST /proyectos/<proyecto_pk>/documentos-sustento/ (multipart/form-data)
+         archivo: PDF, Word o Excel de hasta 10 MB; nombre: opcional.
+
+    IX. Financiamiento - Documentos adjuntos de sustento. Solo en borrador u observado.
+    """
+    serializer_class = DocumentoSustentoProyectoSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    pagination_class = None
+
+    def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
+        return DocumentoSustentoProyecto.objects.filter(
+            proyecto_id=self.kwargs['proyecto_pk']).order_by('uploaded_at')
+
+    def create(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], request.user)
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        proyecto = get_proyecto_editable(self.kwargs['proyecto_pk'], self.request.user)
+        archivo = serializer.validated_data['archivo']
+        nombre = (serializer.validated_data.get('nombre') or '').strip() or archivo.name
+        serializer.save(proyecto=proyecto, nombre=nombre[:255])
+
+
+class DocumentoSustentoDetailView(generics.RetrieveDestroyAPIView):
+    """GET / DELETE /proyectos/<proyecto_pk>/documentos-sustento/<pk>/."""
+    serializer_class = DocumentoSustentoProyectoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        _verificar_proyecto_visible(self.kwargs['proyecto_pk'], self.request.user)
+        return DocumentoSustentoProyecto.objects.filter(proyecto_id=self.kwargs['proyecto_pk'])
+
+    def destroy(self, request, *args, **kwargs):
+        get_proyecto_editable(self.kwargs['proyecto_pk'], request.user)
+        documento = self.get_object()
+        documento.archivo.delete(save=False)
+        documento.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FuenteFinanciamientoListCreateView(generics.ListCreateAPIView):
