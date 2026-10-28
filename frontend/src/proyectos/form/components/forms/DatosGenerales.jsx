@@ -403,10 +403,16 @@ export default function DatosGenerales({ data, updateData }) {
           Beneficiarios / Destinatarios
         </h3>
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
-          <BeneficiariosSelector
-            value={data.beneficiarios}
-            onChange={handleChange}
-          />
+          
+<BeneficiariosSelector
+  value={data.beneficiarios}
+  onChange={(ids) => updateData('beneficiarios', ids)}
+  detalleOtro={data.benef_otro_detalle || ''}
+  onChangeDetalleOtro={(texto) =>
+    updateData('benef_otro_detalle', texto)
+  }
+/>
+
         </div>
       </div>
 

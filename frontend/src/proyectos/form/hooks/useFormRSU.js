@@ -1,12 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../../shared/context/ToastContext';
 import { proyectoApi } from '../../../shared/api/proyectos/proyectoApi';
 
+// =====================================================
+// DATOS INICIALES
+// =====================================================
+
 const mockInitialData = {
   id: null,
 
-  // Paso 1: Datos generales
+  // Paso I: Datos generales
   facultad: '',
   escuela: '',
   departamento: '',
@@ -24,7 +29,11 @@ const mockInitialData = {
   docentesParticipantes: [],
   numEstudiantes: null,
   lugar: '',
-  beneficiarios: '',
+
+  // Beneficiarios: IDs del catálogo.
+  beneficiarios: [],
+  benef_otro_detalle: '',
+
   ejes_rsu: [],
   ejes_subitems: [],
   eje_detalle: '',
@@ -38,33 +47,33 @@ const mockInitialData = {
   encuestaEstudiantes: '',
   encuestaDestinatarios: '',
 
-  // Paso 2
+  // Paso II
   fund_razonGrupo: '',
   fund_proposito: '',
   fund_metodologia: '',
 
-  // Paso 3
+  // Paso III
   diag_estadoActual: '',
   diag_problemas: '',
   diag_aportes: '',
   diag_justificacion: '',
 
-  // Paso 4
+  // Paso IV
   obj_lograrBeneficiario: '',
   obj_mejorarCurricular: '',
   ods: [],
 
-  // Paso 5
+  // Paso V
   resultado_en_beneficiarios: '',
   resultado_en_curriculo: '',
 
-  // Paso 6
+  // Paso VI
   actividades: [],
 
-  // Paso 7
+  // Paso VII
   cronogramas: [],
 
-  // Paso 8
+  // Paso VIII
   recursos: {
     rec_hum_docentes: 0,
     rec_hum_administrativos: 0,
@@ -79,7 +88,7 @@ const mockInitialData = {
     rec_mat_otros: '',
   },
 
-  // Paso 9
+  // Paso IX
   fuentes_financiamiento: [],
 };
 
@@ -87,12 +96,21 @@ const isTextValid = (value) =>
   typeof value === 'string' && value.trim() !== '';
 
 const isIdValid = (value) =>
-  value !== null && value !== undefined && value !== '' &&
+  value !== null &&
+  value !== undefined &&
+  value !== '' &&
   Number(value) !== 0;
 
 const isNumberValid = (value) =>
-  value !== null && value !== undefined && value !== '' &&
-  Number.isFinite(Number(value)) && Number(value) >= 0;
+  value !== null &&
+  value !== undefined &&
+  value !== '' &&
+  Number.isFinite(Number(value)) &&
+  Number(value) >= 0;
+
+// =====================================================
+// VALIDACIONES
+// =====================================================
 
 const VALIDACIONES = {
   1: {
@@ -102,12 +120,17 @@ const VALIDACIONES = {
     departamento: (data) => isIdValid(data.departamento),
     asignaturas: (data) => isTextValid(data.asignaturas),
     titulo: (data) => isTextValid(data.titulo),
-    beneficiarios: (data) => isTextValid(data.beneficiarios),
+
+    beneficiarios: (data) =>
+      Array.isArray(data.beneficiarios) &&
+      data.beneficiarios.length > 0,
+
     numDocentes: (data) => isNumberValid(data.numDocentes),
     numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
 
     ejes_rsu: (data) =>
-      (Array.isArray(data.ejes_rsu) && data.ejes_rsu.length > 0) ||
+      (Array.isArray(data.ejes_rsu) &&
+        data.ejes_rsu.length > 0) ||
       (Array.isArray(data.ejes_subitems) &&
         data.ejes_subitems.length > 0),
 
@@ -124,15 +147,21 @@ const VALIDACIONES = {
   },
 
   2: {
-    fund_razonGrupo: (data) => isTextValid(data.fund_razonGrupo),
-    fund_proposito: (data) => isTextValid(data.fund_proposito),
-    fund_metodologia: (data) => isTextValid(data.fund_metodologia),
+    fund_razonGrupo: (data) =>
+      isTextValid(data.fund_razonGrupo),
+    fund_proposito: (data) =>
+      isTextValid(data.fund_proposito),
+    fund_metodologia: (data) =>
+      isTextValid(data.fund_metodologia),
   },
 
   3: {
-    diag_estadoActual: (data) => isTextValid(data.diag_estadoActual),
-    diag_problemas: (data) => isTextValid(data.diag_problemas),
-    diag_aportes: (data) => isTextValid(data.diag_aportes),
+    diag_estadoActual: (data) =>
+      isTextValid(data.diag_estadoActual),
+    diag_problemas: (data) =>
+      isTextValid(data.diag_problemas),
+    diag_aportes: (data) =>
+      isTextValid(data.diag_aportes),
     diag_justificacion: (data) =>
       isTextValid(data.diag_justificacion),
   },
@@ -142,7 +171,8 @@ const VALIDACIONES = {
       isTextValid(data.obj_lograrBeneficiario),
     obj_mejorarCurricular: (data) =>
       isTextValid(data.obj_mejorarCurricular),
-    ods: (data) => Array.isArray(data.ods) && data.ods.length > 0,
+    ods: (data) =>
+      Array.isArray(data.ods) && data.ods.length > 0,
   },
 
   5: {
@@ -158,8 +188,8 @@ const VALIDACIONES = {
       data.actividades.length > 0 &&
       data.actividades.every(
         (item) =>
-          item.nombre?.trim() !== '' &&
-          item.descripcion?.trim() !== ''
+          item.nombre?.trim() &&
+          item.descripcion?.trim()
       ),
   },
 
@@ -168,12 +198,11 @@ const VALIDACIONES = {
       const actividades = data.actividades || [];
       const cronogramas = data.cronogramas || [];
 
-      if (actividades.length === 0 || cronogramas.length === 0) {
+      if (!actividades.length || !cronogramas.length) {
         return false;
       }
 
-      // Se conserva el índice original de cada actividad.
-      return actividades.every((actividad, indiceOriginal) => {
+      return actividades.every((actividad, indice) => {
         if (
           !actividad.nombre?.trim() ||
           !actividad.descripcion?.trim()
@@ -181,14 +210,13 @@ const VALIDACIONES = {
           return false;
         }
 
-        const identificadorActividad =
-          actividad.id ?? indiceOriginal;
+        const actividadId = actividad.id ?? indice;
 
         const acciones = cronogramas.filter(
           (accion) =>
             accion &&
             String(accion.actividad_id) ===
-              String(identificadorActividad)
+              String(actividadId)
         );
 
         return (
@@ -211,9 +239,7 @@ const VALIDACIONES = {
     recursos: (data) => {
       if (!data.recursos) return false;
 
-      const recursos = data.recursos;
-
-      const camposHumanos = [
+      const campos = [
         'rec_hum_docentes',
         'rec_hum_administrativos',
         'rec_hum_estudiantes',
@@ -222,17 +248,18 @@ const VALIDACIONES = {
         'rec_hum_otros',
       ];
 
-      const totalEquipo = camposHumanos.reduce(
-        (total, campo) =>
-          total + (parseInt(recursos[campo], 10) || 0),
+      const total = campos.reduce(
+        (suma, campo) =>
+          suma + (parseInt(data.recursos[campo], 10) || 0),
         0
       );
 
-      const sinNegativos = camposHumanos.every(
-        (campo) => (parseInt(recursos[campo], 10) || 0) >= 0
+      const noNegativos = campos.every(
+        (campo) =>
+          (parseInt(data.recursos[campo], 10) || 0) >= 0
       );
 
-      return sinNegativos && totalEquipo > 0;
+      return noNegativos && total > 0;
     },
   },
 
@@ -242,6 +269,10 @@ const VALIDACIONES = {
       data.fuentes_financiamiento.length > 0,
   },
 };
+
+// =====================================================
+// CONSTRUCCIÓN DE ACTIVIDADES Y CRONOGRAMAS
+// =====================================================
 
 const normalizarAccion = (accion, orden) => ({
   descripcion: (accion.descripcion || '').trim(),
@@ -254,7 +285,7 @@ const normalizarAccion = (accion, orden) => ({
 });
 
 const construirActividades = (formData) => {
-  const actividadesOriginales = Array.isArray(formData.actividades)
+  const actividades = Array.isArray(formData.actividades)
     ? formData.actividades
     : [];
 
@@ -262,17 +293,16 @@ const construirActividades = (formData) => {
     ? formData.cronogramas
     : [];
 
-  return actividadesOriginales
-    .map((actividad, indiceOriginal) => {
-      const identificadorActividad =
-        actividad.id ?? indiceOriginal;
+  return actividades
+    .map((actividad, indice) => {
+      const actividadId = actividad.id ?? indice;
 
       const acciones = cronogramas
         .filter(
           (accion) =>
             accion &&
             String(accion.actividad_id) ===
-              String(identificadorActividad) &&
+              String(actividadId) &&
             accion.descripcion?.trim()
         )
         .map((accion, indiceAccion) =>
@@ -282,12 +312,16 @@ const construirActividades = (formData) => {
       return {
         nombre: (actividad.nombre || '').trim(),
         descripcion: (actividad.descripcion || '').trim(),
-        orden: actividad.orden || indiceOriginal + 1,
+        orden: actividad.orden || indice + 1,
         acciones,
       };
     })
     .filter((actividad) => actividad.nombre !== '');
 };
+
+// =====================================================
+// CONSTRUIR PAYLOAD DEL PROYECTO
+// =====================================================
 
 const construirPayload = (formData) => {
   const actividades = construirActividades(formData);
@@ -301,17 +335,26 @@ const construirPayload = (formData) => {
     semestre_academico: formData.periodo_nombre || '',
     periodo: parseInt(formData.periodo, 10),
 
-    anio_carrera: formData.anio_carrera
-      ? parseInt(formData.anio_carrera, 10)
-      : null,
+    anio_carrera:
+      formData.anio_carrera === '' ||
+      formData.anio_carrera == null
+        ? null
+        : parseInt(formData.anio_carrera, 10),
 
     es_tesis_quinto_anio:
       Boolean(formData.es_tesis_quinto_anio),
 
     titulo: (formData.titulo || '').trim(),
 
-    nro_docentes: Math.max(0,parseInt(formData.numDocentes, 10) || 0),
-    nro_estudiantes: Math.max(0,parseInt(formData.numEstudiantes, 10) || 0),
+    nro_docentes: Math.max(
+      0,
+      parseInt(formData.numDocentes, 10) || 0
+    ),
+
+    nro_estudiantes: Math.max(
+      0,
+      parseInt(formData.numEstudiantes, 10) || 0
+    ),
 
     docentes_participantes: Array.isArray(
       formData.docentesParticipantes
@@ -326,14 +369,23 @@ const construirPayload = (formData) => {
       .filter((id) => Number.isInteger(id) && id > 0),
 
     lugar_ejecucion: formData.lugar || '',
-    beneficiarios: [],
-    benef_otro_detalle: formData.beneficiarios || '',
+
+    // Enviar IDs del catálogo, nunca un array fijo vacío.
+    beneficiarios: Array.isArray(formData.beneficiarios)
+      ? formData.beneficiarios
+          .map((item) =>
+            typeof item === 'object' && item !== null
+              ? Number(item.id)
+              : Number(item)
+          )
+          .filter((id) => Number.isInteger(id) && id > 0)
+      : [],
+
+    benef_otro_detalle: formData.benef_otro_detalle || '',
 
     ejes_rsu: formData.ejes_rsu || [],
     ejes_subitems: formData.ejes_subitems || [],
     eje_detalle: formData.eje_detalle || '',
-
-    objetivo_institucional: null,
 
     tipo_actividad: formData.tiposActividad || [],
     tipo_actividad_otro: formData.tipoActividadOtro || '',
@@ -348,19 +400,23 @@ const construirPayload = (formData) => {
         meta_descripcion: item.meta_descripcion || '',
         indicador_nombre: item.indicador_nombre || '',
         unidad_medida: item.unidad_medida || '',
+
         linea_base:
           item.linea_base === '' || item.linea_base == null
             ? null
             : Number(item.linea_base),
+
         valor_meta:
           item.valor_meta === '' || item.valor_meta == null
             ? null
             : Number(item.valor_meta),
+
         valor_alcanzado:
           item.valor_alcanzado === '' ||
           item.valor_alcanzado == null
             ? null
             : Number(item.valor_alcanzado),
+
         metodo_verificacion: item.metodo_verificacion || '',
         fuente_verificacion: item.fuente_verificacion || '',
         orden: item.orden || indice + 1,
@@ -372,6 +428,7 @@ const construirPayload = (formData) => {
 
     fecha_encuesta_docentes: formData.encuestaDocentes || null,
     fecha_encuesta_alumnos: formData.encuestaEstudiantes || null,
+
     fecha_encuesta_grupo_destinatario:
       formData.encuestaDestinatarios || null,
 
@@ -382,6 +439,7 @@ const construirPayload = (formData) => {
     diag_estado_grupo: formData.diag_estadoActual || '',
     diag_problemas_detectados: formData.diag_problemas || '',
     diag_aportes_formacion: formData.diag_aportes || '',
+
     diag_justificacion_intervencion:
       formData.diag_justificacion || '',
 
@@ -390,31 +448,34 @@ const construirPayload = (formData) => {
 
     resultado_en_beneficiarios:
       formData.resultado_en_beneficiarios || '',
+
     resultado_en_curriculo:
       formData.resultado_en_curriculo || '',
 
-    impacto_esperado: '',
-
-    // IMPORTANTE:
-    // Las acciones se envían anidadas dentro de cada actividad.
-    // No se agrega un campo raíz "cronograma".
+    // Acciones anidadas dentro de cada actividad.
     actividades,
 
     rec_hum_docentes:
       parseInt(recursos.rec_hum_docentes, 10) || 0,
+
     rec_hum_administrativos:
       parseInt(recursos.rec_hum_administrativos, 10) || 0,
+
     rec_hum_estudiantes:
       parseInt(recursos.rec_hum_estudiantes, 10) || 0,
+
     rec_hum_egresados:
       parseInt(recursos.rec_hum_egresados, 10) || 0,
+
     rec_hum_voluntarios:
       parseInt(recursos.rec_hum_voluntarios, 10) || 0,
+
     rec_hum_otros:
       parseInt(recursos.rec_hum_otros, 10) || 0,
 
     rec_mat_material_didactico:
       recursos.rec_mat_material_didactico || 'n/a',
+
     rec_mat_afiches: recursos.rec_mat_afiches || 'n/a',
     rec_mat_equipos: recursos.rec_mat_equipos || 'n/a',
     rec_mat_utiles: recursos.rec_mat_utiles || 'n/a',
@@ -425,18 +486,89 @@ const construirPayload = (formData) => {
       .map((asignatura) => ({
         nombre_asignatura: asignatura.trim(),
       }))
-      .filter((asignatura) => asignatura.nombre_asignatura),
+      .filter((item) => item.nombre_asignatura),
 
-    docentes_adicionales: [],
-    presentado_con_anticipacion: true,
-    conclusiones: '',
-    recomendaciones: '',
-    lecciones_aprendidas: '',
-    medio_difusion: '',
-    documentos_sustento: [],
+    // NO agregar aquí:
+    // docentes_adicionales
+    // objetivo_institucional
+    // impacto_esperado
+    // presentado_con_anticipacion
+    // conclusiones
+    // recomendaciones
+    // lecciones_aprendidas
+    // medio_difusion
+    // documentos_sustento
   };
 };
 
+// =====================================================
+// NORMALIZACIÓN DE BORRADORES ANTIGUOS
+// =====================================================
+
+const normalizarBorrador = (draft) => {
+  const data = {
+    ...mockInitialData,
+    ...draft,
+    recursos: {
+      ...mockInitialData.recursos,
+      ...(draft.recursos || {}),
+    },
+  };
+
+  // Antes, beneficiarios podía ser texto libre.
+  if (typeof draft.beneficiarios === 'string') {
+    data.benef_otro_detalle =
+      data.benef_otro_detalle || draft.beneficiarios;
+
+    data.beneficiarios = [];
+  } else if (!Array.isArray(data.beneficiarios)) {
+    data.beneficiarios = [];
+  }
+
+  if (!Array.isArray(data.docentesParticipantes)) {
+    data.docentesParticipantes = [];
+  }
+
+  if (!Array.isArray(data.ods)) data.ods = [];
+  if (!Array.isArray(data.tiposActividad)) data.tiposActividad = [];
+
+  // Migración de tipoActividad antiguo.
+  if (
+    draft.tipoActividad !== undefined &&
+    draft.tiposActividad === undefined
+  ) {
+    const mapa = {
+      'Programas formativos': 'programas_formativos',
+      'Acompañamiento a sectores identificados': 'acompanamiento',
+      Asesoría: 'asesoria',
+      'Iniciativas de acercamiento a la comunidad':
+        'acercamiento_comunidad',
+    };
+
+    const antiguo = draft.tipoActividad;
+    const codigo = mapa[antiguo];
+
+    data.tiposActividad = codigo
+      ? [codigo]
+      : antiguo && antiguo !== '__OTROS__'
+        ? ['otro']
+        : [];
+
+    data.tipoActividadOtro = codigo
+      ? ''
+      : antiguo && antiguo !== '__OTROS__'
+        ? antiguo
+        : '';
+
+    delete data.tipoActividad;
+  }
+
+  return data;
+};
+
+// =====================================================
+// MANEJO DE ERRORES
+// =====================================================
 
 const obtenerMensajeError = (error) => {
   const data = error?.response?.data;
@@ -445,7 +577,6 @@ const obtenerMensajeError = (error) => {
     return error?.message || 'Error desconocido.';
   }
 
-  // Si el backend devuelve un texto, intentamos interpretarlo como JSON.
   if (typeof data === 'string') {
     try {
       return obtenerMensajeError({
@@ -456,174 +587,37 @@ const obtenerMensajeError = (error) => {
     }
   }
 
-  // Organizar los campos según las secciones del formulario.
-  const secciones = {
-    1: {
-      nombre: 'I. Datos generales',
-      campos: [
-        'facultad', 'escuela', 'departamento', 'periodo',
-        'asignaturas', 'titulo', 'beneficiarios',
-        'nro_docentes', 'numDocentes', 'numEstudiantes',
-        'ejes_rsu', 'ejes_subitems', 'metas_indicadores',
-        'fecha_inicio', 'fecha_termino',
-      ],
-    },
-    2: {
-      nombre: 'II. Fundamentación',
-      campos: [
-        'fund_por_que_grupo',
-        'fund_para_que_proyecto',
-        'fund_mecanismo_ensenanza',
-      ],
-    },
-    3: {
-      nombre: 'III. Diagnóstico',
-      campos: [
-        'diag_estado_grupo',
-        'diag_problemas_detectados',
-        'diag_aportes_formacion',
-        'diag_justificacion_intervencion',
-      ],
-    },
-    4: {
-      nombre: 'IV. Objetivos y ODS',
-      campos: [
-        'obj_logro_intervencion',
-        'obj_mejora_curricular',
-        'ods',
-      ],
-    },
-    5: {
-      nombre: 'V. Resultados esperados',
-      campos: [
-        'resultado_en_beneficiarios',
-        'resultado_en_curriculo',
-      ],
-    },
-    6: {
-      nombre: 'VI. Actividades',
-      campos: ['actividades'],
-    },
-    7: {
-      nombre: 'VII. Cronograma',
-      campos: ['cronogramas', 'acciones'],
-    },
-    8: {
-      nombre: 'VIII. Recursos',
-      campos: ['recursos_humanos', 'recursos'],
-    },
-    9: {
-      nombre: 'IX. Financiamiento y presupuesto',
-      campos: [
-        'fuentes_financiamiento',
-        'presupuesto',
-        'partidas_presupuestarias',
-      ],
-    },
-  };
-
   const errores = data.errors || data;
-  const grupos = {};
-  const otrosErrores = [];
+  const mensajes = [];
 
-  const buscarSeccion = (campo) => {
-    for (const [numero, seccion] of Object.entries(secciones)) {
-      if (
-        seccion.campos.some(
-          (nombre) =>
-            campo === nombre ||
-            campo.startsWith(`${nombre}.`) ||
-            campo.startsWith(`${nombre}[`)
-        )
-      ) {
-        return { numero, nombre: seccion.nombre };
-      }
+  const recorrer = (campo, valor) => {
+    if (Array.isArray(valor)) {
+      valor.forEach((item) => recorrer(campo, item));
+      return;
     }
 
-    return null;
-  };
-
-  const agregarError = (campo, mensaje) => {
-    const texto = Array.isArray(mensaje)
-      ? mensaje.map(String).join(', ')
-      : typeof mensaje === 'string'
-        ? mensaje
-        : JSON.stringify(mensaje);
-
-    const seccion = buscarSeccion(campo);
-
-    if (seccion) {
-      if (!grupos[seccion.numero]) {
-        grupos[seccion.numero] = {
-          nombre: seccion.nombre,
-          errores: [],
-        };
-      }
-
-      grupos[seccion.numero].errores.push({
-        campo,
-        mensaje: texto,
-      });
-    } else {
-      otrosErrores.push({ campo, mensaje: texto });
+    if (valor && typeof valor === 'object') {
+      Object.entries(valor).forEach(([subcampo, detalle]) =>
+        recorrer(`${campo}.${subcampo}`, detalle)
+      );
+      return;
     }
+
+    mensajes.push(`${campo}: ${String(valor)}`);
   };
 
-  if (typeof errores === 'object' && errores !== null) {
-    Object.entries(errores).forEach(([campo, mensaje]) => {
-      if (
-        campo === 'detail' ||
-        campo === 'message' ||
-        campo === 'non_field_errors'
-      ) {
-        const mensajes = Array.isArray(mensaje)
-          ? mensaje
-          : [mensaje];
-
-        mensajes.forEach((texto) =>
-          otrosErrores.push({
-            campo: campo === 'non_field_errors'
-              ? 'Error general'
-              : 'Mensaje del servidor',
-            mensaje: String(texto),
-          })
-        );
-        return;
-      }
-
-      agregarError(campo, mensaje);
-    });
-  } else {
-    return String(errores);
-  }
-
-  const lineas = [
-    'No se pudo completar la operación.',
-    '',
-    'DETALLE DE LOS ERRORES',
-  ];
-
-  Object.values(grupos).forEach((grupo) => {
-    lineas.push('', grupo.nombre);
-
-    grupo.errores.forEach(({ campo, mensaje }) => {
-      lineas.push(`  • ${campo}: ${mensaje}`);
-    });
+  Object.entries(errores).forEach(([campo, valor]) => {
+    recorrer(campo, valor);
   });
 
-  if (otrosErrores.length > 0) {
-    lineas.push('', 'OTROS ERRORES');
-
-    otrosErrores.forEach(({ campo, mensaje }) => {
-      lineas.push(`  • ${campo}: ${mensaje}`);
-    });
-  }
-
-  return lineas.join('\n');
+  return mensajes.length
+    ? mensajes.join('\n')
+    : 'No se pudo completar la operación.';
 };
 
-
-
+// =====================================================
+// HOOK PRINCIPAL
+// =====================================================
 
 export const useFormRSU = () => {
   const [step, setStep] = useState(1);
@@ -633,73 +627,276 @@ export const useFormRSU = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
+  // Catálogo de beneficiarios.
+  const [tiposBeneficiario, setTiposBeneficiario] = useState([]);
+  const [cargandoBeneficiarios, setCargandoBeneficiarios] =
+    useState(false);
+
+  // Documentos de sustento del proyecto.
+  const [documentosSustento, setDocumentosSustento] = useState([]);
+  const [cargandoDocumentos, setCargandoDocumentos] = useState(false);
+  const [subiendoDocumento, setSubiendoDocumento] = useState(false);
+
   const [formData, setFormData] = useState(() => {
     try {
       const draft = localStorage.getItem('rsu_draft');
 
       if (draft) {
-        const parsedDraft = JSON.parse(draft);
-
-        if (
-          parsedDraft.tipoActividad !== undefined &&
-          parsedDraft.tiposActividad === undefined
-        ) {
-          const MAPA_VIEJO = {
-            'Programas formativos': 'programas_formativos',
-            'Acompañamiento a sectores identificados':
-              'acompanamiento',
-            Asesoría: 'asesoria',
-            'Iniciativas de acercamiento a la comunidad':
-              'acercamiento_comunidad',
-          };
-
-          const viejo = parsedDraft.tipoActividad;
-          const codigoBackend = MAPA_VIEJO[viejo];
-
-          parsedDraft.tiposActividad = codigoBackend
-            ? [codigoBackend]
-            : viejo && viejo !== '__OTROS__'
-              ? ['otro']
-              : [];
-
-          parsedDraft.tipoActividadOtro = codigoBackend
-            ? ''
-            : viejo && viejo !== '__OTROS__'
-              ? viejo
-              : '';
-
-          delete parsedDraft.tipoActividad;
-        }
-
-        return {
-          ...mockInitialData,
-          ...parsedDraft,
-          recursos: {
-            ...mockInitialData.recursos,
-            ...(parsedDraft.recursos || {}),
-          },
-        };
+        return normalizarBorrador(JSON.parse(draft));
       }
     } catch (error) {
-      console.error(
-        'Error leyendo el borrador del LocalStorage:',
-        error
-      );
+      console.error('Error leyendo borrador RSU:', error);
     }
 
-    return mockInitialData;
+    return { ...mockInitialData };
   });
 
+  // Guardar borrador local.
   useEffect(() => {
-    localStorage.setItem('rsu_draft', JSON.stringify(formData));
+    try {
+      localStorage.setItem('rsu_draft', JSON.stringify(formData));
+    } catch (error) {
+      console.error('Error guardando borrador RSU:', error);
+    }
   }, [formData]);
 
-  const updateData = (field, value) => {
+  // ---------------------------------------------------
+  // ACTUALIZAR FORMULARIO
+  // ---------------------------------------------------
+
+  const updateData = useCallback((field, value) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-  };
+  }, []);
+
+  const actualizarBeneficiarios = useCallback((ids) => {
+    const normalizados = [...new Set(
+      (Array.isArray(ids) ? ids : [])
+        .map(Number)
+        .filter((id) => Number.isInteger(id) && id > 0)
+    )];
+
+    setFormData((prev) => ({
+      ...prev,
+      beneficiarios: normalizados,
+    }));
+  }, []);
+
+  const alternarBeneficiario = useCallback((id, seleccionado) => {
+    const beneficiarioId = Number(id);
+
+    if (!Number.isInteger(beneficiarioId) || beneficiarioId <= 0) {
+      return;
+    }
+
+    setFormData((prev) => {
+      const actuales = Array.isArray(prev.beneficiarios)
+        ? prev.beneficiarios.map(Number)
+        : [];
+
+      const siguientes = seleccionado
+        ? [...new Set([...actuales, beneficiarioId])]
+        : actuales.filter((actual) => actual !== beneficiarioId);
+
+      return {
+        ...prev,
+        beneficiarios: siguientes,
+      };
+    });
+  }, []);
+
+  // ---------------------------------------------------
+  // CATÁLOGO DE BENEFICIARIOS
+  // ---------------------------------------------------
+
+  const cargarTiposBeneficiario = useCallback(async () => {
+    setCargandoBeneficiarios(true);
+
+    try {
+      const tipos = await proyectoApi.obtenerTiposBeneficiario();
+
+      setTiposBeneficiario(
+        Array.isArray(tipos) ? tipos : []
+      );
+
+      return tipos;
+    } catch (error) {
+      console.error('Error cargando beneficiarios:', error);
+
+      showToast(
+        'error',
+        `No se pudo cargar el catálogo de beneficiarios: ${obtenerMensajeError(error)}`
+      );
+
+      return [];
+    } finally {
+      setCargandoBeneficiarios(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    cargarTiposBeneficiario();
+  }, [cargarTiposBeneficiario]);
+
+  // ---------------------------------------------------
+  // DOCUMENTOS DE SUSTENTO
+  // ---------------------------------------------------
+
+  const cargarDocumentosSustento = useCallback(async (proyectoId) => {
+    if (!proyectoId) {
+      setDocumentosSustento([]);
+      return [];
+    }
+
+    setCargandoDocumentos(true);
+
+    try {
+      const respuesta =
+        await proyectoApi.obtenerDocumentosSustento(proyectoId);
+
+      const documentos = Array.isArray(respuesta)
+        ? respuesta
+        : respuesta?.results || respuesta?.documentos || [];
+
+      setDocumentosSustento(documentos);
+
+      return documentos;
+    } catch (error) {
+      console.error('Error cargando documentos de sustento:', error);
+
+      showToast(
+        'error',
+        `No se pudieron cargar los documentos: ${obtenerMensajeError(error)}`
+      );
+
+      return [];
+    } finally {
+      setCargandoDocumentos(false);
+    }
+  }, [showToast]);
+
+  const subirDocumentoSustento = useCallback(async (
+    archivo,
+    nombre = ''
+  ) => {
+    const proyectoId = formData.id;
+
+    if (!proyectoId) {
+      showToast(
+        'error',
+        'Primero guarda el proyecto para obtener su ID antes de subir documentos.'
+      );
+      return false;
+    }
+
+    if (!archivo) {
+      showToast('error', 'Selecciona un archivo.');
+      return false;
+    }
+
+    const extensionesPermitidas = [
+      'pdf',
+      'doc',
+      'docx',
+      'xls',
+      'xlsx',
+    ];
+
+    const extension = archivo.name
+      ?.split('.')
+      .pop()
+      ?.toLowerCase();
+
+    if (!extensionesPermitidas.includes(extension)) {
+      showToast(
+        'error',
+        'Formato no permitido. Usa PDF, DOC, DOCX, XLS o XLSX.'
+      );
+      return false;
+    }
+
+    const limiteBytes = 10 * 1024 * 1024;
+
+    if (archivo.size > limiteBytes) {
+      showToast(
+        'error',
+        'El archivo supera el límite permitido de 10 MB.'
+      );
+      return false;
+    }
+
+    setSubiendoDocumento(true);
+
+    try {
+      await proyectoApi.subirDocumentoSustento(
+        proyectoId,
+        archivo,
+        nombre || archivo.name
+      );
+
+      await cargarDocumentosSustento(proyectoId);
+
+      showToast('success', 'Documento de sustento subido correctamente.');
+
+      return true;
+    } catch (error) {
+      console.error('Error subiendo documento:', error);
+
+      showToast(
+        'error',
+        `No se pudo subir el documento: ${obtenerMensajeError(error)}`
+      );
+
+      return false;
+    } finally {
+      setSubiendoDocumento(false);
+    }
+  }, [
+    formData.id,
+    cargarDocumentosSustento,
+    showToast,
+  ]);
+
+  const eliminarDocumentoSustento = useCallback(async (documentoId) => {
+    const proyectoId = formData.id;
+
+    if (!proyectoId || !documentoId) {
+      showToast('error', 'No se pudo identificar el documento.');
+      return false;
+    }
+
+    try {
+      await proyectoApi.eliminarDocumentoSustento(
+        proyectoId,
+        documentoId
+      );
+
+      setDocumentosSustento((prev) =>
+        prev.filter(
+          (documento) => String(documento.id) !== String(documentoId)
+        )
+      );
+
+      showToast('success', 'Documento eliminado correctamente.');
+
+      return true;
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+
+      showToast(
+        'error',
+        `No se pudo eliminar el documento: ${obtenerMensajeError(error)}`
+      );
+
+      return false;
+    }
+  }, [formData.id, showToast]);
+
+  // ---------------------------------------------------
+  // VALIDACIONES Y NAVEGACIÓN
+  // ---------------------------------------------------
 
   const isStepValid = (stepNumber) => {
     try {
@@ -711,37 +908,35 @@ export const useFormRSU = () => {
         regla(formData)
       );
     } catch (error) {
-      console.error('Error al validar el paso:', error);
+      console.error('Error validando paso:', error);
       return false;
     }
   };
 
-const obtenerSeccionesPendientes = () => {
-  const nombresSecciones = {
-    1: "Datos generales del proyecto",
-    2: "Fundamentación del grupo",
-    3: "Diagnóstico del proyecto",
-    4: "Objetivos y ODS",
-    5: "Resultados esperados",
-    6: "Actividades",
-    7: "Cronograma y responsables",
-    8: "Recursos del proyecto",
-    9: "Fuentes de financiamiento",
+  const obtenerSeccionesPendientes = () => {
+    const nombres = {
+      1: 'Datos generales del proyecto',
+      2: 'Fundamentación del grupo',
+      3: 'Diagnóstico del proyecto',
+      4: 'Objetivos y ODS',
+      5: 'Resultados esperados',
+      6: 'Actividades',
+      7: 'Cronograma y responsables',
+      8: 'Recursos del proyecto',
+      9: 'Fuentes de financiamiento',
+    };
+
+    return Object.keys(VALIDACIONES)
+      .map(Number)
+      .filter((numero) => !isStepValid(numero))
+      .map((numero) => ({
+        paso: numero,
+        nombre: nombres[numero],
+      }));
   };
 
-  return Object.keys(VALIDACIONES)
-    .map(Number)
-    .filter((numeroPaso) => !isStepValid(numeroPaso))
-    .map((numeroPaso) => ({
-      paso: numeroPaso,
-      nombre: nombresSecciones[numeroPaso],
-    }));
-};
-
-
-  const pasosCompletados = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(
-    (numeroPaso) => isStepValid(numeroPaso)
-  );
+  const pasosCompletados = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    .filter((numero) => isStepValid(numero));
 
   const nextStep = () =>
     setStep((prev) => Math.min(prev + 1, 9));
@@ -749,23 +944,24 @@ const obtenerSeccionesPendientes = () => {
   const prevStep = () =>
     setStep((prev) => Math.max(prev - 1, 1));
 
-  const goToStep = (targetStep) => setStep(targetStep);
+  const goToStep = (targetStep) =>
+    setStep(Math.max(1, Math.min(Number(targetStep) || 1, 9)));
 
   const handleCancelar = () => {
     localStorage.removeItem('rsu_draft');
     navigate('/proyectos');
   };
 
+  // ---------------------------------------------------
+  // ENVIAR A REVISIÓN
+  // ---------------------------------------------------
+
   const enviarARevision = async (proyectoId) => {
     try {
       await proyectoApi.enviarARevision(proyectoId);
       return true;
     } catch (error) {
-      console.error('Error al enviar a revisión:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
+      console.error('Error al enviar a revisión:', error);
 
       showToast(
         'error',
@@ -775,6 +971,10 @@ const obtenerSeccionesPendientes = () => {
       return false;
     }
   };
+
+  // ---------------------------------------------------
+  // GUARDAR PROYECTO
+  // ---------------------------------------------------
 
   const enviarProyectoBackend = async (modo = 'BORRADOR') => {
     if (isSubmittingRef.current) return false;
@@ -786,16 +986,10 @@ const obtenerSeccionesPendientes = () => {
       const payload = construirPayload(formData);
 
       console.log(
-        'PAYLOAD ENVIADO AL BACKEND:',
+        'PAYLOAD DEL PROYECTO:',
         JSON.stringify(payload, null, 2)
       );
 
-      console.log(
-        'ACCIONES ANIDADAS POR ACTIVIDAD:',
-        JSON.stringify(payload.actividades, null, 2)
-      );
-
-      // Crear o actualizar el proyecto con el endpoint existente.
       let proyecto;
 
       if (formData.id) {
@@ -807,7 +1001,7 @@ const obtenerSeccionesPendientes = () => {
         proyecto = await proyectoApi.crearProyecto(payload);
       }
 
-      const proyectoId = proyecto?.id;
+      const proyectoId = proyecto?.id || formData.id;
 
       if (!proyectoId) {
         throw new Error(
@@ -815,8 +1009,16 @@ const obtenerSeccionesPendientes = () => {
         );
       }
 
-      // Guardar las fuentes y partidas usando los endpoints existentes.
-      // Un error del presupuesto no debe impedir guardar el borrador.
+      // Conservar el ID en el formulario tras crear el proyecto.
+      setFormData((prev) => ({
+        ...prev,
+        id: proyectoId,
+      }));
+
+      // -------------------------------------------------
+      // FUENTES Y PARTIDAS PRESUPUESTARIAS
+      // -------------------------------------------------
+
       const fuentes = Array.isArray(formData.fuentes_financiamiento)
         ? formData.fuentes_financiamiento
         : [];
@@ -833,7 +1035,7 @@ const obtenerSeccionesPendientes = () => {
             descripcion: fuente.descripcion_fuente || '',
           };
 
-          let fuenteIdAsignado;
+          let fuenteIdAsignado = fuente.id;
 
           try {
             const respuestaFuente = fuente.id
@@ -847,7 +1049,8 @@ const obtenerSeccionesPendientes = () => {
                   fuentePayload
                 );
 
-            fuenteIdAsignado = respuestaFuente?.id;
+            fuenteIdAsignado =
+              respuestaFuente?.id || fuenteIdAsignado;
           } catch (errorFuente) {
             erroresFinanciamiento.push(
               `Fuente #${indiceFuente + 1}: ${obtenerMensajeError(errorFuente)}`
@@ -873,12 +1076,15 @@ const obtenerSeccionesPendientes = () => {
               categoria: categoriasValidas.includes(partida.categoria)
                 ? partida.categoria
                 : 'otros',
+
               tipo_recurso: partida.tipo_recurso || 'material',
               descripcion: partida.descripcion.trim(),
               unidad: partida.unidad || 'Unidad',
               cantidad: parseInt(partida.cantidad, 10) || 1,
+
               costo_unitario:
                 parseFloat(partida.costo_unitario) || 0,
+
               fuente: fuenteIdAsignado,
               orden: indicePartida + 1,
             };
@@ -916,12 +1122,9 @@ const obtenerSeccionesPendientes = () => {
           );
         }
 
-        // La confirmación del presupuesto es independiente.
-        // Si requiere firma digital, el proyecto puede seguir guardado
-        // como borrador, pero el presupuesto no quedará confirmado.
+        // Se mantiene el comportamiento original de confirmación.
         try {
           await proyectoApi.confirmarFinanciamiento(proyectoId);
-          console.log('Presupuesto confirmado correctamente.');
         } catch (errorConfirmacion) {
           console.warn(
             'No se pudo confirmar el financiamiento:',
@@ -931,25 +1134,20 @@ const obtenerSeccionesPendientes = () => {
         }
       }
 
-      console.log('Proyecto guardado:', proyecto);
+      // -------------------------------------------------
+      // ENVÍO A REVISIÓN O GUARDADO COMO BORRADOR
+      // -------------------------------------------------
 
-      // Enviar a revisión únicamente cuando se haya solicitado.
       if (modo === 'EN_REVISION') {
         const enviado = await enviarARevision(proyectoId);
 
         if (!enviado) {
-          // Se conserva el ID para poder volver a editar el proyecto.
-          setFormData((prev) => ({
-            ...prev,
-            id: proyectoId,
-          }));
-
           return false;
         }
 
         showToast(
           'success',
-          'Proyecto enviado a revisión correctamente. El Departamento lo revisará pronto.'
+          'Proyecto enviado a revisión correctamente.'
         );
       } else {
         showToast(
@@ -977,15 +1175,12 @@ const obtenerSeccionesPendientes = () => {
       }
 
       if (backendErrors.errors) {
-        const mensajes = Object.entries(backendErrors.errors)
-          .flatMap(([campo, errores]) =>
-            Array.isArray(errores)
-              ? errores.map((mensaje) => `${campo}: ${mensaje}`)
-              : [`${campo}: ${errores}`]
-          )
-          .join(' | ');
-
-        showToast('error', mensajes);
+        showToast(
+          'error',
+          obtenerMensajeError({
+            response: { data: backendErrors.errors },
+          })
+        );
         return false;
       }
 
@@ -1012,7 +1207,9 @@ const obtenerSeccionesPendientes = () => {
 
       showToast(
         'error',
-        `Error al guardar el formulario: ${error.message || 'No se pudo conectar con el servidor.'}`
+        `Error al guardar el formulario: ${
+          error.message || 'No se pudo conectar con el servidor.'
+        }`
       );
 
       return false;
@@ -1022,19 +1219,40 @@ const obtenerSeccionesPendientes = () => {
     }
   };
 
+  // =====================================================
+  // API PÚBLICA DEL HOOK
+  // =====================================================
+
   return {
     step,
     formData,
     pasosCompletados,
     isSubmitting,
+
     updateData,
     nextStep,
     prevStep,
     goToStep,
     handleCancelar,
+
+    isStepValid,
+    obtenerSeccionesPendientes,
     enviarProyectoBackend,
     enviarARevision,
-    obtenerSeccionesPendientes,
 
+    // Beneficiarios.
+    tiposBeneficiario,
+    cargandoBeneficiarios,
+    cargarTiposBeneficiario,
+    actualizarBeneficiarios,
+    alternarBeneficiario,
+
+    // Documentos de sustento.
+    documentosSustento,
+    cargandoDocumentos,
+    subiendoDocumento,
+    cargarDocumentosSustento,
+    subirDocumentoSustento,
+    eliminarDocumentoSustento,
   };
 };
