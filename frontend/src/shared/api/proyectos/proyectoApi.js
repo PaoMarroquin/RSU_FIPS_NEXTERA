@@ -544,6 +544,39 @@ export const proyectoApi = {
     return response.data;
   },
 
+  // ── CATÁLOGO DE BENEFICIARIOS (punto 1.9) ────────────────────────────────
+  obtenerTiposBeneficiario: async () => {
+    const response = await api.get('/api/v1/tipos-beneficiario/');
+    return response.data;
+  },
+
+  // ── DOCUMENTOS DE SUSTENTO (multipart, el proyecto ya debe tener id) ─────
+  obtenerDocumentosSustento: async (proyectoPk) => {
+    const response = await api.get(
+      `/api/v1/proyectos/${proyectoPk}/documentos-sustento/`
+    );
+    return response.data;
+  },
+
+  subirDocumentoSustento: async (proyectoPk, archivo, nombre) => {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+    if (nombre) formData.append('nombre', nombre);
+
+    const response = await api.post(
+      `/api/v1/proyectos/${proyectoPk}/documentos-sustento/`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+
+  eliminarDocumentoSustento: async (proyectoPk, documentoId) => {
+    await api.delete(
+      `/api/v1/proyectos/${proyectoPk}/documentos-sustento/${documentoId}/`
+    );
+  },
+
   // ── INFORMES CONSOLIDADOS ────────────────────────────────────────────────
   obtenerInformeConsolidado: async (
     params = {}
