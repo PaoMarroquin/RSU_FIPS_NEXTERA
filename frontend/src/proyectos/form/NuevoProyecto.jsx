@@ -29,6 +29,13 @@ export default function NuevoProyecto() {
     handleCancelar,
     enviarProyectoBackend,
     isSubmitting,
+    // Documentos de sustento.
+    documentosSustento,
+    cargandoDocumentos,
+    subiendoDocumento,
+    subirDocumentoSustento,
+    cargarDocumentosSustento,
+    eliminarDocumentoSustento
   } = useFormRSU();
 
   const navigate = useNavigate();
@@ -173,6 +180,12 @@ export default function NuevoProyecto() {
                 <Financiamiento
                   data={formData}
                   updateData={updateData}
+                  documentosSustento={documentosSustento}
+                  cargandoDocumentos={cargandoDocumentos}
+                  subiendoDocumento={subiendoDocumento}
+                  subirDocumentoSustento={subirDocumentoSustento}
+                  cargarDocumentosSustento={cargarDocumentosSustento}
+                  eliminarDocumentoSustento={eliminarDocumentoSustento}
                 />
               )}
             </div>

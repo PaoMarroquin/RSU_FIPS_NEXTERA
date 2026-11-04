@@ -777,6 +777,14 @@ export const useFormRSU = () => {
     }
   }, [showToast]);
 
+  useEffect(() => {
+    if (formData.id) {
+      cargarDocumentosSustento(formData.id);
+    } else {
+      setDocumentosSustento([]);
+    }
+  }, [formData.id, cargarDocumentosSustento]);
+
   const subirDocumentoSustento = useCallback(async (
     archivo,
     nombre = ''
