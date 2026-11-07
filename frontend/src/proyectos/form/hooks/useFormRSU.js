@@ -125,6 +125,18 @@ const VALIDACIONES = {
       Array.isArray(data.beneficiarios) &&
       data.beneficiarios.length > 0,
 
+    // Si se marca "Otro", el backend exige benef_otro_detalle.
+    benef_otro_detalle: (data, contexto = {}) => {
+      const tipoOtro = (contexto.tiposBeneficiario || []).find(
+        (tipo) => tipo.codigo === 'otro'
+      );
+      if (!tipoOtro || !Array.isArray(data.beneficiarios)) return true;
+      const otroMarcado = data.beneficiarios
+        .map(Number)
+        .includes(Number(tipoOtro.id));
+      return !otroMarcado || isTextValid(data.benef_otro_detalle);
+    },
+
     numDocentes: (data) => isNumberValid(data.numDocentes),
     numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
 
@@ -913,7 +925,7 @@ export const useFormRSU = () => {
       if (!reglas) return false;
 
       return Object.values(reglas).every((regla) =>
-        regla(formData)
+        regla(formData, { tiposBeneficiario })
       );
     } catch (error) {
       console.error('Error validando paso:', error);

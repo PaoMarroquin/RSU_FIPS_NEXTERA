@@ -29,6 +29,11 @@ export default function NuevoProyecto() {
     handleCancelar,
     enviarProyectoBackend,
     isSubmitting,
+    // Beneficiarios (catálogo GET /api/v1/tipos-beneficiario/).
+    tiposBeneficiario,
+    cargandoBeneficiarios,
+    cargarTiposBeneficiario,
+    alternarBeneficiario,
     // Documentos de sustento.
     documentosSustento,
     cargandoDocumentos,
@@ -124,6 +129,10 @@ export default function NuevoProyecto() {
                 <DatosGenerales
                   data={formData}
                   updateData={updateData}
+                  tiposBeneficiario={tiposBeneficiario}
+                  cargandoBeneficiarios={cargandoBeneficiarios}
+                  alternarBeneficiario={alternarBeneficiario}
+                  cargarTiposBeneficiario={cargarTiposBeneficiario}
                 />
               )}
 
@@ -204,4 +213,4 @@ export default function NuevoProyecto() {
       />
     </Layout>
   );
-}
+}

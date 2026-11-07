@@ -9,7 +9,14 @@ import { catalogoApi } from '../../../../shared/api/usuario/catalogoApi';
 import { periodoApi } from '../../../../shared/api/planificacion/periodoApi';
 import { useToast } from '../../../../shared/context/ToastContext';
 
-export default function DatosGenerales({ data, updateData }) {
+export default function DatosGenerales({
+  data,
+  updateData,
+  tiposBeneficiario = [],
+  cargandoBeneficiarios = false,
+  alternarBeneficiario,
+  cargarTiposBeneficiario,
+}) {
   const { showToast } = useToast();
 
   const handleChange = (e) => {
@@ -404,14 +411,17 @@ export default function DatosGenerales({ data, updateData }) {
         </h3>
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-5">
           
-<BeneficiariosSelector
-  value={data.beneficiarios}
-  onChange={(ids) => updateData('beneficiarios', ids)}
-  detalleOtro={data.benef_otro_detalle || ''}
-  onChangeDetalleOtro={(texto) =>
-    updateData('benef_otro_detalle', texto)
-  }
-/>
+          <BeneficiariosSelector
+            tipos={tiposBeneficiario}
+            cargando={cargandoBeneficiarios}
+            value={data.beneficiarios}
+            onToggle={alternarBeneficiario}
+            onReintentar={cargarTiposBeneficiario}
+            detalleOtro={data.benef_otro_detalle || ''}
+            onChangeDetalleOtro={(texto) =>
+              updateData('benef_otro_detalle', texto)
+            }
+          />
 
         </div>
       </div>

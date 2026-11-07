@@ -55,7 +55,15 @@ export default function EditarProyecto() {
           docentesParticipantes: data.docentes_participantes || [],
           numEstudiantes: data.nro_estudiantes || 0,
           lugar: data.lugar_ejecucion || '',
-          beneficiarios: data.benef_otro_detalle || '',
+          // Ids del catálogo de tipos de beneficiario (punto 1.9).
+          // `beneficiarios` llega como lista de ids; `beneficiarios_info`
+          // como [{ id, codigo, label }] por si el primero no viniera.
+          beneficiarios: (Array.isArray(data.beneficiarios) && data.beneficiarios.length > 0
+            ? data.beneficiarios
+            : (data.beneficiarios_info || []))
+            .map(b => (typeof b === 'object' && b !== null ? Number(b.id) : Number(b)))
+            .filter(idBenef => Number.isInteger(idBenef) && idBenef > 0),
+          benef_otro_detalle: data.benef_otro_detalle || '',
           eje_rsu: data.eje_rsu || null,
           ejes_subitems: data.ejes_subitems || [],
           eje_detalle: data.eje_detalle || "",
@@ -183,4 +191,4 @@ export default function EditarProyecto() {
   }
 
   return <NuevoProyecto />;
-}
+}
