@@ -18,9 +18,24 @@ export default function DatosGenerales({
   cargarTiposBeneficiario,
 }) {
   const { showToast } = useToast();
+  const [erroresConteo, setErroresConteo] = useState({});
 
   const handleChange = (e) => {
     const { name, type, checked, value } = e.target;
+
+    // Docentes y estudiantes: solo enteros >= 0. Un valor pegado con
+    // signo, decimales o notación científica se rechaza con aviso visible
+    // en lugar de corregirse en silencio.
+    if (name === 'numDocentes' || name === 'numEstudiantes') {
+      if (value !== '' && !/^\d+$/.test(value)) {
+        setErroresConteo((prev) => ({
+          ...prev,
+          [name]: 'Ingrese un número entero mayor o igual a 0.',
+        }));
+        return;
+      }
+      setErroresConteo((prev) => ({ ...prev, [name]: '' }));
+    }
 
     if (type === 'date' && value) {
       if (
@@ -347,7 +362,9 @@ export default function DatosGenerales({
                   ['-', '.', '+', 'e', 'E'].includes(e.key) &&
                   e.preventDefault()
                 }
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+                className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all ${
+                  erroresConteo.numDocentes ? 'border-red-400' : 'border-slate-300'
+                }`}
                 name="numDocentes"
                 value={data.numDocentes ?? ''}
                 onChange={handleChange}
@@ -362,6 +379,12 @@ export default function DatosGenerales({
                 Docentes
               </button>
             </div>
+
+            {erroresConteo.numDocentes && (
+              <span className="text-[11px] text-red-600">
+                {erroresConteo.numDocentes}
+              </span>
+            )}
 
             {data.docentesParticipantes?.length > 0 && (
               <span className="text-[11px] text-slate-400">
@@ -382,11 +405,18 @@ export default function DatosGenerales({
                 ['-', '.', '+', 'e', 'E'].includes(e.key) &&
                 e.preventDefault()
               }
-              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all"
+              className={`h-10 w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#b1122b]/10 focus:border-[#b1122b] transition-all ${
+                erroresConteo.numEstudiantes ? 'border-red-400' : 'border-slate-300'
+              }`}
               name="numEstudiantes"
               value={data.numEstudiantes ?? ''}
               onChange={handleChange}
             />
+            {erroresConteo.numEstudiantes && (
+              <span className="text-[11px] text-red-600">
+                {erroresConteo.numEstudiantes}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1 md:col-span-2">

@@ -101,12 +101,17 @@ const isIdValid = (value) =>
   value !== '' &&
   Number(value) !== 0;
 
-const isNumberValid = (value) =>
-  value !== null &&
-  value !== undefined &&
-  value !== '' &&
-  Number.isFinite(Number(value)) &&
-  Number(value) >= 0;
+// Entero no negativo (docentes y estudiantes participantes).
+// Rechaza decimales, negativos, notación científica y texto.
+const esEnteroNoNegativo = (value) =>
+  /^\d+$/.test(String(value ?? '').trim());
+
+// Campo vacío (aún no completado) o entero válido.
+const esConteoVacioOValido = (value) =>
+  value === null ||
+  value === undefined ||
+  String(value).trim() === '' ||
+  esEnteroNoNegativo(value);
 
 // =====================================================
 // VALIDACIONES
@@ -137,8 +142,8 @@ const VALIDACIONES = {
       return !otroMarcado || isTextValid(data.benef_otro_detalle);
     },
 
-    numDocentes: (data) => isNumberValid(data.numDocentes),
-    numEstudiantes: (data) => isNumberValid(data.numEstudiantes),
+    numDocentes: (data) => esEnteroNoNegativo(data.numDocentes),
+    numEstudiantes: (data) => esEnteroNoNegativo(data.numEstudiantes),
 
     ejes_rsu: (data) =>
       (Array.isArray(data.ejes_rsu) &&
@@ -358,15 +363,15 @@ const construirPayload = (formData) => {
 
     titulo: (formData.titulo || '').trim(),
 
-    nro_docentes: Math.max(
-      0,
-      parseInt(formData.numDocentes, 10) || 0
-    ),
+    // Los valores inválidos se bloquean antes (enviarProyectoBackend);
+    // aquí solo se convierte un campo vacío a 0, sin corregir en silencio.
+    nro_docentes: esEnteroNoNegativo(formData.numDocentes)
+      ? Number.parseInt(formData.numDocentes, 10)
+      : 0,
 
-    nro_estudiantes: Math.max(
-      0,
-      parseInt(formData.numEstudiantes, 10) || 0
-    ),
+    nro_estudiantes: esEnteroNoNegativo(formData.numEstudiantes)
+      ? Number.parseInt(formData.numEstudiantes, 10)
+      : 0,
 
     docentes_participantes: Array.isArray(
       formData.docentesParticipantes
@@ -998,6 +1003,23 @@ export const useFormRSU = () => {
 
   const enviarProyectoBackend = async (modo = 'BORRADOR') => {
     if (isSubmittingRef.current) return false;
+
+    // No se guardan cantidades inválidas ni se corrigen en silencio.
+    if (!esConteoVacioOValido(formData.numDocentes)) {
+      showToast(
+        'error',
+        'N° de docentes participantes debe ser un número entero mayor o igual a 0.'
+      );
+      return false;
+    }
+
+    if (!esConteoVacioOValido(formData.numEstudiantes)) {
+      showToast(
+        'error',
+        'N° de estudiantes participantes debe ser un número entero mayor o igual a 0.'
+      );
+      return false;
+    }
 
     isSubmittingRef.current = true;
     setIsSubmitting(true);
