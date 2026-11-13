@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { FiCheckSquare, FiBell, FiLoader } from "react-icons/fi";
 import { useNotificaciones } from "./hooks/useNotificaciones"; // <--- Ruta local
+import { useToast } from "../../shared/context/ToastContext";
 import { getTipoConfig } from "../../shared/utils/notificacionTipos"; // <--- Ruta compartida
 
 const FILTROS = [
@@ -14,7 +15,19 @@ const FILTROS = [
 
 export default function Notificaciones() {
   const { notificaciones, loading, unreadCount, marcarComoLeida, marcarTodasComoLeidas } = useNotificaciones();
+  const { showToast } = useToast();
   const [filtro, setFiltro] = useState('todas');
+
+  const handleMarcarTodas = async () => {
+    const resultado = await marcarTodasComoLeidas();
+    const fallidas = resultado?.fallidas?.length || 0;
+    if (fallidas > 0) {
+      showToast(
+        'error',
+        `No se pudieron marcar ${fallidas} notificación(es) como leída(s). Intenta nuevamente.`
+      );
+    }
+  };
 
   const notificacionesFiltradas = useMemo(() => {
     if (filtro === 'no_leidas') return notificaciones.filter(n => !n.leida);
@@ -51,7 +64,7 @@ export default function Notificaciones() {
 
             {unreadCount > 0 && (
               <button
-                onClick={marcarTodasComoLeidas}
+                onClick={handleMarcarTodas}
                 className="flex items-center gap-1.5 text-xs font-semibold text-[#b1122b] hover:text-[#941020] transition-colors shrink-0"
               >
                 <FiCheckSquare className="text-base" />
