@@ -29,6 +29,18 @@ export default function NuevoProyecto() {
     handleCancelar,
     enviarProyectoBackend,
     isSubmitting,
+    // Beneficiarios (catálogo GET /api/v1/tipos-beneficiario/).
+    tiposBeneficiario,
+    cargandoBeneficiarios,
+    cargarTiposBeneficiario,
+    alternarBeneficiario,
+    // Documentos de sustento.
+    documentosSustento,
+    cargandoDocumentos,
+    subiendoDocumento,
+    subirDocumentoSustento,
+    cargarDocumentosSustento,
+    eliminarDocumentoSustento
   } = useFormRSU();
 
   const navigate = useNavigate();
@@ -117,6 +129,10 @@ export default function NuevoProyecto() {
                 <DatosGenerales
                   data={formData}
                   updateData={updateData}
+                  tiposBeneficiario={tiposBeneficiario}
+                  cargandoBeneficiarios={cargandoBeneficiarios}
+                  alternarBeneficiario={alternarBeneficiario}
+                  cargarTiposBeneficiario={cargarTiposBeneficiario}
                 />
               )}
 
@@ -173,6 +189,12 @@ export default function NuevoProyecto() {
                 <Financiamiento
                   data={formData}
                   updateData={updateData}
+                  documentosSustento={documentosSustento}
+                  cargandoDocumentos={cargandoDocumentos}
+                  subiendoDocumento={subiendoDocumento}
+                  subirDocumentoSustento={subirDocumentoSustento}
+                  cargarDocumentosSustento={cargarDocumentosSustento}
+                  eliminarDocumentoSustento={eliminarDocumentoSustento}
                 />
               )}
             </div>
@@ -191,4 +213,4 @@ export default function NuevoProyecto() {
       />
     </Layout>
   );
-}
+}

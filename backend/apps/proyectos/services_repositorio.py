@@ -433,8 +433,11 @@ def ficha_tecnica(proyecto):
         },
     }
 
+    # El total sale de las fuentes registradas; monto_financiamiento solo queda para proyectos antiguos sin fuentes.
+    fuentes = list(proyecto.fuentes_financiamiento.all())
+    monto_total = sum(f.monto for f in fuentes) if fuentes else (proyecto.monto_financiamiento or 0)
     ficha['financiamiento'] = {
-        'monto_total': float(proyecto.monto_financiamiento or 0),
+        'monto_total': float(monto_total),
         'fuente_principal': proyecto.get_fuente_financiamiento_display() or None,
         'descripcion_gastos': proyecto.descripcion_gastos,
         'observaciones': proyecto.observaciones_financiamiento,
@@ -444,7 +447,7 @@ def ficha_tecnica(proyecto):
                 'monto': float(f.monto),
                 'descripcion': f.descripcion,
             }
-            for f in proyecto.fuentes_financiamiento.all()
+            for f in fuentes
         ],
         'partidas': [
             {

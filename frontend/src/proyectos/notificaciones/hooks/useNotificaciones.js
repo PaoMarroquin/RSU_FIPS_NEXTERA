@@ -37,13 +37,25 @@ export function useNotificaciones() {
   const marcarTodasComoLeidas = useCallback(async () => {
     const pendientes = notificaciones.filter(n => !n.leida);
     if (pendientes.length === 0) return;
-    try {
-      // Marcamos todas en paralelo usando el nuevo endpoint
-      await Promise.all(pendientes.map(n => notificacionApi.marcarNotificacionLeida(n.id)));
-      setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })));
-    } catch (error) {
-      console.error('Error al marcar todas como leidas:', error);
+    // Lotes de 5 peticiones; solo se marcan en pantalla las que el servidor confirmó.
+    const { exitosas, fallidas } = await notificacionApi.marcarVariasLeidas(
+      pendientes.map(n => n.id)
+    );
+
+    if (exitosas.length > 0) {
+      const marcadas = new Set(exitosas);
+      setNotificaciones(prev =>
+        prev.map(n => (marcadas.has(n.id) ? { ...n, leida: true } : n))
+      );
     }
+
+    if (fallidas.length > 0) {
+      console.error(
+        `No se pudieron marcar ${fallidas.length} notificaciones como leidas.`
+      );
+    }
+
+    return { exitosas, fallidas };
   }, [notificaciones]);
 
   const unreadCount = notificaciones.filter(n => !n.leida).length;

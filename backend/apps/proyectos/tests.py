@@ -2663,6 +2663,17 @@ class RepositorioHistoricoAPITests(APITestCase):
         self.assertNotIn('historial_estados', data)
         self.assertTrue(data['solo_lectura'])
 
+    def test_ficha_monto_total_suma_las_fuentes_de_financiamiento(self):
+        """BUG-008: el total salia en 0 cuando el financiamiento estaba en fuentes."""
+        FuenteFinanciamiento.objects.create(
+            proyecto=self.reciclaje, fuente='autofinanciado', monto=Decimal('300.00'))
+        FuenteFinanciamiento.objects.create(
+            proyecto=self.reciclaje, fuente='autofinanciado', monto=Decimal('200.00'))
+        self.client.force_authenticate(user=self.docente)
+        response = self.client.get(
+            reverse('repositorio-ficha-tecnica', args=[self.reciclaje.pk]))
+        self.assertEqual(response.data['financiamiento']['monto_total'], 500.0)
+
     def test_ficha_de_proyecto_no_finalizado_responde_404(self):
         self.client.force_authenticate(user=self.docente)
         for proyecto in (self.aprobado, self.en_ejecucion):

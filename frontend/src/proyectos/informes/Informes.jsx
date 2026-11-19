@@ -27,6 +27,7 @@ import {
   DocumentoCard,
   ModalDocumento,
 } from "./components/ExpedienteUI";
+import ModalImprimirExpediente from "./components/ModalImprimirExpediente";
 
 // Normaliza los nombres de los roles.
 const normalizarRol = (valor) =>
@@ -124,6 +125,7 @@ const Informes = () => {
   } = useActividades();
 
   const [documentoModal, setDocumentoModal] = useState(null);
+  const [imprimirExpediente, setImprimirExpediente] = useState(false);
   const [informeFinalizacion, setInformeFinalizacion] = useState(null);
   const [loadingFinalizacion, setLoadingFinalizacion] = useState(false);
   const [errorFinalizacion, setErrorFinalizacion] = useState(null);
@@ -551,7 +553,7 @@ const Informes = () => {
 
                     <button
                       type="button"
-                      onClick={() => window.print()}
+                      onClick={() => setImprimirExpediente(true)}
                       className="flex items-center justify-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:border-slate-300 w-full sm:w-auto"
                     >
                       <FiPrinter />
@@ -648,6 +650,14 @@ const Informes = () => {
           </div>
         </div>
       </div>
+
+      {/* VISTA DE IMPRESIÓN DEL EXPEDIENTE */}
+      {imprimirExpediente && matrizSeleccionada?.id && (
+        <ModalImprimirExpediente
+          proyectoId={matrizSeleccionada.id}
+          onClose={() => setImprimirExpediente(false)}
+        />
+      )}
 
       {/* MODAL */}
       {documentoModal && (

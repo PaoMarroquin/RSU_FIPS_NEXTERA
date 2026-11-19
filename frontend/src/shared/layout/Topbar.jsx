@@ -59,18 +59,22 @@ export default function Topbar({ onMenuClick }) {
 
     if (pendientes.length === 0) return;
 
-    try {
-      await Promise.all(
-        pendientes.map((n) =>
-          notificacionApi.marcarNotificacionLeida(n.id)
-        )
-      );
+    // Lotes de 5 peticiones; solo se marcan en pantalla las confirmadas.
+    const { exitosas, fallidas } = await notificacionApi.marcarVariasLeidas(
+      pendientes.map((n) => n.id)
+    );
 
+    if (exitosas.length > 0) {
+      const marcadas = new Set(exitosas);
       setNotificaciones((prev) =>
-        prev.map((n) => ({ ...n, leida: true }))
+        prev.map((n) => (marcadas.has(n.id) ? { ...n, leida: true } : n))
       );
-    } catch (error) {
-      console.error("Error al marcar todas como leídas:", error);
+    }
+
+    if (fallidas.length > 0) {
+      console.error(
+        `No se pudieron marcar ${fallidas.length} notificaciones como leídas.`
+      );
     }
   }, [notificaciones]);
 
