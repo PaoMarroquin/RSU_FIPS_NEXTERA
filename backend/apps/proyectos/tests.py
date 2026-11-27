@@ -894,7 +894,7 @@ class DocumentoSustentoValidationTests(BaseProyectoTestCase):
         documento.full_clean()
 
     def test_archivo_demasiado_grande_es_rechazado(self):
-        contenido_grande = b"0" * (26 * 1024 * 1024)  # 26MB > limite de 25MB para PDF
+        contenido_grande = b'0' * (11 * 1024 * 1024)  # 11MB > limite de 10MB
         documento = DocumentoSustentoProyecto(
             proyecto=self.proyecto_borrador,
             archivo=SimpleUploadedFile('sustento.pdf', contenido_grande, content_type='application/pdf'),
@@ -2802,7 +2802,7 @@ class DocumentoSustentoAPITests(BaseProyectoTestCase):
         imagen = SimpleUploadedFile('foto.png', b'\x89PNG', content_type='image/png')
         self.assertEqual(self.client.post(self._url(), {'archivo': imagen}, format='multipart').status_code,
                          status.HTTP_400_BAD_REQUEST)
-        grande = self._pdf(tamano=25 * 1024 * 1024 + 1)
+        grande = self._pdf(tamano=10 * 1024 * 1024 + 1)
         self.assertEqual(self.client.post(self._url(), {'archivo': grande}, format='multipart').status_code,
                          status.HTTP_400_BAD_REQUEST)
 

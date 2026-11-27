@@ -78,8 +78,7 @@ vez por semestre (en un servidor de prueba o fuera del horario de uso).
 
 El disco de Render gratis se borra al reiniciarse, y con él las fotos y documentos subidos. En el servicio del
 backend, en *Environment*, poner `MEDIA_EN_BD=True` para guardar los archivos en la base de datos y `DEBUG=False`.
-En la OTI no se usa: los archivos van al volumen `media` con respaldo diario. Los PDF admiten hasta 25 MB; las
-imágenes, Word y Excel, hasta 10 MB.
+En la OTI no se usa: los archivos van al volumen `media` con respaldo diario.
 
 ## Comandos útiles
 
