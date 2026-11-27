@@ -4,6 +4,8 @@ import api from "../../../shared/api/axiosConfig";
 import { usuarioApi } from "../../../shared/api/usuario/usuarioApi";
 import PaginatedSelect from "../../../shared/components/forms/PaginatedSelect";
 
+const allowPassword = import.meta.env.VITE_ALLOW_PASSWORD_LOGIN?.toLowerCase() === 'true'; //predeterminado falso
+
 export default function ModalUsuarioForm({ usuario, onClose, onSaved }) {
   const isEditing = !!usuario;
   const [loading, setLoading] = useState(false);
@@ -182,7 +184,7 @@ export default function ModalUsuarioForm({ usuario, onClose, onSaved }) {
                     className={`h-10 px-3 rounded-lg border border-slate-300 text-sm outline-none ${isEditing ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'focus:ring-2 focus:ring-[#7B1E3A]/20 focus:border-[#7B1E3A]'}`} />
                 </div>
 
-                {!isEditing && (
+                {!isEditing && allowPassword && (
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Contraseña *</label>
                     <input type="password" name="password" required minLength={8} value={data.password} onChange={handleChange} className="h-10 px-3 rounded-lg border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-[#7B1E3A]/20 focus:border-[#7B1E3A]" />

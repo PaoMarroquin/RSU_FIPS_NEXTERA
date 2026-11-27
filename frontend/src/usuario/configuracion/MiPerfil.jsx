@@ -25,7 +25,7 @@ const inputClass =
 const readOnlyClass =
   "w-full h-10 px-3 text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-not-allowed";
 
-const allowPasswordChange = false;
+const allowPasswordChange = import.meta.env.VITE_ALLOW_PASSWORD_LOGIN?.toLowerCase() === 'true'; //predeterminado falso
 
 
 function SectionTitle({ title, description }) {
