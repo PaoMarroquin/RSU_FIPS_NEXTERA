@@ -204,9 +204,19 @@ export default function InformeFinalizacion() {
     }
 
     switch (step) {
-      // PASO 1: Datos generales
+      // PASO 1: Datos generales, meta (1.12) e indicador (1.13)
       case 1:
-        return <SeccionDatosGenerales informe={informeData} />;
+        return (
+          <div className="space-y-8">
+            <SeccionDatosGenerales informe={informeData} />
+
+            <SeccionMetas
+              metas={metas}
+              cambiarMeta={cambiarMeta}
+              puedeEditar={puedeEditar}
+            />
+          </div>
+        );
 
       // PASO 2: Fortalezas y limitaciones
       case 2:
@@ -253,29 +263,17 @@ export default function InformeFinalizacion() {
           />
         );
 
-      // PASO 6: Recomendaciones y medio de difusión
+      // PASO 6: Recomendaciones
       case 6:
         return (
-          <div className="space-y-6">
-            <SeccionTextosSimple
-              titulo="Recomendaciones"
-              descripcion="Sugerencias para futuros proyectos."
-              label="Recomendaciones"
-              valor={textos.recomendaciones}
-              onChange={(v) => cambiarTexto("recomendaciones", v)}
-              puedeEditar={puedeEditar}
-            />
-
-            <SeccionTextosSimple
-              titulo="Medio de Difusión"
-              descripcion="Cómo se difundieron los resultados de este proyecto."
-              label="Medio de difusión"
-              valor={textos.medio_difusion}
-              onChange={(v) => cambiarTexto("medio_difusion", v)}
-              puedeEditar={puedeEditar}
-              maxLength={MAX_MEDIO_DIFUSION}
-            />
-          </div>
+          <SeccionTextosSimple
+            titulo="Recomendaciones"
+            descripcion="Sugerencias para futuros proyectos."
+            label="Recomendaciones"
+            valor={textos.recomendaciones}
+            onChange={(v) => cambiarTexto("recomendaciones", v)}
+            puedeEditar={puedeEditar}
+          />
         );
 
       // PASO 7: Cronología
@@ -294,23 +292,27 @@ export default function InformeFinalizacion() {
           />
         );
 
-      // PASO 9: Metas e indicadores
+      // PASO 9: Financiamiento
       case 9:
-        return (
-          <SeccionMetas
-            metas={metas}
-            cambiarMeta={cambiarMeta}
-            puedeEditar={puedeEditar}
-          />
-        );
-
-      // PASO 10: Ejecución presupuestal
-      case 10:
         return (
           <SeccionPresupuesto
             partidas={partidas}
             cambiarPartida={cambiarPartida}
             puedeEditar={puedeEditar}
+          />
+        );
+
+      // PASO 10: Medio de difusión
+      case 10:
+        return (
+          <SeccionTextosSimple
+            titulo="Medio de difusión"
+            descripcion="Cómo se difundieron los resultados de este proyecto."
+            label="Medio de difusión"
+            valor={textos.medio_difusion}
+            onChange={(v) => cambiarTexto("medio_difusion", v)}
+            puedeEditar={puedeEditar}
+            maxLength={MAX_MEDIO_DIFUSION}
           />
         );
 

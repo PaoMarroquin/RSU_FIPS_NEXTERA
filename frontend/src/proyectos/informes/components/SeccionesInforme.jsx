@@ -468,7 +468,7 @@ export const SeccionLecciones = ({ textos, onChange, puedeEditar }) => (
 );
 
 // =====================================================
-// PASOS 5 Y 6: CAMPOS DE TEXTO
+// PASOS 5, 6 Y 10: CAMPOS DE TEXTO
 // =====================================================
 export const SeccionTextosSimple = ({
   titulo,
@@ -628,11 +628,11 @@ export const SeccionRecursos = ({ recursos }) => {
 };
 
 // =====================================================
-// PASO 9: METAS E INDICADORES
+// PASO 1: META (1.12) E INDICADOR (1.13)
 // =====================================================
 export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
   <ContenedorPaso
-    titulo="Metas e indicadores"
+    titulo="Meta (1.12) e Indicador (1.13)"
     descripcion="Ingresa los valores alcanzados. No se permiten valores negativos."
   >
     <div className="overflow-x-auto w-full border border-slate-200 rounded-lg">
@@ -721,7 +721,7 @@ export const SeccionMetas = ({ metas, cambiarMeta, puedeEditar }) => (
 );
 
 // =====================================================
-// PASO 10: EJECUCIÓN PRESUPUESTAL
+// PASO 9: FINANCIAMIENTO
 // =====================================================
 export const SeccionPresupuesto = ({
   partidas,
@@ -729,7 +729,7 @@ export const SeccionPresupuesto = ({
   puedeEditar,
 }) => (
   <ContenedorPaso
-    titulo="Ejecución presupuestal"
+    titulo="Financiamiento"
     descripcion="Completa los montos ejecutados. No se permiten valores negativos."
   >
     <div className="overflow-x-auto w-full border border-slate-200 rounded-lg">
@@ -740,10 +740,10 @@ export const SeccionPresupuesto = ({
               Partida
             </th>
             <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase">
-              Presupuestado
+              Monto propuesto (S/)
             </th>
             <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase">
-              Ejecutado (S/)
+              Monto ejecutado (S/)
             </th>
           </tr>
         </thead>
