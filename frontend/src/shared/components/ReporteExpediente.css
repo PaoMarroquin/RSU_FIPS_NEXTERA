@@ -1,0 +1,350 @@
+/* Formato oficial F-PM03.01-01: A4, Calibri, medidas tomadas de la plantilla Word. */
+.fo-contenedor {
+  overflow-x: auto;
+}
+
+.formato-ours {
+  width: 21cm;
+  margin: 0 auto;
+  color: #000;
+  font-family: Calibri, Carlito, Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.22;
+}
+
+.formato-ours .fo-pagina {
+  display: flex;
+  flex-direction: column;
+  width: 21cm;
+  height: 29.6cm;
+  margin-bottom: 0.5cm;
+  padding: 1.25cm 1.32cm 2.4cm 2.74cm;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 8px rgb(0 0 0 / 15%);
+}
+
+.formato-ours .fo-area {
+  flex: 1;
+  min-height: 0;
+}
+
+.formato-ours .fo-cuerpo {
+  display: flow-root;
+}
+
+/* Contenido sin paginar y zona de medición: fuera de la vista. */
+.fo-origen {
+  display: none;
+}
+
+.fo-taller {
+  position: absolute;
+  top: 0;
+  left: -10000px;
+  visibility: hidden;
+}
+
+.formato-ours * {
+  box-sizing: border-box;
+}
+
+.formato-ours p,
+.formato-ours h3,
+.formato-ours ol,
+.formato-ours ul {
+  margin: 0;
+  padding: 0;
+}
+
+.formato-ours table {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Encabezado */
+.formato-ours .fo-encabezado {
+  flex-shrink: 0;
+  width: 16.94cm;
+  margin-bottom: 14pt;
+  font-size: 12pt;
+  text-align: center;
+}
+
+.formato-ours .fo-encabezado th,
+.formato-ours .fo-encabezado td {
+  height: 0.6cm;
+  border: 0.5pt solid #000;
+  padding: 0 2pt;
+  vertical-align: middle;
+}
+
+.formato-ours .fo-encabezado img {
+  display: inline-block;
+  width: 3.41cm;
+  height: 1.25cm;
+}
+
+.formato-ours .fo-codigo {
+  font-size: 11pt;
+}
+
+/* Cuerpo: ancho útil de 15 cm (márgenes de 3 cm) */
+.formato-ours .fo-cuerpo {
+  padding-left: 0.26cm;
+}
+
+.formato-ours li.fo-continua {
+  list-style: none;
+}
+
+/* 1.10: las filas se ven como una sola celda. */
+.formato-ours .fo-ejes tr:not(:first-child) > * {
+  border-top: 0;
+}
+
+.formato-ours .fo-ejes tr:not(:last-child) > * {
+  border-bottom: 0;
+}
+
+.formato-ours .fo-centro,
+.formato-ours .fo-oficio,
+.formato-ours .fo-intro,
+.formato-ours .fo-preguntas,
+.formato-ours .fo-fundamentacion,
+.formato-ours .fo-recursos {
+  width: 15cm;
+}
+
+.formato-ours .fo-centro {
+  font-weight: bold;
+  text-align: center;
+}
+
+.formato-ours .fo-oficio {
+  border-bottom: 1.5pt solid #000;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.formato-ours .fo-campo > span,
+.formato-ours .fo-rotulo {
+  display: inline-block;
+  width: 2.5cm;
+}
+
+.formato-ours .fo-sangria {
+  padding-left: 2.65cm;
+}
+
+.formato-ours .fo-intro {
+  margin: 3pt 0 10pt;
+  line-height: 1.35;
+  text-align: justify;
+}
+
+.formato-ours .fo-titulo {
+  display: flex;
+  margin: 8pt 0 3pt;
+  padding-left: 0.25cm;
+  font-size: 11pt;
+  font-weight: bold;
+  break-after: avoid;
+}
+
+.formato-ours .fo-titulo span {
+  width: 0.75cm;
+  flex-shrink: 0;
+}
+
+/* Tablas */
+.formato-ours .fo-tabla {
+  width: 16.24cm;
+  margin-top: 6pt;
+}
+
+.formato-ours .fo-tabla th,
+.formato-ours .fo-tabla td {
+  border: 0.5pt solid #000;
+  padding: 0 0.19cm;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.formato-ours .fo-tabla th {
+  padding: 0;
+  white-space: nowrap;
+  font-weight: bold;
+  text-align: center;
+}
+
+.formato-ours .fo-datos,
+.formato-ours .fo-bloque .fo-etiqueta,
+.formato-ours .fo-bloque .fo-valor {
+  font-weight: bold;
+}
+
+.formato-ours .fo-etiqueta {
+  text-align: justify;
+}
+
+.formato-ours .fo-bloque {
+  margin-top: 14pt;
+}
+
+.formato-ours .fo-saliente {
+  margin-left: -0.26cm;
+}
+
+.formato-ours .fo-bloque td:not(.fo-etiqueta, .fo-valor) {
+  white-space: normal;
+}
+
+.formato-ours .fo-enunciado {
+  margin-bottom: 6pt;
+  font-weight: bold;
+  line-height: 1.35;
+  text-align: justify;
+}
+
+.formato-ours .fo-azul {
+  color: #1f4e79;
+}
+
+.formato-ours .fo-eje {
+  margin: 8pt 0;
+  font-weight: bold;
+}
+
+.formato-ours ol.fo-letras {
+  padding-left: 0.55cm;
+  list-style: lower-alpha;
+  text-align: justify;
+}
+
+.formato-ours ol.fo-beneficiarios {
+  padding-left: 1.5cm;
+  font-weight: bold;
+}
+
+.formato-ours ul.fo-guiones {
+  padding-left: 0.5cm;
+  list-style: '- ';
+}
+
+.formato-ours .fo-detalle {
+  margin-left: -0.3cm;
+}
+
+.formato-ours .fo-fundamentacion {
+  padding: 4pt 0 0 1cm;
+}
+
+.formato-ours ul.fo-preguntas {
+  padding-left: 1.5cm;
+  list-style: '-  ';
+}
+
+.formato-ours .fo-preguntas li::marker {
+  color: #f00;
+  font-weight: bold;
+}
+
+.formato-ours .fo-preguntas li {
+  text-align: justify;
+}
+
+.formato-ours .fo-guia {
+  color: #44546a;
+  font-weight: bold;
+}
+
+.formato-ours .fo-respuesta {
+  color: #000;
+  font-weight: normal;
+  text-align: justify;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.formato-ours .fo-cronograma {
+  width: 15.5cm;
+}
+
+.formato-ours .fo-menor {
+  font-size: 10pt;
+}
+
+.formato-ours .fo-recursos {
+  padding-left: 0.8cm;
+}
+
+.formato-ours .fo-monto,
+.formato-ours .fo-fecha,
+.formato-ours .fo-firma {
+  width: 15cm;
+  padding-left: 1.9cm;
+}
+
+.formato-ours .fo-monto {
+  font-weight: bold;
+  text-align: center;
+}
+
+.formato-ours .fo-cierre {
+  break-inside: avoid;
+}
+
+.formato-ours .fo-fecha {
+  margin: 18pt 0;
+  font-weight: bold;
+  text-align: right;
+}
+
+.formato-ours .fo-firma {
+  font-style: italic;
+  text-align: center;
+}
+
+.formato-ours .fo-firma img {
+  display: block;
+  max-width: 5cm;
+  max-height: 2cm;
+  margin: 0 auto;
+}
+
+@media print {
+  /* Página con nombre: prevalece sobre el @page general de index.css. */
+  @page formato-ours {
+    size: A4;
+    margin: 0;
+  }
+
+  .fo-contenedor {
+    overflow: visible;
+  }
+
+  .formato-ours {
+    page: formato-ours;
+    margin: 0;
+    print-color-adjust: exact;
+  }
+
+  .formato-ours .fo-pagina {
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  .formato-ours .fo-pagina:last-child {
+    break-after: auto;
+  }
+
+  /* index.css evita cortar filas; aquí las páginas ya vienen armadas. */
+  .fo-origen,
+  .fo-taller {
+    display: none;
+  }
+}
