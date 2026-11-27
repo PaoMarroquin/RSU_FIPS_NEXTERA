@@ -9,6 +9,10 @@ serializers ni el frontend: siguen usando la URL que devuelve la API.
 
 Con MEDIA_X_ACCEL=True (producción detrás de Nginx) la vista solo valida y
 Nginx entrega el archivo desde una ubicación interna.
+
+Con MEDIA_EN_BD=True se usa MediaBDStorage: el archivo se guarda en la base de
+datos (apps/archivos) en vez del disco, para servidores cuyo disco se borra al
+reiniciarse (Render gratis). La URL firmada es la misma.
 """
 import mimetypes
 import posixpath
@@ -16,8 +20,10 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.core import signing
-from django.core.files.storage import FileSystemStorage
+from django.core.files.base import ContentFile
+from django.core.files.storage import FileSystemStorage, Storage
 from django.http import Http404, HttpResponse
+from django.utils.encoding import filepath_to_uri
 from django.views.static import serve
 
 SALT = 'media-protegido'
@@ -36,6 +42,38 @@ class MediaFirmadoStorage(FileSystemStorage):
         return f'{base}?t={_firmador().sign(name)}'
 
 
+class MediaBDStorage(Storage):
+    """Guarda los archivos subidos en la tabla archivos_media."""
+
+    def _modelo(self):
+        from apps.archivos.models import ArchivoMedia
+        return ArchivoMedia
+
+    def _save(self, name, content):
+        content.seek(0)
+        datos = content.read()
+        self._modelo().objects.create(nombre=name, contenido=datos, tamano=len(datos))
+        return name
+
+    def _open(self, name, mode='rb'):
+        archivo = self._modelo().objects.filter(nombre=name).first()
+        if archivo is None:
+            raise FileNotFoundError(name)
+        return ContentFile(bytes(archivo.contenido), name=name)
+
+    def exists(self, name):
+        return self._modelo().objects.filter(nombre=name).exists()
+
+    def delete(self, name):
+        self._modelo().objects.filter(nombre=name).delete()
+
+    def size(self, name):
+        return self._modelo().objects.values_list('tamano', flat=True).get(nombre=name)
+
+    def url(self, name):
+        return f'{settings.MEDIA_URL}{filepath_to_uri(name)}?t={_firmador().sign(name)}'
+
+
 def media_protegido(request, path):
     token = request.GET.get('t', '')
     try:
@@ -44,6 +82,14 @@ def media_protegido(request, path):
         raise Http404('Archivo no disponible.')
     if posixpath.normpath(nombre) != posixpath.normpath(path):
         raise Http404('Archivo no disponible.')
+
+    if settings.MEDIA_EN_BD:
+        from apps.archivos.models import ArchivoMedia
+        archivo = ArchivoMedia.objects.filter(nombre=path).first()
+        if archivo is None:
+            raise Http404('Archivo no disponible.')
+        tipo, _ = mimetypes.guess_type(path)
+        return HttpResponse(bytes(archivo.contenido), content_type=tipo or 'application/octet-stream')
 
     if settings.MEDIA_X_ACCEL:
         respuesta = HttpResponse()

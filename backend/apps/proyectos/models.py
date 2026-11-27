@@ -52,10 +52,18 @@ DOCUMENTO_SUSTENTO_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx']
 DOCUMENTO_SUSTENTO_MAX_SIZE_MB = 10
 
 
+# Los PDF (informes escaneados, listas de asistencia) suelen pesar más.
+PDF_MAX_SIZE_MB = 25
+
+
+def _limite_mb(archivo, limite_mb):
+    return PDF_MAX_SIZE_MB if str(archivo.name).lower().endswith('.pdf') else limite_mb
+
+
 def validate_documento_sustento_size(archivo):
-    if archivo.size > DOCUMENTO_SUSTENTO_MAX_SIZE_MB * 1024 * 1024:
-        raise ValidationError(
-            f'El archivo no puede superar los {DOCUMENTO_SUSTENTO_MAX_SIZE_MB}MB.')
+    limite = _limite_mb(archivo, DOCUMENTO_SUSTENTO_MAX_SIZE_MB)
+    if archivo.size > limite * 1024 * 1024:
+        raise ValidationError(f'El archivo no puede superar los {limite}MB.')
 
 
 # Evidencias de avances (PDF, imágenes y listas de asistencia)
@@ -64,9 +72,9 @@ EVIDENCIA_MAX_SIZE_MB = 10
 
 
 def validate_evidencia_size(archivo):
-    if archivo.size > EVIDENCIA_MAX_SIZE_MB * 1024 * 1024:
-        raise ValidationError(
-            f'La evidencia no puede superar los {EVIDENCIA_MAX_SIZE_MB}MB.')
+    limite = _limite_mb(archivo, EVIDENCIA_MAX_SIZE_MB)
+    if archivo.size > limite * 1024 * 1024:
+        raise ValidationError(f'La evidencia no puede superar los {limite}MB.')
 
 
 class TipoBeneficiario(models.Model):
@@ -562,7 +570,7 @@ class CronogramaAccion(models.Model):
 class DocumentoSustentoProyecto(models.Model):
     """
     IX. Financiamiento - Documentos Adjuntos de Sustento.
-    Permite subir archivos en PDF, Word o Excel (máx. 10MB).
+    Permite subir archivos en PDF (máx. 25MB), Word o Excel (máx. 10MB).
     """
     proyecto = models.ForeignKey(
         ProyectoRSU, on_delete=models.CASCADE, related_name='documentos_sustento')

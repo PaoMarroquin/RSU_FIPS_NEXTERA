@@ -174,10 +174,14 @@ DOCUMENTO_EXTENSIONS = ['pdf', 'doc', 'docx']
 DOCUMENTO_MAX_SIZE_MB = 20
 
 
+PDF_MAX_SIZE_MB = 25
+
+
 def validate_documento_size(archivo):
-    if archivo.size > DOCUMENTO_MAX_SIZE_MB * 1024 * 1024:
-        raise ValidationError(
-            f'El archivo no puede superar los {DOCUMENTO_MAX_SIZE_MB}MB.')
+    es_pdf = str(archivo.name).lower().endswith('.pdf')
+    limite = PDF_MAX_SIZE_MB if es_pdf else DOCUMENTO_MAX_SIZE_MB
+    if archivo.size > limite * 1024 * 1024:
+        raise ValidationError(f'El archivo no puede superar los {limite}MB.')
 
 
 class MatrizOperativa(models.Model):

@@ -74,6 +74,13 @@ vez por semestre (en un servidor de prueba o fuera del horario de uso).
 - Los usuarios creados por el Administrador deben cambiar su contraseña inicial en el primer ingreso.
 - Inicio de sesión con Google solo para correos `@unsa.edu.pe`.
 
+## Servidor de pruebas en Render
+
+El disco de Render gratis se borra al reiniciarse, y con él las fotos y documentos subidos. En el servicio del
+backend, en *Environment*, poner `MEDIA_EN_BD=True` para guardar los archivos en la base de datos y `DEBUG=False`.
+En la OTI no se usa: los archivos van al volumen `media` con respaldo diario. Los PDF admiten hasta 25 MB; las
+imágenes, Word y Excel, hasta 10 MB.
+
 ## Comandos útiles
 
 ```bash
