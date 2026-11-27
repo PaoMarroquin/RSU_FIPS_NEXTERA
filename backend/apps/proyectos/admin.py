@@ -115,7 +115,7 @@ class DocumentoSustentoProyectoInline(admin.TabularInline):
     extra = 1
     fields = ('nombre', 'archivo')
     verbose_name = "Documento"
-    verbose_name_plural = "IX. Documentos adjuntos (PDF, Word, Excel — máx. 10MB)"
+    verbose_name_plural = "IX. Documentos adjuntos (PDF máx. 25MB; Word, Excel máx. 10MB)"
 
 
 class MetaIndicadorProyectoInline(admin.TabularInline):

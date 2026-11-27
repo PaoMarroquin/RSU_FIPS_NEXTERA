@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'apps.usuarios',
     'apps.planificacion',
     'apps.proyectos',
+    'apps.archivos',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -148,9 +149,12 @@ CSRF_TRUSTED_ORIGINS = config(
 
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default=None)
 
-# Producción detrás de Nginx con HTTPS (solo con DEBUG apagado).
+# Detrás de un proxy con HTTPS (Nginx, Render) los enlaces a archivos deben salir con https aunque
+# DEBUG esté encendido; si no, el navegador los bloquea por contenido mixto.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Producción (solo con DEBUG apagado).
 if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -167,8 +171,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 
 # Archivos subidos solo con URL firmada y con vencimiento (apps/utils/almacenamiento.py).
+# MEDIA_EN_BD=True guarda los archivos en la base de datos (Render gratis borra el disco al reiniciarse).
+MEDIA_EN_BD = config('MEDIA_EN_BD', default=False, cast=bool)
 STORAGES = {
-    'default': {'BACKEND': 'apps.utils.almacenamiento.MediaFirmadoStorage'},
+    'default': {'BACKEND': 'apps.utils.almacenamiento.'
+                           + ('MediaBDStorage' if MEDIA_EN_BD else 'MediaFirmadoStorage')},
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
 MEDIA_URL_EXPIRACION_SEGUNDOS = config('MEDIA_URL_EXPIRACION_SEGUNDOS', default=7200, cast=int)
