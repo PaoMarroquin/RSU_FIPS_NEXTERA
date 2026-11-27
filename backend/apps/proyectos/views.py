@@ -594,7 +594,7 @@ class DocumentoSustentoListCreateView(generics.ListCreateAPIView):
     """
     GET  /proyectos/<proyecto_pk>/documentos-sustento/ - documentos del proyecto.
     POST /proyectos/<proyecto_pk>/documentos-sustento/ (multipart/form-data)
-         archivo: PDF de hasta 25 MB, Word o Excel de hasta 10 MB; nombre: opcional.
+         archivo: PDF, Word o Excel de hasta 10 MB; nombre: opcional.
 
     IX. Financiamiento - Documentos adjuntos de sustento. Solo en borrador u observado.
     """
@@ -1246,7 +1246,7 @@ class ActividadEvidenciaView(APIView):
     POST /proyectos/<proyecto_pk>/actividades/<pk>/evidencia/  (multipart)
 
     Flujo de "Mis actividades" en un solo paso: el docente sube un archivo
-    (PDF hasta 25MB; JPG/JPEG/PNG hasta 10MB) o pega un enlace de Drive, con una
+    (PDF/JPG/JPEG/PNG, máx. 10MB) o pega un enlace de Drive, con una
     observación opcional. En la misma operación se registra el avance, la
     actividad queda completada y se recalcula el % de ejecución del proyecto.
 

@@ -1,16 +1,12 @@
 """
-Pruebas de los archivos guardados en la base de datos (MEDIA_EN_BD) y del límite mayor para PDF.
+Pruebas de los archivos guardados en la base de datos (MEDIA_EN_BD).
 
 Conecta con:
 - apps/utils/almacenamiento.py: MediaBDStorage y la vista media_protegido.
-- apps/proyectos/models.py: validate_evidencia_size.
 """
-from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
-from apps.proyectos.models import validate_evidencia_size
 from apps.utils.almacenamiento import MediaBDStorage
 
 from .models import ArchivoMedia
@@ -47,11 +43,3 @@ class MediaEnBaseDeDatosTests(TestCase):
         self.storage.delete(nombre)
         self.assertFalse(self.storage.exists(nombre))
 
-
-class LimitePdfTests(TestCase):
-
-    def test_un_pdf_puede_pesar_mas_que_una_imagen(self):
-        quince_mb = b'0' * (15 * 1024 * 1024)
-        validate_evidencia_size(SimpleUploadedFile('lista.pdf', quince_mb))
-        with self.assertRaises(ValidationError):
-            validate_evidencia_size(SimpleUploadedFile('foto.jpg', quince_mb))
