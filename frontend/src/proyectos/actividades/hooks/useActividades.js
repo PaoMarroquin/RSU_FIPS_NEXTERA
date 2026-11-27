@@ -284,7 +284,7 @@ export const useActividades = () => {
       if (archivo) {
         formData.append("archivo", archivo);
       } else {
-        formData.append("url", enlace);
+        formData.append("enlace_drive", enlace);
       }
 
       formData.append("observacion", observacionFinal);
