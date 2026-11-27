@@ -71,3 +71,28 @@ class UsuariosAPITests(APITestCase):
         self.assertEqual(por_rol[Rol.DOCENTE], 1)
         self.assertEqual(por_rol[Rol.ADMINISTRADOR], 1)
         self.assertEqual(por_rol[Rol.JEFATURA], 0)
+
+    def test_detalle_trae_la_estructura_academica_y_editar_no_la_borra(self):
+        """BUG-020: el formulario de edicion precarga con el detalle y no debe perder datos."""
+        from .models import Facultad, EscuelaProfesional, DepartamentoAcademico
+        facultad = Facultad.objects.create(nombre='Facultad Prueba', codigo='FPR')
+        escuela = EscuelaProfesional.objects.create(nombre='Escuela Prueba', codigo='EPR', facultad=facultad)
+        departamento = DepartamentoAcademico.objects.create(
+            nombre='Departamento Prueba', codigo='DPR', facultad=facultad)
+        usuario = Usuario.objects.create_user(
+            correo_institucional='editado@unsa.edu.pe', password='Clave1234!', nombres='Editado',
+            rol=self.rol_docente, facultad=facultad, escuela=escuela, departamento=departamento)
+        self.client.force_authenticate(user=self.admin)
+        url = reverse('usuario-detail', args=[usuario.pk])
+
+        data = self.client.get(url).data
+        self.assertEqual((data['rol'], data['facultad'], data['escuela'], data['departamento']),
+                         (self.rol_docente.pk, facultad.pk, escuela.pk, departamento.pk))
+        self.assertEqual(data['escuela_nombre'], 'Escuela Prueba')
+        self.assertEqual(data['departamento_nombre'], 'Departamento Prueba')
+
+        response = self.client.patch(url, {'estado': 'inactivo'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        usuario.refresh_from_db()
+        self.assertEqual((usuario.estado, usuario.facultad_id, usuario.escuela_id, usuario.departamento_id),
+                         ('inactivo', facultad.pk, escuela.pk, departamento.pk))

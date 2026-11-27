@@ -136,6 +136,17 @@ class UsuarioListSerializer(serializers.ModelSerializer):
         ]
 
 
+class UsuarioDetailSerializer(UsuarioListSerializer):
+    """Detalle de un usuario: trae los ids que el formulario de edicion precarga (BUG-020)."""
+    escuela_nombre = serializers.CharField(source='escuela.nombre', read_only=True, default=None)
+    departamento_nombre = serializers.CharField(source='departamento.nombre', read_only=True, default=None)
+
+    class Meta(UsuarioListSerializer.Meta):
+        fields = UsuarioListSerializer.Meta.fields + [
+            'rol', 'facultad', 'escuela', 'escuela_nombre', 'departamento', 'departamento_nombre',
+        ]
+
+
 class AsignarRolSerializer(serializers.Serializer):
     rol_id = serializers.PrimaryKeyRelatedField(queryset=Rol.objects.filter(activo=True))
     motivo = serializers.CharField(max_length=500, required=False, allow_blank=True)
