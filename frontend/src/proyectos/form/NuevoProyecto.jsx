@@ -67,7 +67,7 @@ export default function NuevoProyecto() {
 
   return (
     <Layout>
-      <main className="flex min-h-[calc(100vh-64px)] w-full flex-1 flex-col space-y-6 p-6 md:p-8">
+      <main className="flex min-h-[calc(100vh-64px)] w-full flex-1 flex-col space-y-6 p-6 pb-28 md:p-8 md:pb-28">
         {/* ENCABEZADO */}
         <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
@@ -122,7 +122,7 @@ export default function NuevoProyecto() {
         />
 
         {/* CONTENIDO DEL FORMULARIO */}
-        <section className="w-full flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section className="w-full min-h-[500px] flex-1 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="min-h-[500px] p-4 md:p-6 lg:p-8">
             <div>
               {step === 1 && (
@@ -213,4 +213,4 @@ export default function NuevoProyecto() {
       />
     </Layout>
   );
-}
+}

@@ -25,6 +25,9 @@ const inputClass =
 const readOnlyClass =
   "w-full h-10 px-3 text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-not-allowed";
 
+const allowPasswordChange = false;
+
+
 function SectionTitle({ title, description }) {
   return (
     <div className="mb-3">
@@ -291,8 +294,8 @@ export default function MiPerfil() {
       showToast(
         "success",
         resultado?.detail ||
-          resultado?.mensaje ||
-          "Tu contraseña se actualizó correctamente."
+        resultado?.mensaje ||
+        "Tu contraseña se actualizó correctamente."
       );
 
       setPasswordData({
@@ -630,7 +633,7 @@ export default function MiPerfil() {
 
                   <SectionTitle
                     title="Cuenta y seguridad"
-                    description="Consulta tu correo institucional y actualiza tu contraseña."
+                    description="Consulta tu correo institucional"
                   />
                 </div>
 
@@ -656,69 +659,71 @@ export default function MiPerfil() {
                 </div>
 
                 {/* CAMBIAR CONTRASEÑA */}
-                <form onSubmit={handleCambiarPassword} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <PasswordField
-                      label="Contraseña actual"
-                      name="password_actual"
-                      value={passwordData.password_actual}
-                      onChange={handlePasswordInputChange}
-                      visible={visiblePasswords.actual}
-                      onToggle={() => togglePasswordVisibility("actual")}
-                      placeholder="Ingresa tu contraseña actual"
-                      autoComplete="current-password"
-                    />
+                {allowPasswordChange && (
+                  <form onSubmit={handleCambiarPassword} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <PasswordField
+                        label="Contraseña actual"
+                        name="password_actual"
+                        value={passwordData.password_actual}
+                        onChange={handlePasswordInputChange}
+                        visible={visiblePasswords.actual}
+                        onToggle={() => togglePasswordVisibility("actual")}
+                        placeholder="Ingresa tu contraseña actual"
+                        autoComplete="current-password"
+                      />
 
-                    <PasswordField
-                      label="Nueva contraseña"
-                      name="password_nueva"
-                      value={passwordData.password_nueva}
-                      onChange={handlePasswordInputChange}
-                      visible={visiblePasswords.nueva}
-                      onToggle={() => togglePasswordVisibility("nueva")}
-                      placeholder="Mínimo 8 caracteres"
-                      autoComplete="new-password"
-                    />
+                      <PasswordField
+                        label="Nueva contraseña"
+                        name="password_nueva"
+                        value={passwordData.password_nueva}
+                        onChange={handlePasswordInputChange}
+                        visible={visiblePasswords.nueva}
+                        onToggle={() => togglePasswordVisibility("nueva")}
+                        placeholder="Mínimo 8 caracteres"
+                        autoComplete="new-password"
+                      />
 
-                    <PasswordField
-                      label="Confirmar nueva contraseña"
-                      name="confirmar_password"
-                      value={passwordData.confirmar_password}
-                      onChange={handlePasswordInputChange}
-                      visible={visiblePasswords.confirmar}
-                      onToggle={() => togglePasswordVisibility("confirmar")}
-                      placeholder="Repite la nueva contraseña"
-                      autoComplete="new-password"
-                    />
-                  </div>
+                      <PasswordField
+                        label="Confirmar nueva contraseña"
+                        name="confirmar_password"
+                        value={passwordData.confirmar_password}
+                        onChange={handlePasswordInputChange}
+                        visible={visiblePasswords.confirmar}
+                        onToggle={() => togglePasswordVisibility("confirmar")}
+                        placeholder="Repite la nueva contraseña"
+                        autoComplete="new-password"
+                      />
+                    </div>
 
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-800">
-                      Por seguridad, necesitarás tu contraseña actual para
-                      establecer una nueva. Usa al menos 8 caracteres.
-                    </p>
-                  </div>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-xs text-amber-800">
+                        Por seguridad, necesitarás tu contraseña actual para
+                        establecer una nueva. Usa al menos 8 caracteres.
+                      </p>
+                    </div>
 
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="submit"
-                      disabled={isChangingPassword}
-                      className="h-10 px-5 bg-[#b1122b] hover:bg-[#941020] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {isChangingPassword ? (
-                        <>
-                          <FiLoader className="animate-spin" />
-                          Actualizando contraseña...
-                        </>
-                      ) : (
-                        <>
-                          <FiLock />
-                          Cambiar contraseña
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        disabled={isChangingPassword}
+                        className="h-10 px-5 bg-[#b1122b] hover:bg-[#941020] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {isChangingPassword ? (
+                          <>
+                            <FiLoader className="animate-spin" />
+                            Actualizando contraseña...
+                          </>
+                        ) : (
+                          <>
+                            <FiLock />
+                            Cambiar contraseña
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </section>
           </div>

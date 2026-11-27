@@ -65,6 +65,7 @@ from .serializers import (
     UsuarioCreateSerializer,
     UsuarioEditSerializer,
     UsuarioListSerializer,
+    UsuarioDetailSerializer,
 )
 
 try:
@@ -310,7 +311,7 @@ class UsuarioRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     def get_serializer_class(self):
         if self.request.method in ('PUT', 'PATCH'):
             return UsuarioEditSerializer
-        return UsuarioListSerializer
+        return UsuarioDetailSerializer
 
     def get_permissions(self):
         # La gestión de usuarios (alta, edición, baja) es exclusiva del

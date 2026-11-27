@@ -55,8 +55,8 @@ const PASO_DE_CAMPO = {
   lecciones_reflexiones: 4,
   conclusiones: 5,
   recomendaciones: 6,
-  medio_difusion: 6,
-  metas_valor_alcanzado: 9,
+  medio_difusion: 10,
+  metas_valor_alcanzado: 1,
 };
 
 const TOTAL_PASOS = 11;
@@ -124,11 +124,10 @@ export const useInformeFinalizacionForm = () => {
   // PASOS COMPLETADOS
   // ============================================================
   const pasosCompletados = useMemo(() => {
-    // Paso 1: datos generales.
     // Paso 7: cronología.
     // Paso 8: recursos, mostrados desde la información del backend.
     // Paso 11: evidencias, mostradas desde las actividades.
-    const completados = [1, 7, 8, 11];
+    const completados = [7, 8, 11];
 
     const llenos = (campos) =>
       campos.every((campo) => textoLleno(textos[campo]));
@@ -168,26 +167,32 @@ export const useInformeFinalizacionForm = () => {
       completados.push(5);
     }
 
-    if (llenos(["recomendaciones", "medio_difusion"])) {
+    if (llenos(["recomendaciones"])) {
       completados.push(6);
     }
 
-    // Paso 9: todas las metas deben tener un valor alcanzado.
-    if (
-      metas.length > 0 &&
-      metas.every((meta) => numeroValido(meta.valor_alcanzado))
-    ) {
-      completados.push(9);
+    // Paso 1: datos generales, con un valor alcanzado en cada meta.
+    if (metas.every((meta) => numeroValido(meta.valor_alcanzado))) {
+      completados.push(1);
     }
 
-    // Paso 10: presupuesto.
+    // Paso 9: financiamiento. El backend devuelve 0 en las partidas sin
+    // llenar, así que un monto mayor que cero indica que ya se guardó.
+    const montosGuardados = partidas.some(
+      (partida) => Number(partida.monto_ejecutado) > 0
+    );
+
     if (
       partidas.length === 0 ||
-      (partidasEditadas &&
+      ((partidasEditadas || montosGuardados) &&
         partidas.every((partida) =>
           numeroValido(partida.monto_ejecutado)
         ))
     ) {
+      completados.push(9);
+    }
+
+    if (llenos(["medio_difusion"])) {
       completados.push(10);
     }
 
@@ -280,7 +285,7 @@ export const useInformeFinalizacionForm = () => {
       setError(
         "Los valores alcanzados de las metas deben ser números iguales o mayores que cero."
       );
-      setStep(9);
+      setStep(1);
       return false;
     }
 
@@ -294,7 +299,7 @@ export const useInformeFinalizacionForm = () => {
       setError(
         "Los montos ejecutados deben ser números iguales o mayores que cero."
       );
-      setStep(10);
+      setStep(9);
       return false;
     }
 
@@ -322,7 +327,7 @@ export const useInformeFinalizacionForm = () => {
       )
     ) {
       setError("Completa el valor alcanzado de todas las metas.");
-      setStep(9);
+      setStep(1);
       return false;
     }
 

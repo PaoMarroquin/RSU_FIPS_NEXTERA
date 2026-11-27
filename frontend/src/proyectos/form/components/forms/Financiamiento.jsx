@@ -12,6 +12,7 @@ export default function Financiamiento({
   eliminarDocumentoSustento,
 }) {
   const fuentesGuardadas = data.fuentes_financiamiento || [];
+  const allowDocs = false;
 
   const crearPartidaVacia = () => ({
     id: null,
@@ -666,6 +667,7 @@ export default function Financiamiento({
       })}
 
       {/* DOCUMENTOS ADJUNTOS DE SUSTENTO */}
+      {allowDocs && (
       <section className="overflow-hidden rounded-xl border-2 border-[#b1122b]/20 bg-white shadow-sm">
         <div className="flex items-start gap-3 border-b border-[#b1122b]/10 bg-[#b1122b]/5 p-4 md:p-6">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#b1122b] text-white shadow-sm">
@@ -906,6 +908,7 @@ export default function Financiamiento({
           </div>
         </div>
       </section>
+      )}
     </div>
   );
 }
