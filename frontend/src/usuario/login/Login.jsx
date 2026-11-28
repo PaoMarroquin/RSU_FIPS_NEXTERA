@@ -207,7 +207,7 @@ export default function Login() {
                 <div className="h-11 w-[2px] bg-slate-800 shrink-0" />
                 <div className="flex flex-col text-left">
                   <span className="text-2xl sm:text-3xl font-light tracking-wide text-slate-600 leading-none">
-                    RS<strong className="font-bold text-[#7B1E3A]">U</strong>
+                    <strong className="font-bold text-[#7B1E3A]">RSU</strong>
                   </span>
                   <span className="text-xs font-bold uppercase tracking-[0.22em] text-[#7B1E3A] mt-1">
                     FIPS

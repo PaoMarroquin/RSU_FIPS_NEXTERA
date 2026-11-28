@@ -48,20 +48,30 @@ export default function Sidebar({ isOpen = false, onClose }) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-[72px] shrink-0 items-center gap-3 border-b border-slate-200 px-5">
-          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg bg-[#7B1E3A] text-[11px] font-bold text-white shadow-sm">
-            UNSA
+        <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-slate-200 px-4">
+          {/* Logo integrado y adaptado al header del Sidebar */}
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/img/Escudo_UNSA.png"
+              alt="Escudo UNSA"
+              className="h-10 w-auto shrink-0 object-contain"
+            />
+            <div className="h-8 w-[1.5px] shrink-0 bg-slate-800" />
+            <div className="flex flex-col text-left">
+              <span className="text-xl font-light leading-none tracking-wide text-slate-600">
+                <strong className="font-bold text-[#7B1E3A]">RSU</strong>
+              </span>
+              <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-[#7B1E3A]">
+                FIPS
+              </span>
+            </div>
           </div>
-
-          <span className="min-w-0 flex-1 whitespace-nowrap text-lg font-bold tracking-tight text-slate-800">
-            RSU Gestión
-          </span>
 
           <button
             type="button"
             aria-label="Cerrar menú"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 md:hidden"
+            className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100 md:hidden"
           >
             <FiX className="text-lg" />
           </button>
