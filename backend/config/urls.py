@@ -49,8 +49,12 @@ urlpatterns = [
     path(API_V1 + 'docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path(API_V1 + 'redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    re_path(
-        r'^%s(?P<path>.*)$' % re.escape(settings.MEDIA_URL.lstrip('/')),
-        media_protegido,
-    ),
 ]
+
+if not settings.MEDIA_EN_SUPABASE:
+    urlpatterns.append(
+        re_path(
+            r'^%s(?P<path>.*)$' % re.escape(settings.MEDIA_URL.lstrip('/')),
+            media_protegido,
+        )
+    )   

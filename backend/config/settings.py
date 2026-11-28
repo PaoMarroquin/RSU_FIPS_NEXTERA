@@ -26,6 +26,7 @@ from pathlib import Path
 from datetime import timedelta
 
 from decouple import config, Csv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -169,26 +170,51 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/media/'
+MEDIA_URL_EXPIRACION_SEGUNDOS = config('MEDIA_URL_EXPIRACION_SEGUNDOS', default=7200, cast=int)
 
-# Archivos subidos solo con URL firmada y con vencimiento (apps/utils/almacenamiento.py).
-# MEDIA_EN_BD=True guarda los archivos en la base de datos (Render gratis borra el disco al reiniciarse).
-MEDIA_EN_BD = config('MEDIA_EN_BD', default=False, cast=bool)
+# Dónde se guardan los archivos subidos: 'disco' | 'bd' | 'supabase'.
+MEDIA_BACKEND = config('MEDIA_BACKEND', default='disco').strip().lower()
+# Compatibilidad con el flag anterior.
+if MEDIA_BACKEND == 'disco' and config('MEDIA_EN_BD', default=False, cast=bool):
+    MEDIA_BACKEND = 'bd'
+if MEDIA_BACKEND not in ('disco', 'bd', 'supabase'):
+    raise ImproperlyConfigured("MEDIA_BACKEND debe ser 'disco', 'bd' o 'supabase'.")
+MEDIA_EN_BD = MEDIA_BACKEND == 'bd'
+MEDIA_EN_SUPABASE = MEDIA_BACKEND == 'supabase'
+
+if MEDIA_EN_SUPABASE:
+    # Bucket privado en Supabase vía API S3; las URLs salen prefirmadas y con vencimiento.
+    _storage_media = {
+        'BACKEND': 'storages.backends.s3.S3Storage',
+        'OPTIONS': {
+            'bucket_name': config('SUPABASE_BUCKET'),
+            'endpoint_url': config('SUPABASE_S3_ENDPOINT'),
+            'region_name': config('SUPABASE_S3_REGION'),
+            'access_key': config('SUPABASE_S3_KEY_ID'),
+            'secret_key': config('SUPABASE_S3_SECRET'),
+            'signature_version': 's3v4',
+            'addressing_style': 'path',
+            'querystring_auth': True,
+            'querystring_expire': MEDIA_URL_EXPIRACION_SEGUNDOS,
+            'file_overwrite': False,
+            'default_acl': None,
+        },
+    }
+elif MEDIA_EN_BD:
+    _storage_media = {'BACKEND': 'apps.utils.almacenamiento.MediaBDStorage'}
+else:
+    _storage_media = {'BACKEND': 'apps.utils.almacenamiento.MediaFirmadoStorage'}
+
 STORAGES = {
-    'default': {'BACKEND': 'apps.utils.almacenamiento.'
-                           + ('MediaBDStorage' if MEDIA_EN_BD else 'MediaFirmadoStorage')},
+    'default': _storage_media,
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
-MEDIA_URL_EXPIRACION_SEGUNDOS = config('MEDIA_URL_EXPIRACION_SEGUNDOS', default=7200, cast=int)
-# En producción Nginx entrega el archivo tras la validación (X-Accel-Redirect).
+
+# Solo modo disco: Nginx entrega el archivo tras la validación (X-Accel-Redirect).
 MEDIA_X_ACCEL = config('MEDIA_X_ACCEL', default=False, cast=bool)
 MEDIA_X_ACCEL_PREFIJO = '/media-protegido/'
-# OJO: python-decouple solo aplica el `default` cuando la variable NO existe
-# en .env. Si existe pero está vacía (como venía "MEDIA_ROOT=" en .env y en
-# .env.example) config() devuelve '' y Django guarda los archivos subidos
-# relativos al directorio desde el que se arrancó el proceso (cwd), no bajo
-# el proyecto — así aparecían carpetas sueltas como "evidencias_actividades/"
-# o "planificacion/" en la raíz del backend en vez de en media/. El `or`
-# fuerza el default también cuando el valor es una cadena vacía.
+# (Conserva aquí tu comentario largo sobre MEDIA_ROOT vacío.)
+# En modo supabase solo lo usa migrate_supabase.py para leer los archivos viejos.
 MEDIA_ROOT = config('MEDIA_ROOT', default='') or str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
